@@ -55,8 +55,13 @@ metadata:
   name: db-helper-ui-service
 spec:
   type: LoadBalancer
-  ports:
-    - port: 8081
-      targetPort: 80
+  allocateLoadBalancerNodePorts: false
+  externalTrafficPolicy: Cluster
+  #loadBalancerIP: 10.0.0.73
   selector:
     app: db-helper-ui
+  ports:
+    - name: db-helper-ui
+      port: 80
+      targetPort: 80
+      protocol: TCP
