@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: db-helper-ingress
+  namespace: default
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - dbhelperui.trahan.dev
+      secretName: trahan-dev-cert
+  rules:
+    - host: "dbhelperui.trahan.dev"
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: db-helper-ui-csvc
+                port:
+                  number: 8080
