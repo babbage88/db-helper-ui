@@ -6,6 +6,13 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Copy } from "lucide-react"
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select"
 
 const encodeURIComponentSafe = (value: string) => {
   return encodeURIComponent(value).replace(/[!'()*]/g, escape)
@@ -63,8 +70,18 @@ export function PostgresUrlBuilder() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="ssl">SSL Mode</Label>
-        <Input id="ssl" value={sslMode} onChange={(e) => setSslMode(e.target.value)} placeholder="disable, require, verify-ca, etc." />
+        <Label>SSL Mode</Label>
+        <Select value={sslMode} onValueChange={setSslMode}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select SSL Mode" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="disable">disable</SelectItem>
+            <SelectItem value="require">require</SelectItem>
+            <SelectItem value="verify-ca">verify-ca</SelectItem>
+            <SelectItem value="verify-full">verify-full</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-2">
