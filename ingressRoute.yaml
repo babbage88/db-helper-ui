@@ -20,3 +20,18 @@ spec:
                 name: db-helper-ui-csvc
                 port:
                   number: 8080
+          - pathType: Prefix
+            path: "/api/"
+            backend:
+              service:
+                name: db-helper-api-csvc
+                port:
+                  number: 8181
+          - pathType: ImplementationSpecific
+            path: "/api(/|$)(.*)"
+            backend:
+              service:
+                name: db-helper-api-csvc
+                port:
+                  number: 8181
+

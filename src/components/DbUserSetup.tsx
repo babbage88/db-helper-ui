@@ -5,7 +5,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { downloadZip } from "@/lib/db-helper-svc"
 import { Copy } from "lucide-react"
+import { toast } from "sonner"
+
 
 interface PgDevDbSetupScriptsResponse {
   "create_dev_db.sh": string
@@ -25,7 +28,7 @@ export function DbUserSetup() {
 
   const generateScript = async () => {
     try {
-      const res = await fetch("http://localhost:8181/api/generate-pg-setup-scripts", {
+      const res = await fetch("https://dbhelperui.trahan.dev/api/generate-pg-setup-scripts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -52,6 +55,7 @@ export function DbUserSetup() {
   }
 
   const copyToClipboard = (text: string) => {
+    toast("copied to clipboard.")
     navigator.clipboard.writeText(text)
   }
 
@@ -145,6 +149,10 @@ export function DbUserSetup() {
               <Label>{script.label}</Label>
               <Textarea value={script.value} readOnly rows={10} />
               <Button variant="outline" onClick={() => copyToClipboard(script.value)}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copy to Clipboard
+              </Button>
+              <Button variant="default" onClick={() => downloadZip(dbHostname, dbPort, superuserUsername, superuserPassword, serviceUsername, servicePassword, databaseName)}>
                 <Copy className="mr-2 h-4 w-4" />
                 Copy to Clipboard
               </Button>

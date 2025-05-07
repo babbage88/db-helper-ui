@@ -10,3 +10,16 @@ spec:
       port: 8080
       targetPort: 80
   type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-helper-api-csvc
+spec:
+  selector:
+    app: db-helper-api
+  ports:
+    - protocol: TCP
+      port: 8181
+      targetPort: 8181
+  type: ClusterIP
