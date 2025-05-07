@@ -1,5 +1,3 @@
-//const baseUrlt: string = "https://dbhelperui.trahan.dev"
-//const baseUrl = import.meta.env.VITE_API_BASE_URL
 // src/lib/downloadZip.ts
 
 export const downloadZip = async (
@@ -12,8 +10,8 @@ export const downloadZip = async (
     databaseName: string
   ) => {
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL
-      const res = await fetch(`${baseUrl}/api/download-pg-setup-scripts`, {
+      //const baseUrl = import.meta.env.VITE_API_BASE_URL
+      const res = await fetch(`/api/download-pg-scripts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

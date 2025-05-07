@@ -154,7 +154,7 @@ export function DbUserSetup() {
               </Button>
               <Button variant="default" onClick={() => downloadZip(dbHostname, dbPort, superuserUsername, superuserPassword, serviceUsername, servicePassword, databaseName)}>
                 <Copy className="mr-2 h-4 w-4" />
-                Copy to Clipboard
+                Download
               </Button>
             </div>
           ))}

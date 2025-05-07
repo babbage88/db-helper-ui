@@ -19,6 +19,7 @@ export default function App() {
           <Route path="/" element={<PostgresUrlBuilder />} />
           <Route path="/pgurlbuilder" element={<PostgresUrlBuilder />} />
           <Route path="/dbusersetup" element={<DbUserSetup />} />
+          <Route path="/scripts" element={<DbUserSetup />} />
         </Routes>
       </Router>
       </ThemeProvider>

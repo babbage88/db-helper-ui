@@ -28,7 +28,7 @@ spec:
                 port:
                   number: 8181
           - pathType: ImplementationSpecific
-            path: "/api(/|$)(.*)"
+            path: "/metrics"
             backend:
               service:
                 name: db-helper-api-csvc
