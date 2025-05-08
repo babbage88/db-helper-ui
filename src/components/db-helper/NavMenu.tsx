@@ -38,20 +38,19 @@ export function NavMenu() {
                 <NavigationMenuLink asChild>
                   <a
                     className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
-                    href="/"
+                    href="/docs"
                   >
                     <div className="mb-2 mt-4 text-lg font-medium">
                       DbBob
                     </div>
                     <p className="text-sm leading-tight text-muted-foreground">
-                      No need to search for "Postgres 17 create new database and grant access to user" or ask AI
-                      "ive granted all Piviliges to my new app user, why am I still getting this connection error in my golang backend?"
+                      Useful utilities for setting up and managing dev databases.
                     </p>
                   </a>
                 </NavigationMenuLink>
               </li>
               <ListItem href="/docs" title="Introduction">
-                Useful utilities for spinning up and managing development databases.
+                No more need to google "Postgres 17 create new database and grant access to user" on every new project.
               </ListItem>
             </ul>
           </NavigationMenuContent>

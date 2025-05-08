@@ -3,6 +3,11 @@ FROM node:22.4-alpine AS build
 
 WORKDIR /app/
 
+ARG VITE_API_BASE_URL="https://dbhelperui.trahan.dev"
+ARG VITE_DOCS_README_URL="https://raw.githubusercontent.com/babbage88/db-helper-ui/refs/heads/master/README.md"
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_DOCS_README_URL=${VITE_DOCS_README_URL}
+
 #COPY package.json .
 COPY package*.json package-lock.json ./ 
 #RUN npm install
@@ -10,6 +15,7 @@ COPY package*.json package-lock.json ./
 RUN npm ci 
 
 COPY . .
+RUN echo 
 
 RUN npm run build
 

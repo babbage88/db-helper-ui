@@ -2,6 +2,7 @@
 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { PostgresUrlBuilder } from "./components/db-helper/PostgresURLBuilder";
+import  DocsMarkdown  from "./components/docs/GettingStartedDoc"
 import { DbUserSetup } from "./components/db-helper/DbUserSetup";
 import { ThemeProvider } from "./components/ui/theme-provider";
 import { ModeToggle } from "./components/ui/mode-toggle";
@@ -23,6 +24,8 @@ export default function App() {
             <Route path="/pgurlbuilder" element={<PostgresUrlBuilder />} />
             <Route path="/dbusersetup" element={<DbUserSetup />} />
             <Route path="/scripts" element={<DbUserSetup />} />
+            <Route path="/docs" element={<DocsMarkdown />} />
+
           </Routes>
         </Router>
       </ThemeProvider>

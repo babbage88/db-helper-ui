@@ -1,37 +1,34 @@
-import { createRoot } from 'react-dom/client'
+// src/components/DocsMarkdown.tsx
+import React, { useEffect, useState } from 'react'
+import { fetchStringFromFile } from '@/lib/db-helper-svc'
 import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm' // GitHub Flavored Markdown support
 
-const markdown: string = String.raw`
+const DocsMarkdown: React.FC = () => {
+  const [readmeMDText, setReadmeMDText] = useState<string>("Loading...")
 
-# DbBob - Spin up and Manage Development Databases
+  useEffect(() => {
+    const loadMarkdown = async () => {
+      try {
+        const docsUrl = import.meta.env.VITE_DOCS_README_URL
+        const text = await fetchStringFromFile(docsUrl)
+        setReadmeMDText(text)
+      } catch (error) {
+        setReadmeMDText("Error loading documentation.")
+        console.error(error)
+      }
+    }
 
-No need to search for "Postgres 17 create new database and grant access to user" or ask AI.
+    loadMarkdown()
+  }, [])
 
-- "ive granted all Piviliges to my new app user, why am I still getting this connection error in my golang backend?"
+  return (
+    <div className="prose max-w-none p-4">
+      <Markdown remarkPlugins={[remarkGfm]}>
+        {readmeMDText}
+      </Markdown>
+    </div>
+  )
+}
 
-## Db URL Builder
-
-Build and validate Database URLs and ConnectionStrings
-
-## Dev Db Builder
-
-Utility that will generate scripts to run that will:
-
-- Create a new application database if it does not exist.
-- Create a new user/role with the specified username and password
-  - Grant new user proper permissions to connect to database and perform queries needed for the application.
-
-${"```"}shell
-#!/bin/sh
-psql -Atx $PG_CONN_STRING -f pg_create_script.sql
-psql -Atx $APP_CONN_STRING -f pg_appdb_setup.sql
- ${"```"}
-
-${"```"}sql
-/* ##### Example DB Creation Script ##### */
-SELECT current_date As example_placeholder
-${"```"}
-`
-
-createRoot(document.body).render(<Markdown>{markdown}</Markdown>)
-
+export default DocsMarkdown

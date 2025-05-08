@@ -43,3 +43,21 @@ export const downloadZip = async (
   }
 }
 
+async function fetchStringFromFile(fileUrl: string): Promise<string> {
+  try {
+    const response = await fetch(fileUrl);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const text = await response.text();
+    return text;
+  } catch (error) {
+    console.error("Error fetching or processing the file:", error);
+    throw error;
+  }
+}
+
+export { fetchStringFromFile }
+
