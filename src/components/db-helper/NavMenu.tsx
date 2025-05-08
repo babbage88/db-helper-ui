@@ -44,8 +44,8 @@ export function NavMenu() {
                       DbBob
                     </div>
                     <p className="text-sm leading-tight text-muted-foreground">
-                      <br>No need to search for "Postgres 17 create new database and grant access to user" or ask AI </br>
-                      <br>"ive granted all Piviliges to my new app user, why am I still getting this connection error in my golang backend?" </br>
+                      No need to search for "Postgres 17 create new database and grant access to user" or ask AI
+                      "ive granted all Piviliges to my new app user, why am I still getting this connection error in my golang backend?"
                     </p>
                   </a>
                 </NavigationMenuLink>

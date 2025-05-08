@@ -1,20 +1,21 @@
 // src/App.tsx
 
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
-import { PostgresUrlBuilder } from "./components/PostgresURLBuilder"
-import { DbUserSetup } from "./components/DbUserSetup"
-import { ThemeProvider } from "./components/ui/theme-provider"
-import { ModeToggle } from "./components/ui/mode-toggle"
-import { Toaster } from "@/components/ui/sonner"
-import { NavMenu } from "@/components/db-helper/NavMenu"
-
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { PostgresUrlBuilder } from "./components/PostgresURLBuilder";
+import { DbUserSetup } from "./components/DbUserSetup";
+import { ThemeProvider } from "./components/ui/theme-provider";
+import { ModeToggle } from "./components/ui/mode-toggle";
+import { Toaster } from "@/components/ui/sonner";
+import { NavMenu } from "@/components/db-helper/NavMenu";
 
 export default function App() {
   return (
     <>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-        <ModeToggle></ModeToggle>
-        <NavMenu></NavMenu>
+        <div className="flex justify-between items-center px-4 py-2">
+          <NavMenu />
+          <ModeToggle />
+        </div>
         <Toaster />
         <Router>
           <Routes>
@@ -26,6 +27,5 @@ export default function App() {
         </Router>
       </ThemeProvider>
     </>
-
-  )
+  );
 }
