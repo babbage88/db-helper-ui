@@ -1,8 +1,8 @@
 // src/App.tsx
 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { PostgresUrlBuilder } from "./components/PostgresURLBuilder";
-import { DbUserSetup } from "./components/DbUserSetup";
+import { PostgresUrlBuilder } from "./components/db-helper/PostgresURLBuilder";
+import { DbUserSetup } from "./components/db-helper/DbUserSetup";
 import { ThemeProvider } from "./components/ui/theme-provider";
 import { ModeToggle } from "./components/ui/mode-toggle";
 import { Toaster } from "@/components/ui/sonner";

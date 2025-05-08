@@ -1,5 +1,7 @@
 GHCR_REPO:=ghcr.io/babbage88/dbhelperui:
 BUILDER:=dbhelperui-builder
+B2_BUCKET:=b2://db-bob
+README_NAME:=README.md
 tag:=dev
 testtag:=test
 
@@ -23,4 +25,7 @@ buildandpush-test:
 deployk8s: buildandpush
 	kubectl apply -f deployment/kubernetes/deployment.yaml
 	kubectl rollout restart deployment dbhelperui
+
+update-docs-b2:
+	source b2/bin/activate && b2 file upload $(B2_BUCKET) $(README_NAME) $(README_NAME) 
 
