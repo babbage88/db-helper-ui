@@ -3,7 +3,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { PostgresUrlBuilder } from "./components/db-helper/PostgresURLBuilder";
 import  DocsMarkdown  from "./components/docs/GettingStartedDoc"
-import { DbUserSetup } from "./components/db-helper/DbUserSetup";
+import { DbUserSetup } from "./components/db-helper/GeneratePgDevDbSetupScripts";
 import { ThemeProvider } from "./components/ui/theme-provider";
 import { ModeToggle } from "./components/ui/mode-toggle";
 import { Toaster } from "@/components/ui/sonner";

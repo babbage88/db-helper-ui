@@ -19,7 +19,7 @@ const encodeURIComponentSafe = (value: string) => {
 }
 
 export function PostgresUrlBuilder() {
-  const [host, setHost] = useState("")
+  const [host, setHost] = useState("localhost")
   const [port, setPort] = useState("5432")
   const [database, setDatabase] = useState("")
   const [username, setUsername] = useState("")
