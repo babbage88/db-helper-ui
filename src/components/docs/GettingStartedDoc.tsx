@@ -23,7 +23,7 @@ const DocsMarkdown: React.FC = () => {
   }, [])
 
   return (
-    <div className="prose max-w-none prose-headings:text-gray-100 p-4 dark:text-gray-50 rounded-lg px-6 py-8 ring shadow-xl ring-gray-900/5" >
+    <div className="prose max-w-none dark:prose-headings:text-gray-100 p-4 dark:text-gray-50 rounded-lg px-6 py-8 ring shadow-xl ring-gray-900/5" >
       <Markdown remarkPlugins={[remarkGfm]}>
         {readmeMDText}
       </Markdown>

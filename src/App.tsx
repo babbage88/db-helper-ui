@@ -8,6 +8,9 @@ import { ThemeProvider } from "./components/ui/theme-provider";
 import { ModeToggle } from "./components/ui/mode-toggle";
 import { Toaster } from "@/components/ui/sonner";
 import { NavMenu } from "@/components/db-helper/NavMenu";
+import { CertificateRequestForm } from "@/components/web-infra/CfCerts";
+import { Dashboard } from "@/components/ui/BobDashboard";
+import { Login } from "@/components/ui/Login";
 
 export default function App() {
   return (
@@ -20,12 +23,14 @@ export default function App() {
         <Toaster />
         <Router>
           <Routes>
-            <Route path="/" element={<PostgresUrlBuilder />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/pgurlbuilder" element={<PostgresUrlBuilder />} />
             <Route path="/dbusersetup" element={<DbUserSetup />} />
             <Route path="/scripts" element={<DbUserSetup />} />
             <Route path="/docs" element={<DocsMarkdown />} />
-
+            <Route path="/cert-renew" element={<CertificateRequestForm />} />
           </Routes>
         </Router>
       </ThemeProvider>

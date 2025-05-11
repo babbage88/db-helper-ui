@@ -1,4 +1,5 @@
 # Logs
+req.json
 .env**
 logs
 *.log

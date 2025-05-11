@@ -24,6 +24,12 @@ const components: { title: string; href: string; description: string }[] = [
     description:
       "Generate scripts that will create a new application database and user. Setup permissions for new user.",
   },
+  {
+    title: "Certificates",
+    href: "/cert-renew",
+    description:
+      "Generate or renew LE certificates.",
+  },
 ]
 
 export function NavMenu() {
