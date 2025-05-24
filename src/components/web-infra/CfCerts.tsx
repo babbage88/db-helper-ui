@@ -46,7 +46,7 @@ export function CertificateRequestForm() {
       saveZip,
       timeout,
       zipDir,
-      token,
+      token: token,
     }
 
     try {
