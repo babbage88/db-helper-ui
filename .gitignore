@@ -1,4 +1,6 @@
 # Logs
+frontend.crt 
+frontend.key 
 req.json
 .env**
 logs

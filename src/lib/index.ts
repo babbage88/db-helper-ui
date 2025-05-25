@@ -19,6 +19,8 @@ export type { DisableUserRequest } from './models/DisableUserRequest';
 export type { Duration } from './models/Duration';
 export type { EnableDisableUserResponse } from './models/EnableDisableUserResponse';
 export type { EnableUserRequest } from './models/EnableUserRequest';
+export type { ExternalApplicationInfo } from './models/ExternalApplicationInfo';
+export type { ExternalAppSecretMetadata } from './models/ExternalAppSecretMetadata';
 export type { GetAllAppPermissionsResponse } from './models/GetAllAppPermissionsResponse';
 export type { GetAllRolesResponse } from './models/GetAllRolesResponse';
 export type { GetUserByIdResponse } from './models/GetUserByIdResponse';
@@ -35,6 +37,7 @@ export type { UserHostedDb } from './models/UserHostedDb';
 export type { UserLoginRequest } from './models/UserLoginRequest';
 export type { UserPasswordUpdateResponse } from './models/UserPasswordUpdateResponse';
 export type { UserRoleDao } from './models/UserRoleDao';
+export type { UserSecretEntry } from './models/UserSecretEntry';
 export type { UUIDs } from './models/UUIDs';
 
 export { AuthenticationService } from './services/AuthenticationService';

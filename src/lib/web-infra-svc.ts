@@ -1,6 +1,13 @@
+import { OpenAPI } from "@/lib/core/OpenAPI";
+import { getAccessToken } from "./tokenManager";
+
 // src/lib/downloadZip.ts
-const baseUrl = import.meta.env.VITE_API_WEB_INFRA_URL
+const baseUrl = import.meta.env.VITE_API_WEB_INFRA_URL;
 const cfCertUrl = baseUrl + "/certs";
+OpenAPI.BASE = import.meta.env.VITE_API_WEB_INFRA_URL;
+OpenAPI.TOKEN = async () => await getAccessToken() ?? '';
+
+
 
 export interface CertificateRequest {
   acmeEmail: string;
@@ -39,3 +46,5 @@ export async function sendCertificateRequest(
     throw error;
   }
 }
+
+

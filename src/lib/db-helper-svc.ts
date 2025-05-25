@@ -1,5 +1,5 @@
 // src/lib/downloadZip.ts
-const baseUrl = import.meta.env.VITE_API_BASE_URL
+const baseUrl = import.meta.env.VITE_DBHELPER_API_BASE_URL
 
 export const downloadZip = async (
   dbHostname: string,

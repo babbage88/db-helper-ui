@@ -21,7 +21,7 @@ spec:
           ports:
             - containerPort: 80
           env:
-            - name: VITE_API_BASE_URL
+            - name: VITE_DBHELPER_API_BASE_URL
               value: "https://dbhelperui.trahan.dev"
             - name: NODE_ENV
               value: "production"

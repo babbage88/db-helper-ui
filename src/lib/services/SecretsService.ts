@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { CreateSecretRequest } from '../models/CreateSecretRequest';
+import type { UserSecretEntry } from '../models/UserSecretEntry';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -68,6 +69,53 @@ export class SecretsService {
             url: '/secrets/{ID}',
             path: {
                 'ID': id,
+            },
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+            },
+        });
+    }
+    /**
+     * Retrieve a user secret by USERID.
+     * @param userid
+     * @returns UserSecretEntry (empty)
+     * @throws ApiError
+     */
+    public static getUserSecretEntries(
+        userid: string,
+    ): CancelablePromise<Array<UserSecretEntry>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/user/secrets/{USERID}',
+            path: {
+                'USERID': userid,
+            },
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+            },
+        });
+    }
+    /**
+     * Retrieve a user secret by USERID.
+     * @param userid
+     * @param appid
+     * @returns UserSecretEntry (empty)
+     * @throws ApiError
+     */
+    public static getUserSecretEntriesByAppId(
+        userid: string,
+        appid: string,
+    ): CancelablePromise<Array<UserSecretEntry>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/user/{APPID}/secrets/{USERID}',
+            path: {
+                'USERID': userid,
+                'APPID': appid,
             },
             errors: {
                 401: `Unauthorized`,

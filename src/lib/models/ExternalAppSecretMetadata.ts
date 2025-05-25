@@ -2,13 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type UserRoleDao = {
+export type ExternalAppSecretMetadata = {
     createdAt?: string;
-    enabled?: boolean;
+    expiry?: string;
     id?: string;
-    isDeleted?: boolean;
-    lastModified?: string;
-    roleDesc?: string;
-    roleName?: string;
+    userId?: string;
 };
 

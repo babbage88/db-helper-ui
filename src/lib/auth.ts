@@ -1,4 +1,4 @@
-const BaseApiUrl = import.meta.env.VITE_LOGIN_URL;
+const BaseApiUrl = import.meta.env.VITE_AUTH_API_BASE_URL;
 const loginApiUrl = BaseApiUrl + '/login';
 const refreshTokenUrl = BaseApiUrl + '/token/refresh';
 
