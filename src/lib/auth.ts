@@ -16,7 +16,7 @@ export const login = async (username: string, password: string): Promise<string 
       if (response.ok) {
         const data = await response.json();
         // Store the token in localStorage or a cookie
-        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('accessToken', data.token);
         localStorage.setItem('refreshToken', data.refreshToken);
         return '';
       } else {

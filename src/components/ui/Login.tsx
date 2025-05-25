@@ -4,8 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { login } from '@/lib/auth'; // Adjust to your actual path
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AuthenticationService } from '@/lib/services/AuthenticationService';
+import type { UserLoginRequest } from '@/lib/models/UserLoginRequest';
 
 export function Login() {
   const [username, setUsername] = useState('');
@@ -19,13 +20,27 @@ export function Login() {
     setIsLoading(true);
     setError('');
 
-    const result = await login(username, password);
-    setIsLoading(false);
+    try {
+      const request: UserLoginRequest = { username, password };
+      const data = await AuthenticationService.localLogin(request);
 
-    if (result === '') {
+      // ✅ Fixed: `data` is already the AuthToken object
+      const { accessToken, refreshToken, user_id } = data;
+
+      if (!accessToken || !refreshToken) {
+        throw new Error('Invalid response from server');
+      }
+
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('userId', user_id ?? '');
+
       navigate('/dashboard');
-    } else {
-      setError(result || 'Login failed.');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(`Login failed: ${(err as Error).message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 

@@ -7,8 +7,6 @@ const cfCertUrl = baseUrl + "/certs";
 OpenAPI.BASE = import.meta.env.VITE_API_WEB_INFRA_URL;
 OpenAPI.TOKEN = async () => await getAccessToken() ?? '';
 
-
-
 export interface CertificateRequest {
   acmeEmail: string;
   acmeUrl: string;

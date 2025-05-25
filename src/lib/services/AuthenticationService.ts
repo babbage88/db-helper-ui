@@ -2,15 +2,17 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { AccessTokens } from '../models/AccessTokens';
+import type { TokenRefreshReq } from '../models/TokenRefreshReq';
 import type { UserLoginRequest } from '../models/UserLoginRequest';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class AuthenticationService {
     /**
-     * Login a user and return token.
+     * Local Auth login with username and password
      * @param body
-     * @returns string Respose will return login result and the user info.
+     * @returns string (empty)
      * @throws ApiError
      */
     public static localLogin(
@@ -20,19 +22,32 @@ export class AuthenticationService {
             method: 'POST',
             url: '/login',
             body: body,
-            responseHeader: 'expiration',
+            responseHeader: 'accessToken',
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+                500: `Insernal Server Error`,
+            },
         });
     }
     /**
-     * Refresh accessTokens andreturn to client.
-     * @returns string Respose will return login result and the user info.
+     * Refresh accessTokens and return to client.
+     * @param body
+     * @returns AccessTokens (empty)
      * @throws ApiError
      */
-    public static refreshAccessToken(): CancelablePromise<string> {
+    public static refreshAccessToken(
+        body?: TokenRefreshReq,
+    ): CancelablePromise<AccessTokens> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/token/refresh',
-            responseHeader: 'expiration',
+            body: body,
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+                500: `Insernal Server Error`,
+            },
         });
     }
 }

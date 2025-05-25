@@ -1,7 +1,7 @@
 // tokenManager.ts (browser pseudo-async using localStorage)
 
-const ACCESS_TOKEN_KEY = "authToken";
-const REFRESH_TOKEN_KEY = "authToken";
+const ACCESS_TOKEN_KEY = "accessToken";
+const REFRESH_TOKEN_KEY = "refreshToken";
 
 export async function setToken(value: string): Promise<void> {
   localStorage.setItem(ACCESS_TOKEN_KEY, value);
