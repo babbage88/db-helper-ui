@@ -17,6 +17,12 @@ export class UsersService {
             method: 'GET',
             url: '/users',
             responseHeader: 'users',
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
     /**
@@ -33,6 +39,12 @@ export class UsersService {
             url: '/users/{ID}',
             path: {
                 'ID': id,
+            },
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
             },
         });
     }

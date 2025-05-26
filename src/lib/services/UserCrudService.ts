@@ -29,6 +29,12 @@ export class UserCrudService {
             method: 'POST',
             url: '/create/user',
             body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
     /**
@@ -44,6 +50,12 @@ export class UserCrudService {
             method: 'POST',
             url: '/update/userpass',
             body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
     /**
@@ -59,6 +71,12 @@ export class UserCrudService {
             method: 'DELETE',
             url: '/user/delete',
             body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
     /**
@@ -74,6 +92,12 @@ export class UserCrudService {
             method: 'POST',
             url: '/user/disable',
             body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
     /**
@@ -89,6 +113,12 @@ export class UserCrudService {
             method: 'POST',
             url: '/user/enable',
             body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
     /**
@@ -104,6 +134,12 @@ export class UserCrudService {
             method: 'POST',
             url: '/user/role/remove',
             body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
 }

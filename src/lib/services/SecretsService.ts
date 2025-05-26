@@ -19,7 +19,7 @@ export class SecretsService {
     ): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'POST',
-            url: '/secrets/create/{ID}',
+            url: '/secrets/create',
             body: body,
             errors: {
                 400: `Invalid request`,

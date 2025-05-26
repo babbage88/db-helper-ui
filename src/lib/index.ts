@@ -12,6 +12,7 @@ export type { AppPermissionDao } from './models/AppPermissionDao';
 export type { AuthToken } from './models/AuthToken';
 export type { AuthTokenDao } from './models/AuthTokenDao';
 export type { CertDnsRenewReq } from './models/CertDnsRenewReq';
+export type { CertificateData } from './models/CertificateData';
 export type { CreateAppPermissionRequest } from './models/CreateAppPermissionRequest';
 export type { CreateNewUserRequest } from './models/CreateNewUserRequest';
 export type { CreateRolePermissionMappingRequest } from './models/CreateRolePermissionMappingRequest';

@@ -24,6 +24,12 @@ export class RolesCrudService {
             method: 'POST',
             url: '/create/role',
             body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
     /**
@@ -35,6 +41,12 @@ export class RolesCrudService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/roles',
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
     /**
@@ -50,6 +62,12 @@ export class RolesCrudService {
             method: 'POST',
             url: '/user/role',
             body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
 }

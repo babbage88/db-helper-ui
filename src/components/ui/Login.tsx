@@ -24,7 +24,6 @@ export function Login() {
       const request: UserLoginRequest = { username, password };
       const data = await AuthenticationService.localLogin(request);
 
-      // ✅ Fixed: `data` is already the AuthToken object
       const { accessToken, refreshToken, user_id } = data;
 
       if (!accessToken || !refreshToken) {

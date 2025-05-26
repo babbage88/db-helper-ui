@@ -24,6 +24,12 @@ export class PermissionsCrudService {
             method: 'POST',
             url: '/create/permission',
             body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
     /**
@@ -35,6 +41,12 @@ export class PermissionsCrudService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/permissions',
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
     /**
@@ -50,6 +62,12 @@ export class PermissionsCrudService {
             method: 'POST',
             url: '/roles/permission',
             body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
         });
     }
 }
