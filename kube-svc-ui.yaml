@@ -23,6 +23,16 @@ spec:
           env:
             - name: VITE_DBHELPER_API_BASE_URL
               value: "https://dbhelperui.trahan.dev"
+            - name: VITE_API_WEB_INFRA_URL
+              value: "https://infra.trahan.dev"
+            - name: VITE_CERT_API_BASE_URL
+              value: "https://infra.trahan.dev"
+            - name: VITE_AUTH_API_BASE_URL
+              value: "https://infra.trahan.dev"
+            - name: VITE_DOCS_README_URL
+              value: "https://raw.githubusercontent.com/babbage88/db-helper-ui/refs/heads/master/README.md"
+            - name: VITE_CF_APP_ID
+              value: "ab6e0326-1688-46a5-b656-f43440980699"
             - name: NODE_ENV
               value: "production"
           resources:
