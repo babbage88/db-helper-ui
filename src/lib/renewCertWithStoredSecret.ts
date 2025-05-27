@@ -59,6 +59,7 @@ export async function renewCertificateWithSecret(
     const fullReq: CertDnsRenewReq = {
       ...certReq,
       token: secret.token,
+      zipDir: zipDir
     };
 
     // Step 4: Call certificate renewal API
