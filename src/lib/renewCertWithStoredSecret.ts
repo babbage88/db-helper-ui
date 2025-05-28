@@ -52,7 +52,7 @@ export async function renewCertificateWithSecret(
       if (firstDomain.startsWith("*")) {
         firstDomain = firstDomain.slice(1);
       }
-      zipDir = `__${firstDomain}.zip`;
+      zipDir = `${firstDomain}.zip`;
     }
 
     // Step 3: Merge token into the request body

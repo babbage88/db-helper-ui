@@ -231,19 +231,19 @@ export function CertificateRequestForm() {
               onClick={(e) => e.stopPropagation()}
               ref={resultRef}
             >
-              <button
-                className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
-                onClick={handleReset}
-                aria-label="Close certificate result"
-              >
-                <X className="w-5 h-5" />
-              </button>
+                <button
+                  className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
+                  onClick={handleReset}
+                  aria-label="Close certificate result"
+                >
+                  <X className="w-5 h-5" />
+                </button>
 
-              <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-lg mb-4">
-                <CheckCircle className="w-5 h-5" /> Certificate successfully
-                created
-              </div>
-
+                <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-lg mb-4">
+                  <CheckCircle className="w-5 h-5" /> Certificate successfully
+                  created
+                </div>
+                 <div className="flex flex-row p-2 justify-between">
               {Array.isArray(certData.domainName) &&
                 certData.domainName.length > 0 && (
                   <div className="mb-4">
@@ -255,6 +255,20 @@ export function CertificateRequestForm() {
                     </ul>
                   </div>
                 )}
+                {certData.s3DownloadUrl && (
+                  <div className="mt-4">
+                    <Label className="font-mono"></Label>
+                    <a
+                      href={certData.s3DownloadUrl}
+                      className="text-blue-600 dark:text-blue-400 underline block"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Download size={30} color="#00bc7d" strokeWidth={2} />
+                    </a>
+                  </div>
+                )}
+              </div>
 
               {certData.cert_pem && (
                 <PemBlock
@@ -273,20 +287,6 @@ export function CertificateRequestForm() {
               )}
               {certData.priv_key && (
                 <PemBlock label="Private Key" content={certData.priv_key} />
-              )}
-
-              {certData.s3DownloadUrl && (
-                <div className="mt-4">
-                  <Label className="font-semibold">Download Link</Label>
-                  <a
-                    href={certData.s3DownloadUrl}
-                    className="text-blue-600 dark:text-blue-400 underline block"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Download>Download ZIP</Download>
-                  </a>
-                </div>
               )}
             </ScrollArea>
           </div>
