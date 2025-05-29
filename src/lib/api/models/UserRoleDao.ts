@@ -3,7 +3,12 @@
 /* tslint:disable */
 /* eslint-disable */
 export type UserRoleDao = {
-    error?: string;
-    newUserRoleInfo?: UserRoleDao;
+    createdAt?: string;
+    enabled?: boolean;
+    id?: string;
+    isDeleted?: boolean;
+    lastModified?: string;
+    roleDesc?: string;
+    roleName?: string;
 };
 
