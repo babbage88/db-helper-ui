@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type AppPermissionDao = {
-    error?: string;
-    newPermissionInfo?: AppPermissionDao;
+import type { UserDao } from './UserDao';
+export type GetUserByIdResponse = {
+    user?: UserDao;
 };
 

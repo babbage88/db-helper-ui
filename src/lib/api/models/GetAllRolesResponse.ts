@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type AppPermissionDao = {
-    error?: string;
-    newPermissionInfo?: AppPermissionDao;
+import type { UserRoleDao } from './UserRoleDao';
+export type GetAllRolesResponse = {
+    userRoles?: Array<UserRoleDao>;
 };
 

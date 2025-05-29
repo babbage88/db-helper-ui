@@ -1,8 +1,8 @@
-import { SecretsService } from "./services/SecretsService";
-import { CertificatesService } from "./services/CertificatesService";
-import type { CertDnsRenewReq } from "./models/CertDnsRenewReq";
-import type { CertificateData } from "./models/CertificateData";
-import { OpenAPI } from "@/lib/core/OpenAPI";
+import { SecretsService } from "./api/services/SecretsService";
+import { CertificatesService } from "./api/services/CertificatesService";
+import type { CertDnsRenewReq } from "./api/models/CertDnsRenewReq";
+import type { CertificateData } from "./api/models/CertificateData";
+import { OpenAPI } from "@/lib/api/core/OpenAPI";
 import { getAccessToken } from "./tokenManager";
 
 // src/lib/downloadZip.ts

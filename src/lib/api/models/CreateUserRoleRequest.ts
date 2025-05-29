@@ -2,12 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type UserRoleDao = {
-    createdAt?: string;
-    enabled?: boolean;
-    id?: string;
-    isDeleted?: boolean;
-    lastModified?: string;
+export type CreateUserRoleRequest = {
     roleDesc?: string;
     roleName?: string;
 };

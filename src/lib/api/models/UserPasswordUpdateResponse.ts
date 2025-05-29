@@ -2,8 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type AppPermissionDao = {
+export type UserPasswordUpdateResponse = {
     error?: string;
-    newPermissionInfo?: AppPermissionDao;
+    success?: boolean;
+    targetUserId?: string;
 };
 

@@ -1,4 +1,4 @@
-import { OpenAPI } from "@/lib/core/OpenAPI";
+import { OpenAPI } from "@/lib/api/core/OpenAPI";
 import { getAccessToken } from "./tokenManager";
 
 // src/lib/downloadZip.ts

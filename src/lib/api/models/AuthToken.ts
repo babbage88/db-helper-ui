@@ -2,8 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type AppPermissionDao = {
-    error?: string;
-    newPermissionInfo?: AppPermissionDao;
+export type AuthToken = {
+    accessToken?: string;
+    expiration?: string;
+    refreshToken?: string;
+    user_id?: string;
 };
 

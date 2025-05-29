@@ -3,7 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export type AppPermissionDao = {
-    error?: string;
-    newPermissionInfo?: AppPermissionDao;
+    id?: string;
+    permissionDescription?: string;
+    permissionName?: string;
 };
 

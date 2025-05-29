@@ -2,8 +2,4 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type AppPermissionDao = {
-    error?: string;
-    newPermissionInfo?: AppPermissionDao;
-};
-
+export type UUIDs = Array<string>;

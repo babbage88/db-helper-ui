@@ -2,8 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type AppPermissionDao = {
-    error?: string;
-    newPermissionInfo?: AppPermissionDao;
+export type CreateNewUserRequest = {
+    newEmail?: string;
+    newPassword?: string;
+    newUsername?: string;
 };
 

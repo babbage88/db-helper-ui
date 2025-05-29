@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AuthenticationService } from '@/lib/services/AuthenticationService';
-import type { UserLoginRequest } from '@/lib/models/UserLoginRequest';
+import { AuthenticationService } from '@/lib/api/services/AuthenticationService';
+import type { UserLoginRequest } from '@/lib/api/models/UserLoginRequest';
 
 export function Login() {
   const [username, setUsername] = useState('');

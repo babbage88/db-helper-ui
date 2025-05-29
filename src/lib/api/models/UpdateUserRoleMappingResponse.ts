@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type AppPermissionDao = {
+export type UpdateUserRoleMappingResponse = {
     error?: string;
-    newPermissionInfo?: AppPermissionDao;
+    success?: boolean;
 };
 

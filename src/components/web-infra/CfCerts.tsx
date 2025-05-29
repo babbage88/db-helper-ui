@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Copy, Loader2, Download } from "lucide-react"; // removed unused CheckCircle and X from here, will import separately
 import { cn } from "@/lib/utils";
-import type { CertDnsRenewReq } from "@/lib/models/CertDnsRenewReq";
-import type { CertificateData } from "@/lib/models/CertificateData";
+import type { CertDnsRenewReq } from "@/lib/api/models/CertDnsRenewReq";
+import type { CertificateData } from "@/lib/api/models/CertificateData";
 import { renewCertificateWithSecret } from "@/lib/renewCertWithStoredSecret";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -222,7 +222,7 @@ export function CertificateRequestForm() {
 
         {certData && (
           <div
-            className="fixed inset-0 z-40 bg-black/30 overflow-auto p-6"
+            className="fixed inset-0 z-40 overflow-auto p-6"
             onClick={handleReset}
           >
             <ScrollArea
@@ -231,40 +231,42 @@ export function CertificateRequestForm() {
               onClick={(e) => e.stopPropagation()}
               ref={resultRef}
             >
-                <button
-                  className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
-                  onClick={handleReset}
-                  aria-label="Close certificate result"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+              <button
+                className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
+                onClick={handleReset}
+                aria-label="Close certificate result"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
-                <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-lg mb-4">
-                  <CheckCircle className="w-5 h-5" /> Certificate successfully
-                  created
-                </div>
-                 <div className="flex flex-row p-2 justify-between">
-              {Array.isArray(certData.domainName) &&
-                certData.domainName.length > 0 && (
-                  <div className="mb-4">
-                    <Label className="font-semibold">Domains:</Label>
-                    <ul className="list-disc pl-6">
-                      {certData.domainName.map((d, i) => (
-                        <li key={i}>{d}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+              <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium text-lg mb-4">
+                <CheckCircle className="w-5 h-5" /> Certificate successfully
+                created
+              </div>
+              <div className="flex flex-row p-2 justify-between">
+                {Array.isArray(certData.domainName) &&
+                  certData.domainName.length > 0 && (
+                    <div className="mb-4">
+                      <Label className="font-semibold">Domains:</Label>
+                      <ul className="list-disc pl-6">
+                        {certData.domainName.map((d, i) => (
+                          <li key={i}>{d}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 {certData.s3DownloadUrl && (
                   <div className="mt-4">
-                    <Label className="font-mono"></Label>
                     <a
                       href={certData.s3DownloadUrl}
-                      className="text-blue-600 dark:text-blue-400 underline block"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      <Download size={30} color="#00bc7d" strokeWidth={2} />
+                      <div className="flex items-center space-x-2">
+                        <Button variant="ghost" size="default">
+                          <Download size={20} className="w-4 h-4 mr-1" /> Download
+                        </Button>
+                      </div>
                     </a>
                   </div>
                 )}
