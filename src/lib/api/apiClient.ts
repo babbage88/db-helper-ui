@@ -62,11 +62,11 @@ apiClient.interceptors.response.use(
 
             try {
                 const response = await axios.post(`${API_BASE_URL}/token/refresh`, {
-                    refresh_token: refreshToken,
+                    refreshToken: refreshToken,
                 });
 
-                const newAccessToken = response.data.access_token;
-                const newRefreshToken = response.data.refresh_token;
+                const newAccessToken = response.data.accessToken;
+                const newRefreshToken = response.data.refreshToken;
 
                 TokenService.setAccessToken(newAccessToken);
                 TokenService.setRefreshToken(newRefreshToken);
