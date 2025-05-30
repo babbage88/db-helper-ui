@@ -14,12 +14,12 @@ spec:
       http:
         paths:
           - pathType: Prefix
-            path: "/"
+            path: "/api/auth"
             backend:
               service:
-                name: db-helper-ui-csvc
+                name: go-infra-svc
                 port:
-                  number: 8080
+                  number: 8993
           - pathType: Prefix
             path: "/api/"
             backend:
@@ -27,11 +27,17 @@ spec:
                 name: db-helper-api-csvc
                 port:
                   number: 8181
-          - pathType: ImplementationSpecific
+          - pathType: Prefix
             path: "/metrics"
             backend:
               service:
                 name: db-helper-api-csvc
                 port:
                   number: 8181
-
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: db-helper-ui-csvc
+                port:
+                  number: 8080

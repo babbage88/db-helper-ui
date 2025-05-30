@@ -2,7 +2,7 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios';
 import { TokenService } from '@/lib/tokenManager';
 
-const API_BASE_URL = 'https://localhost:8993';
+const API_BASE_URL = import.meta.env.VITE_AUTH_API_BASE_URL;
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
