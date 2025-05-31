@@ -11,8 +11,8 @@ export const downloadZip = async (
   databaseName: string
 ) => {
   try {
-    console.log(`${baseUrl}/api/download-pg-scripts`)
-    const res = await fetch(`/api/download-pg-scripts`, {
+    console.log(`${baseUrl}/download-pg-scripts`)
+    const res = await fetch(`/download-pg-scripts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

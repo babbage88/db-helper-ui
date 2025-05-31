@@ -16,6 +16,8 @@ interface PgDevDbSetupScriptsResponse {
   "pg_app_db.sql": string
 }
 
+const dbBaseUrl: string = import.meta.env.VITE_DBHELPER_API_BASE_URL;
+
 export function DbUserSetup() {
   const [dbHostname, setDbHostname] = useState("localhost")
   const [dbPort, setDbPort] = useState(5432)
@@ -28,7 +30,7 @@ export function DbUserSetup() {
 
   const generateScript = async () => {
     try {
-      const res = await fetch("https://dbhelperui.trahan.dev/api/generate-pg-setup-scripts", {
+      const res = await fetch(`${dbBaseUrl}/generate-pg-setup-scripts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

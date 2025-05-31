@@ -4,11 +4,11 @@ FROM node:current-alpine AS build
 WORKDIR /app/
 
 ARG VITE_DBHELPER_API_BASE_URL="https://dbhelperui.trahan.dev/api"
-ARG VITE_API_WEB_INFRA_URL="https://dbhelperui.trahan.dev/api/auth"
+ARG VITE_API_WEB_INFRA_URL="https://dbhelperui.trahan.dev/api"
 ENV VITE_API_WEB_INFRA_URL=${VITE_API_WEB_INFRA_URL}
 ARG VITE_DOCS_README_URL="https://raw.githubusercontent.com/babbage88/db-helper-ui/refs/heads/master/README.md"
-ARG VITE_AUTH_API_BASE_URL="https://dbhelperui.trahan.dev/api/auth"
-ARG VITE_CERT_API_BASE_URL="https://dbhelperui.trahan.dev/api/auth"
+ARG VITE_AUTH_API_BASE_URL="https://dbhelperui.trahan.dev/api"
+ARG VITE_CERT_API_BASE_URL="https://dbhelperui.trahan.dev/api"
 ENV VITE_AUTH_API_BASE_URL=${VITE_AUTH_API_BASE_URL}
 ENV VITE_CERT_API_BASE_URL=${VITE_CERT_API_BASE_URL}
 ENV VITE_DBHELPER_API_BASE_URL=${VITE_DBHELPER_API_BASE_URL}

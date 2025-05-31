@@ -22,13 +22,14 @@ spec:
             - containerPort: 80
           env:
             - name: VITE_DBHELPER_API_BASE_URL
-              value: "https://dbhelperui.trahan.dev"
+              value: "https://dbhelperui.trahan.dev/api"
             - name: VITE_API_WEB_INFRA_URL
               value: "https://infra.trahan.dev"
             - name: VITE_CERT_API_BASE_URL
-              value: "https://infra.trahan.dev"
+              value: "https://dbhelperui.trahan.dev/api"
             - name: VITE_AUTH_API_BASE_URL
-              value: "https://infra.trahan.dev"
+              value: "https://dbhelperui.trahan.dev/api"
+              #value: "https://infra.trahan.dev"
             - name: VITE_DOCS_README_URL
               value: "https://raw.githubusercontent.com/babbage88/db-helper-ui/refs/heads/master/README.md"
             - name: VITE_CF_APP_ID

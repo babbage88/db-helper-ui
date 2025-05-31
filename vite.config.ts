@@ -20,5 +20,6 @@ export default defineConfig({
       key: fs.readFileSync(path.resolve(__dirname, 'frontend.key')),
       cert: fs.readFileSync(path.resolve(__dirname, 'frontend.crt')),
     },
+    fs: { strict: false }
   },
 })
