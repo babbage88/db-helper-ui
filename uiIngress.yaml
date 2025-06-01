@@ -1,0 +1,42 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: db-helper-ui-ingress
+  namespace: default
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: dbhelperui.trahan.dev
+      http:
+        paths:
+          - pathType: Prefix
+            path: /assets/
+            backend:
+              service:
+                name: db-helper-ui-csvc
+                port:
+                  number: 8080
+
+          - pathType: ImplementationSpecific
+            path: /favicon.ico
+            backend:
+              service:
+                name: db-helper-ui-csvc
+                port:
+                  number: 8080
+
+          - pathType: ImplementationSpecific
+            path: /manifest.json
+            backend:
+              service:
+                name: db-helper-ui-csvc
+                port:
+                  number: 8080
+
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: db-helper-ui-csvc
+                port:
+                  number: 8080

@@ -11,6 +11,8 @@ import { NavMenu } from "@/components/db-helper/NavMenu";
 import { CertificateRequestForm } from "@/components/web-infra/CfCerts";
 import { Dashboard } from "@/components/ui/BobDashboard";
 import { Login } from "@/components/ui/Login";
+import LoginPage from "@/app/LoginPage"
+
 
 export default function App() {
   return (
@@ -24,6 +26,7 @@ export default function App() {
         <Router>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/login-form" element={<LoginPage />}></Route>
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/pgurlbuilder" element={<PostgresUrlBuilder />} />
