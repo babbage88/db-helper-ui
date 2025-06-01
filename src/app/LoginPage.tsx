@@ -56,7 +56,7 @@ export default function LoginPage() {
         <img
           src={mascot}
           alt="Image"
-          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.5] dark:grayscale"
+          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.7]"
         />
       </div>
     </div>

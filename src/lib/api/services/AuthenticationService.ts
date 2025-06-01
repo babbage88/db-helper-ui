@@ -50,4 +50,19 @@ export class AuthenticationService {
             },
         });
     }
+    /**
+     * Verify a JWT access token's validity.
+     * @returns any Valid Token
+     * @throws ApiError
+     */
+    public static verifyToken(): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/token/verify',
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+            },
+        });
+    }
 }
