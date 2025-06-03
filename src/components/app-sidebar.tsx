@@ -3,13 +3,16 @@ import {
   AudioWaveform,
   BookOpen,
   Bot,
+  Server,
   Command,
-  Frame,
+  Split,
   GalleryVerticalEnd,
-  Map,
-  PieChart,
   Settings2,
   SquareTerminal,
+  Container,
+  Database,
+  FolderSync,
+  Lock,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -33,12 +36,12 @@ const data = {
   },
   teams: [
     {
-      name: "Acme Inc",
+      name: "Trahan",
       logo: GalleryVerticalEnd,
       plan: "Enterprise",
     },
     {
-      name: "Acme Corp.",
+      name: "DbBob",
       logo: AudioWaveform,
       plan: "Startup",
     },
@@ -50,41 +53,47 @@ const data = {
   ],
   navMain: [
     {
-      title: "Playground",
+      title: "Database",
       url: "#",
-      icon: SquareTerminal,
+      icon: Database,
       isActive: true,
       items: [
         {
-          title: "History",
-          url: "#",
+          title: "Database URL Builder",
+          url: "/pgurlbuilder",
         },
         {
-          title: "Starred",
-          url: "#",
-        },
-        {
-          title: "Settings",
-          url: "#",
+          title: "Create New DB",
+          url: "/dbusersetup",
+          icon: Bot
         },
       ],
     },
     {
-      title: "Models",
+      title: "Certificates",
       url: "#",
-      icon: Bot,
+      icon: Lock,
       items: [
         {
-          title: "Genesis",
-          url: "#",
+          title: "Create/Renew Certificate",
+          url: "/cert-renew",
         },
         {
-          title: "Explorer",
+          title: "Deploy",
           url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
+          icon: SquareTerminal,
+          items: [
+            {
+              title: "Kubernetes",
+              url: "/certs/kube",
+              icon: Container,
+            },
+            {
+              title: "VM",
+              url: "/certs/vm",
+              icon: Server,
+            }
+          ],
         },
       ],
     },
@@ -95,19 +104,11 @@ const data = {
       items: [
         {
           title: "Introduction",
-          url: "#",
+          url: "/docs",
         },
         {
           title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
+          url: "/docs",
         },
       ],
     },
@@ -121,15 +122,7 @@ const data = {
           url: "#",
         },
         {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
+          title: "Register Resources",
           url: "#",
         },
       ],
@@ -137,19 +130,14 @@ const data = {
   ],
   projects: [
     {
-      name: "Design Engineering",
+      name: "SmbPlusPlus",
       url: "#",
-      icon: Frame,
+      icon: FolderSync,
     },
     {
-      name: "Sales & Marketing",
+      name: "FailBot",
       url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
+      icon: Split,
     },
   ],
 }
