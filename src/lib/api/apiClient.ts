@@ -57,6 +57,7 @@ apiClient.interceptors.response.use(
             const refreshToken = TokenService.getRefreshToken();
             if (!refreshToken) {
                 TokenService.clearTokens();
+                TokenService.clearUserInfo();
                 return Promise.reject(error);
             }
 
@@ -67,9 +68,14 @@ apiClient.interceptors.response.use(
 
                 const newAccessToken = response.data.accessToken;
                 const newRefreshToken = response.data.refreshToken;
+                const userId = response.data.userId;
+                const username = response.data.username;
+                const email = response.data.email;
 
                 TokenService.setAccessToken(newAccessToken);
                 TokenService.setRefreshToken(newRefreshToken);
+                TokenService.setUserInfo(userId, username, email);
+
                 apiClient.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
                 processQueue(null, newAccessToken);
 
@@ -78,6 +84,7 @@ apiClient.interceptors.response.use(
             } catch (err) {
                 processQueue(err, null);
                 TokenService.clearTokens();
+                TokenService.clearUserInfo();
 
                 return Promise.reject(err);
             } finally {

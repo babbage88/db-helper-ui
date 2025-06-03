@@ -29,6 +29,7 @@ export type { GetAllRolesResponse } from './models/GetAllRolesResponse';
 export type { GetUserByIdResponse } from './models/GetUserByIdResponse';
 export type { HostedDbPlatform } from './models/HostedDbPlatform';
 export type { HostServer } from './models/HostServer';
+export type { LoginResponseInfo } from './models/LoginResponseInfo';
 export type { RolePermissionMappingDao } from './models/RolePermissionMappingDao';
 export type { SoftDeleteUserByIdRequest } from './models/SoftDeleteUserByIdRequest';
 export type { SoftDeleteUserByIdResponse } from './models/SoftDeleteUserByIdResponse';

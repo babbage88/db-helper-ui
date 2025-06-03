@@ -5,7 +5,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import React, {
+import {
   createContext,
   useContext,
   useEffect,

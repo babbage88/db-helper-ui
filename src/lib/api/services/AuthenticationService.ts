@@ -3,7 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AccessTokens } from '../models/AccessTokens';
-import type { AuthToken } from '../models/AuthToken';
+import type { LoginResponseInfo } from '../models/LoginResponseInfo';
 import type { TokenRefreshReq } from '../models/TokenRefreshReq';
 import type { UserLoginRequest } from '../models/UserLoginRequest';
 import type { CancelablePromise } from '../core/CancelablePromise';
@@ -13,12 +13,12 @@ export class AuthenticationService {
     /**
      * Local Auth login with username and password
      * @param body
-     * @returns AuthToken (empty)
+     * @returns LoginResponseInfo (empty)
      * @throws ApiError
      */
     public static localLogin(
         body?: UserLoginRequest,
-    ): CancelablePromise<AuthToken> {
+    ): CancelablePromise<LoginResponseInfo> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/login',

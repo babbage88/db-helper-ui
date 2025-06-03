@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthenticationService } from "@/lib/api";
 import type { FormEvent } from "react";
 import mascot from '@/assets/DbBobMaskot.sky.svg'
+import { TokenService } from "@/lib/tokenManager";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -24,10 +25,14 @@ export default function LoginPage() {
       if (!accessToken || !refreshToken) {
         throw new Error("Invalid response from server");
       }
+      const userId = data.user_id ?? "";
+      const username = data.userName ?? "";
+      const userEmail = data.email ?? ""; 
 
-      localStorage.setItem("accessToken", accessToken);
-      localStorage.setItem("refreshToken", refreshToken);
-      localStorage.setItem("userId", user_id ?? "");
+      TokenService.setAccessToken(accessToken);
+      TokenService.setRefreshToken(refreshToken);
+      TokenService.setUserInfo(userId, username, userEmail)
+      
 
       navigate("/dashboard");
     } catch (err: any) {

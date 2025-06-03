@@ -3,7 +3,11 @@
 /* tslint:disable */
 /* eslint-disable */
 export type RolePermissionMappingDao = {
-    error?: string;
-    newMappingInfo?: RolePermissionMappingDao;
+    createdAt?: string;
+    enabled?: boolean;
+    id?: string;
+    lastModified?: string;
+    permissionId?: string;
+    roleId?: string;
 };
 
