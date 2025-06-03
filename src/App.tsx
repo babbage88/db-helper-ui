@@ -27,7 +27,7 @@ import { OpenAPI } from "@/lib/api";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
-// Create an Auth Context to share auth status
+// Auth Context
 const AuthContext = createContext<{ isAuthenticated: boolean | null }>({
   isAuthenticated: null,
 });
@@ -36,7 +36,6 @@ function useAuth() {
   return useContext(AuthContext);
 }
 
-// ProtectedRoute no longer checks token but just reads context
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useAuth();
 
@@ -75,7 +74,6 @@ export default function App() {
     checkAuth();
   }, []);
 
-  // While checking auth, show loading screen
   if (isAuthenticated === null) {
     return (
       <div className="flex items-center justify-center h-screen text-xl font-semibold">
@@ -88,82 +86,90 @@ export default function App() {
     <AuthContext.Provider value={{ isAuthenticated }}>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         <Router>
-          <div className="flex min-h-screen w-full">
-            {isAuthenticated && (
-              <SidebarProvider>
-                <AppSidebar className="w-64 border-r border-border" />
-              </SidebarProvider>
-            )}
+          {isAuthenticated ? (
+            <SidebarProvider>
+              <div className="flex min-h-screen w-full">
+                <aside className="w-64 shrink-0 border-r border-border">
+                  <AppSidebar />
+                </aside>
 
-            <div className="flex flex-col flex-1">
-              <header className="flex items-center justify-between px-4 py-2">
-                <ModeToggle />
-              </header>
-            </div>
+                <div className="flex flex-col flex-1">
+                  <header className="flex items-center justify-end px-4 py-2">
+                    <ModeToggle />
+                  </header>
 
-            <Toaster />
-            <main className="flex flex-col flex-1 overflow-auto">
-              <div className="p-4 flex-1 overflow-auto">
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route
-                    path="/"
-                    element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/pgurlbuilder"
-                    element={
-                        <PostgresUrlBuilder />
-                    }
-                  />
-                  <Route
-                    path="/dbusersetup"
-                    element={
-                      <ProtectedRoute>
-                        <DbUserSetup />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/scripts"
-                    element={
-                      <ProtectedRoute>
-                        <DbUserSetup />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/docs"
-                    element={
-                      <ProtectedRoute>
-                        <DocsMarkdown />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/cert-renew"
-                    element={
-                      <ProtectedRoute>
-                        <CertificateRequestForm />
-                      </ProtectedRoute>
-                    }
-                  />
-                </Routes>
+                  <main className="flex-1 overflow-auto p-4">
+                    <Routes>
+                      <Route
+                        path="/"
+                        element={
+                          <ProtectedRoute>
+                            <Dashboard />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/dashboard"
+                        element={
+                          <ProtectedRoute>
+                            <Dashboard />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/pgurlbuilder"
+                        element={
+                          <ProtectedRoute>
+                            <PostgresUrlBuilder />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/dbusersetup"
+                        element={
+                          <ProtectedRoute>
+                            <DbUserSetup />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/scripts"
+                        element={
+                          <ProtectedRoute>
+                            <DbUserSetup />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/docs"
+                        element={
+                          <ProtectedRoute>
+                            <DocsMarkdown />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/cert-renew"
+                        element={
+                          <ProtectedRoute>
+                            <CertificateRequestForm />
+                          </ProtectedRoute>
+                        }
+                      />
+                    </Routes>
+                  </main>
+                </div>
               </div>
-            </main>
-          </div>
+              <Toaster />
+            </SidebarProvider>
+          ) : (
+            <>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+              </Routes>
+              <Toaster />
+            </>
+          )}
         </Router>
       </ThemeProvider>
     </AuthContext.Provider>

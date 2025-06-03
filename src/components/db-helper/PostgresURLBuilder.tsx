@@ -41,7 +41,7 @@ export function PostgresUrlBuilder() {
   }
 
   return (
-    <div className="space-y-4 p-6 max-w-xl mx-auto">
+<div className="space-y-6 w-full max-w-3xl mx-auto px-4">
       <h2 className="text-2xl font-semibold">PostgreSQL URL Builder</h2>
 
       <div className="space-y-2">
