@@ -25,7 +25,7 @@ export default function LoginPage() {
       if (!accessToken || !refreshToken) {
         throw new Error("Invalid response from server");
       }
-      const userId = data.user_id ?? "";
+      const userId = user_id ?? "";
       const username = data.userName ?? "";
       const userEmail = data.email ?? ""; 
 
