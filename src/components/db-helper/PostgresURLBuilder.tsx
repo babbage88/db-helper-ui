@@ -1,72 +1,93 @@
 // src/components/PostgresUrlBuilder.tsx
 
-import { useState, useEffect } from "react"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Copy } from "lucide-react"
+import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Copy } from "lucide-react";
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 
 const encodeURIComponentSafe = (value: string) => {
-  return encodeURIComponent(value).replace(/[!'()*]/g, escape)
-}
+  return encodeURIComponent(value).replace(/[!'()*]/g, escape);
+};
 
 export function PostgresUrlBuilder() {
-  const [host, setHost] = useState("localhost")
-  const [port, setPort] = useState("5432")
-  const [database, setDatabase] = useState("")
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [sslMode, setSslMode] = useState("disable")
-  const [connectionString, setConnectionString] = useState("")
+  const [host, setHost] = useState("localhost");
+  const [port, setPort] = useState("5432");
+  const [database, setDatabase] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [sslMode, setSslMode] = useState("disable");
+  const [connectionString, setConnectionString] = useState("");
 
   useEffect(() => {
-    const safeUsername = encodeURIComponentSafe(username)
-    const safePassword = encodeURIComponentSafe(password)
-    const safeDatabase = encodeURIComponentSafe(database)
+    const safeUsername = encodeURIComponentSafe(username);
+    const safePassword = encodeURIComponentSafe(password);
+    const safeDatabase = encodeURIComponentSafe(database);
 
-    const url = `postgresql://${safeUsername}:${safePassword}@${host}:${port}/${safeDatabase}?sslmode=${sslMode}`
-    setConnectionString(url)
-  }, [host, port, database, username, password, sslMode])
+    const url = `postgresql://${safeUsername}:${safePassword}@${host}:${port}/${safeDatabase}?sslmode=${sslMode}`;
+    setConnectionString(url);
+  }, [host, port, database, username, password, sslMode]);
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(connectionString)
-  }
+    navigator.clipboard.writeText(connectionString);
+  };
 
   return (
-<div className="space-y-6 w-full max-w-3xl mx-auto px-4">
+    <div className="space-y-4 p-6 max-w-xl mx-auto">
       <h2 className="text-2xl font-semibold">PostgreSQL URL Builder</h2>
 
       <div className="space-y-2">
         <Label htmlFor="host">Host</Label>
-        <Input id="host" value={host} onChange={(e) => setHost(e.target.value)} />
+        <Input
+          id="host"
+          value={host}
+          onChange={(e) => setHost(e.target.value)}
+        />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="port">Port</Label>
-        <Input id="port" value={port} onChange={(e) => setPort(e.target.value)} />
+        <Input
+          id="port"
+          value={port}
+          onChange={(e) => setPort(e.target.value)}
+        />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="database">Database</Label>
-        <Input id="database" value={database} onChange={(e) => setDatabase(e.target.value)} />
+        <Input
+          id="database"
+          value={database}
+          onChange={(e) => setDatabase(e.target.value)}
+        />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="username">Username</Label>
-        <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+        <Input
+          id="username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
-        <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <Input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
       </div>
 
       <div className="space-y-2">
@@ -93,5 +114,5 @@ export function PostgresUrlBuilder() {
         </Button>
       </div>
     </div>
-  )
+  );
 }
