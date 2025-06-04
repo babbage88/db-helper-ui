@@ -11,7 +11,7 @@ import { renewCertificateWithSecret } from "@/lib/renewCertWithStoredSecret";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Only import CheckCircle, X if certData is shown
-import { CheckCircle, X } from "lucide-react";
+import { CheckCircle, X, Plus } from "lucide-react";
 
 function ListFieldEditor({
   label,
@@ -40,7 +40,10 @@ function ListFieldEditor({
   };
 
   return (
-    <div className="space-y-2">
+    <div
+      className="w-full text-sm sm:text-base md:text-lg 
+    lg:text-xl px-3 py-2 sm:px-4 sm:py-2.5 md:px-5 md:py-3 space-y-2"
+    >
       <Label htmlFor={inputId}>{label}</Label>
       {list.map((value, index) => (
         <div key={index} className="flex gap-2">
@@ -49,18 +52,26 @@ function ListFieldEditor({
             value={value}
             onChange={(e) => handleChange(index, e.target.value)}
           />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => handleRemove(index)}
+          {index === 0 && (
+          <button
+            className="hover:text-foreground text-muted-foreground"
+            onClick={handleAdd}
+            aria-label={`${addButtonText} ${index + 1}`}
           >
-            Remove
-          </Button>
+            <Plus size={20} strokeWidth={3}/>
+          </button>
+          )}
+          {index > 0 && (
+            <button
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => handleRemove(index)}
+              aria-label="Remove entry"
+            >
+              <X size={20} strokeWidth={2}/>
+            </button>
+          )}
         </div>
       ))}
-      <Button type="button" variant="secondary" onClick={handleAdd}>
-        {addButtonText}
-      </Button>
     </div>
   );
 }
@@ -83,8 +94,7 @@ function PemBlock({ label, content }: { label: string; content: string }) {
       <pre
         className={cn(
           "p-4 border rounded-xl text-sm whitespace-pre-wrap font-mono",
-          "bg-muted text-foreground border-muted-foreground/20",
-          "dark:bg-zinc-900 dark:text-gray-100 dark:border-zinc-700",
+          "text-foreground border-muted-foreground/20",
           "overflow-auto max-h-[300px]"
         )}
       >
@@ -95,7 +105,8 @@ function PemBlock({ label, content }: { label: string; content: string }) {
 }
 
 export function CertificateRequestForm() {
-  const [acmeEmail, setAcmeEmail] = useState("");
+  let userEmail: string = localStorage.getItem("email") || "";
+  const [acmeEmail, setAcmeEmail] = useState(userEmail);
   const [acmeUrl, setAcmeUrl] = useState(
     "https://acme-v02.api.letsencrypt.org/directory"
   );
@@ -160,7 +171,7 @@ export function CertificateRequestForm() {
               Let's Encrypt Certificate Request
             </h2>
 
-            <div className="space-y-2">
+            <div className="w-full text-sm sm:text-base md:text-lg lg:text-xl px-3 py-2 sm:px-4 sm:py-2.5 md:px-5 md:py-3 space-y-1">
               <Label htmlFor="acmeEmail">ACME Email</Label>
               <Input
                 id="acmeEmail"
@@ -169,7 +180,7 @@ export function CertificateRequestForm() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="w-full text-sm sm:text-base md:text-lg lg:text-xl px-3 py-2 sm:px-4 sm:py-2.5 md:px-5 md:py-3 space-y-1">
               <Label htmlFor="acmeUrl">ACME URL</Label>
               <Input
                 id="acmeUrl"
@@ -194,7 +205,7 @@ export function CertificateRequestForm() {
               addButtonText="Add Server"
             />
 
-            <div className="space-y-2">
+            <div className="w-full text-sm sm:text-base md:text-lg lg:text-xl px-3 py-2 sm:px-4 sm:py-2.5 md:px-5 md:py-3 space-y-2">
               <Label htmlFor="timeout">Timeout (seconds)</Label>
               <Input
                 id="timeout"
@@ -264,7 +275,8 @@ export function CertificateRequestForm() {
                     >
                       <div className="flex items-center space-x-2">
                         <Button variant="ghost" size="default">
-                          <Download size={20} className="w-4 h-4 mr-1" /> Download
+                          <Download size={20} className="w-4 h-4 mr-1" />{" "}
+                          Download
                         </Button>
                       </div>
                     </a>
