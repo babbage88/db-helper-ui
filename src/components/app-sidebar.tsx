@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   AudioWaveform,
   BookOpen,
@@ -15,19 +15,20 @@ import {
   Database,
   FolderSync,
   Lock,
-} from "lucide-react"
+} from "lucide-react";
 
-import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
-import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { NavMain } from "@/components/nav-main";
+import { NavProjects } from "@/components/nav-projects";
+import { NavUser } from "@/components/nav-user";
+import { TeamSwitcher } from "@/components/team-switcher";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@/components/ui/sidebar"
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [user, setUser] = React.useState({
@@ -35,15 +36,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     email: "",
     avatar: "",
     userId: "",
-  })
+  });
 
   React.useEffect(() => {
-    const name = localStorage.getItem("username") || "Anonymous"
-    const email = localStorage.getItem("email") || "no-email@example.com"
-    const avatar = localStorage.getItem("avatar") || ""
-    const userId = localStorage.getItem("userId") || ""
-    setUser({ name, email, avatar, userId })
-  }, [])
+    const name = localStorage.getItem("username") || "Anonymous";
+    const email = localStorage.getItem("email") || "no-email@example.com";
+    const avatar = localStorage.getItem("avatar") || "";
+    const userId = localStorage.getItem("userId") || "";
+    setUser({ name, email, avatar, userId });
+  }, []);
 
   const data = {
     user,
@@ -78,7 +79,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           {
             title: "Create New DB",
             url: "/dbusersetup",
-            icon: Bot
+            icon: Bot,
           },
         ],
       },
@@ -105,7 +106,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 title: "VM",
                 url: "/certs/vm",
                 icon: Server,
-              }
+              },
             ],
           },
         ],
@@ -153,12 +154,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: Split,
       },
     ],
-  }
+  };
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+         <SidebarTrigger />
+        <TeamSwitcher teams={data.teams} />{" "}
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
@@ -169,5 +171,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
