@@ -4,6 +4,9 @@
 /* eslint-disable */
 export type AccessTokens = {
     accessToken?: string;
+    email?: string;
     refreshToken?: string;
+    userName?: string;
+    user_id?: string;
 };
 

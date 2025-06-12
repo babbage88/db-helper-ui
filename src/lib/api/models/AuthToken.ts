@@ -4,8 +4,10 @@
 /* eslint-disable */
 export type AuthToken = {
     accessToken?: string;
+    email?: string;
     expiration?: string;
     refreshToken?: string;
+    userName?: string;
     user_id?: string;
 };
 
