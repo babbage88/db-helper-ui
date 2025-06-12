@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  Outlet,
 } from "react-router-dom";
 import {
   createContext,
@@ -107,86 +108,44 @@ export default function App() {
     <AuthContext.Provider value={{ isAuthenticated }}>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         <Router>
-          <>
-            <SidebarProvider>
-              <div className="flex min-h-screen w-full">
-                <div className="w-64 shrink-0 ">
-                  <AppSidebar />
-                </div>
+          <SidebarProvider>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/logout" element={<LogoutPage />} />
 
-                <div className="flex flex-col flex-1">
-                  <header className="flex items-center justify-end px-4 py-2">
-                    <SidebarTrigger />
-                    <ModeToggle />
-                  </header>
-
-                  <main className="flex-1 overflow-auto p-4">
-                    <Routes>
-                      <Route
-                        path="/"
-                        element={
-                          <ProtectedRoute>
-                            <Dashboard />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/dashboard"
-                        element={
-                          <ProtectedRoute>
-                            <Dashboard />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route path="/login" element={<LoginPage />} />
-                      <Route path="/logout" element={<LogoutPage />} />
-                      <Route
-                        path="/pgurlbuilder"
-                        element={
-                          <ProtectedRoute>
-                            <PostgresUrlBuilder />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/dbusersetup"
-                        element={
-                          <ProtectedRoute>
-                            <DbUserSetup />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/scripts"
-                        element={
-                          <ProtectedRoute>
-                            <DbUserSetup />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/docs"
-                        element={
-                          <ProtectedRoute>
-                            <DocsMarkdown />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/cert-renew"
-                        element={
-                          <ProtectedRoute>
-                            <CertificateRequestForm />
-                          </ProtectedRoute>
-                        }
-                      />
-                    </Routes>
-                  </main>
-                </div>
-              </div>
-              <Toaster />
-            </SidebarProvider>
-          </>
+              {/* Protected layout route */}
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <div className="flex min-h-screen w-full">
+                      <div className="w-64 shrink-0 ">
+                        <AppSidebar />
+                      </div>
+                      <div className="flex flex-col flex-1">
+                        <header className="flex items-center justify-end px-4 py-2">
+                          <SidebarTrigger />
+                          <ModeToggle />
+                        </header>
+                        <main className="flex-1 overflow-auto p-4">
+                          <Outlet />
+                        </main>
+                      </div>
+                      <Toaster />
+                    </div>
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/pgurlbuilder" element={<PostgresUrlBuilder />} />
+                <Route path="/dbusersetup" element={<DbUserSetup />} />
+                <Route path="/scripts" element={<DbUserSetup />} />
+                <Route path="/docs" element={<DocsMarkdown />} />
+                <Route path="/cert-renew" element={<CertificateRequestForm />} />
+              </Route>
+            </Routes>
+          </SidebarProvider>
         </Router>
       </ThemeProvider>
     </AuthContext.Provider>
