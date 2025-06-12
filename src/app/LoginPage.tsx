@@ -1,15 +1,17 @@
-import { GalleryVerticalEnd } from "lucide-react"
+import { GalleryVerticalEnd } from "lucide-react";
 import { LoginForm } from "@/components/login-form";
 import { useNavigate } from "react-router-dom";
 import { AuthenticationService } from "@/lib/api";
 import type { FormEvent } from "react";
-import mascot from '@/assets/DbBobMaskot.sky.svg'
+import mascot from "@/assets/DbBobMaskot.sky.svg";
 import { TokenService } from "@/lib/tokenManager";
 import { ModeToggle } from "@/components/ui/mode-toggle";
-import { Button } from "@/components/ui/button";
+import { useContext } from "react";
+import { AuthContext } from "@/lib/auth-context";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { setIsAuthenticated } = useContext(AuthContext);
 
   async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,6 +36,7 @@ export default function LoginPage() {
       TokenService.setRefreshToken(refreshToken);
       TokenService.setUserInfo(userId, username, userEmail);
 
+      setIsAuthenticated(true); 
       navigate("/dashboard");
     } catch (err: any) {
       console.error("Login error:", err.message);
@@ -42,7 +45,6 @@ export default function LoginPage() {
 
   return (
     <div className="relative min-h-svh">
-      {/* ✅ This is now pinned to the screen's top-right */}
       <div className="fixed top-4 right-4 z-50">
         <ModeToggle />
       </div>
@@ -58,10 +60,7 @@ export default function LoginPage() {
 
           <div className="flex flex-1 items-center justify-center">
             <div className="w-full max-w-xs">
-              <form onSubmit={handleLoginSubmit}>
-                <LoginForm />
-                <Button type="submit" className="w-full mt-4">Login</Button>
-              </form>
+              <LoginForm onSubmit={handleLoginSubmit} />
             </div>
           </div>
         </div>
@@ -69,7 +68,7 @@ export default function LoginPage() {
         <div className="relative hidden lg:flex items-center justify-center p-8">
           <img
             src={mascot}
-            alt="Image"
+            alt="DbBob mascot"
             className="h-full w-full max-h-[500px] object-contain dark:brightness-[0.7]"
           />
         </div>

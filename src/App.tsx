@@ -1,4 +1,3 @@
-// src/App.tsx
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,12 +6,11 @@ import {
   Outlet,
 } from "react-router-dom";
 import {
-  createContext,
-  useContext,
   useEffect,
   useState,
   type JSX,
 } from "react";
+
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { PostgresUrlBuilder } from "./components/db-helper/PostgresURLBuilder";
 import DocsMarkdown from "./components/docs/GettingStartedDoc";
@@ -28,17 +26,9 @@ import { OpenAPI } from "@/lib/api";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import LogoutPage from "./components/ui/LogoutRoute";
-
-// Auth Context
-const AuthContext = createContext<{ isAuthenticated: boolean | null }>({
-  isAuthenticated: null,
-});
+import { AuthContext } from "@/lib/auth-context";
 
 OpenAPI.TOKEN = localStorage.getItem("accessToken") || "";
-
-function useAuth() {
-  return useContext(AuthContext);
-}
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useAuth();
@@ -53,6 +43,8 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 
   return children;
 }
+
+import { useAuth } from "@/lib/auth-context";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -105,7 +97,7 @@ export default function App() {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated }}>
+    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated }}>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         <Router>
           <SidebarProvider>
