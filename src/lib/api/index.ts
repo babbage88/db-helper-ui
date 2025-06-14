@@ -31,6 +31,7 @@ export type { GetAllRolesResponse } from './models/GetAllRolesResponse';
 export type { GetUserByIdResponse } from './models/GetUserByIdResponse';
 export type { HostedDbPlatform } from './models/HostedDbPlatform';
 export type { HostServer } from './models/HostServer';
+export type { HostServerResponse } from './models/HostServerResponse';
 export type { LoginResponseInfo } from './models/LoginResponseInfo';
 export type { RolePermissionMappingDao } from './models/RolePermissionMappingDao';
 export type { SoftDeleteUserByIdRequest } from './models/SoftDeleteUserByIdRequest';
@@ -49,6 +50,7 @@ export type { UUIDs } from './models/UUIDs';
 
 export { AuthenticationService } from './services/AuthenticationService';
 export { CertificatesService } from './services/CertificatesService';
+export { HostServersService } from './services/HostServersService';
 export { PermissionsCrudService } from './services/PermissionsCrudService';
 export { RolesCrudService } from './services/RolesCrudService';
 export { SecretsService } from './services/SecretsService';
