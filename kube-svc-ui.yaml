@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: db-helper-ui
-          image: ghcr.io/babbage88/dbhelperui:dev
+          image: ghcr.io/babbage88/dbhelperui:v0.0.1
           imagePullPolicy: Always
           ports:
             - containerPort: 80

@@ -2,7 +2,7 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios';
 import { TokenService } from '@/lib/tokenManager';
 
-const API_BASE_URL = import.meta.env.VITE_AUTH_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_WEB_INFRA_URL;
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -24,6 +24,11 @@ const processQueue = (error: any, token: string | null = null) => {
 };
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+    // Only set baseURL if not already set (allows per-request override)
+    if (!config.baseURL) {
+        config.baseURL = API_BASE_URL;
+    }
+
     const token = TokenService.getAccessToken();
     if (token && config.headers) {
         config.headers['Authorization'] = `Bearer ${token}`;

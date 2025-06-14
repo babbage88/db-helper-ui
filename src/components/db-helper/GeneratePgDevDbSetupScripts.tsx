@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { downloadZip } from "@/lib/db-helper-svc"
 import { Copy } from "lucide-react"
 import { toast } from "sonner"
+import axios from "axios"
 
 
 interface PgDevDbSetupScriptsResponse {
@@ -16,7 +17,9 @@ interface PgDevDbSetupScriptsResponse {
   "pg_app_db.sql": string
 }
 
-const dbBaseUrl: string = import.meta.env.VITE_DBHELPER_API_BASE_URL;
+const dbBaseUrl = "https://dbhelperui.trahan.dev/api";
+console.log("DB Helper Base URL:", dbBaseUrl);
+
 
 export function DbUserSetup() {
   const [dbHostname, setDbHostname] = useState("localhost")
@@ -30,29 +33,22 @@ export function DbUserSetup() {
 
   const generateScript = async () => {
     try {
-      const res = await fetch(`${dbBaseUrl}/generate-pg-setup-scripts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dbHostname: dbHostname,
-          dbPort: 5432,
-          superuserUsername: superuserUsername,
-          superuserPassword: superuserPassword,
-          serviceUsername: serviceUsername,
-          servicePassword: servicePassword,
-          databaseName: databaseName,
-        }),
-      })
-
-      if (!res.ok) {
-        throw new Error("Failed to generate scripts")
-      }
-
-      const data: PgDevDbSetupScriptsResponse = await res.json()
-      setScripts(data)
+      const response = await axios.post(
+        dbBaseUrl + "/generate-pg-setup-scripts",
+        {
+          dbHostname,
+          dbPort,
+          superuserUsername,
+          superuserPassword,
+          serviceUsername,
+          servicePassword,
+          databaseName,
+        }
+      );
+      setScripts(response.data);
     } catch (err) {
-      console.error(err)
-      alert("An error occurred while generating scripts.")
+      console.error("Error generating scripts:", err);
+      alert("An error occurred while generating scripts.");
     }
   }
 
