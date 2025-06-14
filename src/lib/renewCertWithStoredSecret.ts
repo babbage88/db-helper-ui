@@ -42,7 +42,7 @@ export async function renewCertificateWithSecret(
     // Step 2: Get the token from secret store
     const secret = await SecretsService.getUserSecretById(secretId);
 
-    if (!secret?.token) {
+    if (!secret?.secret) {
       throw new Error(`No token found in secret with ID: ${secretId}`);
     }
 
@@ -58,7 +58,7 @@ export async function renewCertificateWithSecret(
     // Step 3: Merge token into the request body
     const fullReq: CertDnsRenewReq = {
       ...certReq,
-      token: secret.token,
+      token: secret.secret,
       zipDir: zipDir
     };
 
