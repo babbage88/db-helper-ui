@@ -20,16 +20,16 @@ export async function renewCertificateWithSecret(
   try {
     certReq.pushS3 = true;
     const uid = localStorage.getItem("userId") ?? "";
-    const appId = import.meta.env.VITE_CF_APP_ID;
+    const appName = "CloudflareDNS";
     // Step 1: Get List of CloudflareDNS secrets for the current user
-    const secretEntries = await SecretsService.getUserSecretEntriesByAppId(
+    const secretEntries = await SecretsService.getUserSecretEntriesByAppName(
       uid,
-      appId
+      appName
     );
 
     if (secretEntries.length < 1) {
       throw new Error(
-        `No secrets configured for UserID: ${uid} AppId: ${appId}`
+        `No secrets configured for UserID: ${uid} AppName: ${appName}`
       );
     }
 
