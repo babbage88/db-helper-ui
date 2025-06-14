@@ -17,6 +17,8 @@ export type { CreateAppPermissionRequest } from './models/CreateAppPermissionReq
 export type { CreateNewUserRequest } from './models/CreateNewUserRequest';
 export type { CreateRolePermissionMappingRequest } from './models/CreateRolePermissionMappingRequest';
 export type { CreateSecretRequest } from './models/CreateSecretRequest';
+export type { CreateSshKeyRequest } from './models/CreateSshKeyRequest';
+export type { CreateSshKeyResponse } from './models/CreateSshKeyResponse';
 export type { CreateUserRoleRequest } from './models/CreateUserRoleRequest';
 export type { DisableUserRequest } from './models/DisableUserRequest';
 export type { Duration } from './models/Duration';
@@ -50,5 +52,6 @@ export { CertificatesService } from './services/CertificatesService';
 export { PermissionsCrudService } from './services/PermissionsCrudService';
 export { RolesCrudService } from './services/RolesCrudService';
 export { SecretsService } from './services/SecretsService';
+export { SshKeysService } from './services/SshKeysService';
 export { UserCrudService } from './services/UserCrudService';
 export { UsersService } from './services/UsersService';
