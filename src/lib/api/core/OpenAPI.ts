@@ -20,7 +20,7 @@ export type OpenAPIConfig = {
 };
 
 export const OpenAPI: OpenAPIConfig = {
-    BASE: import.meta.env.VITE_API_WEB_INFRA_URL,
+    BASE: import.meta.env.VITE_WEB_INFRA_URL,
     VERSION: '1.1.0',
     WITH_CREDENTIALS: false,
     CREDENTIALS: 'include',

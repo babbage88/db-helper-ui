@@ -78,6 +78,33 @@ export class SecretsService {
         });
     }
     /**
+     * Retrieve a user secret by USERID and application name.
+     * @param userid
+     * @param appname
+     * @returns UserSecretEntry (empty)
+     * @throws ApiError
+     */
+    public static getUserSecretEntriesByAppName(
+        userid: string,
+        appname: string,
+    ): CancelablePromise<Array<UserSecretEntry>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/user/secrets/by-name/{APPNAME}/{USERID}',
+            path: {
+                'USERID': userid,
+                'APPNAME': appname,
+            },
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
      * Retrieve a user secret by USERID.
      * @param userid
      * @returns UserSecretEntry (empty)
