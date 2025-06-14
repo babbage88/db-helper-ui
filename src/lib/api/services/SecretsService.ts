@@ -61,7 +61,7 @@ export class SecretsService {
         expiration?: string;
         external_application_id?: string;
         id?: string;
-        token?: string;
+        secret?: string;
         user_id?: string;
     }> {
         return __request(OpenAPI, {
