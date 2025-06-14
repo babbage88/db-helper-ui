@@ -5,7 +5,7 @@
 import axios from 'axios';
 import type { AxiosError, AxiosRequestConfig, AxiosResponse, AxiosInstance } from 'axios';
 import FormData from 'form-data';
-import apiClient from '../apiClient';
+import apiClient  from '../apiClient'
 import { ApiError } from './ApiError';
 import type { ApiRequestOptions } from './ApiRequestOptions';
 import type { ApiResult } from './ApiResult';
