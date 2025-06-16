@@ -27,15 +27,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const nodeFormSchema = z.object({
-  hostname: z.string().min(1, "Hostname is required"),
-  ipAddress: z.string().min(1, "IP Address is required"),
-  username: z.string().min(1, "Username is required"),
-  publicSshKeyname: z.string().min(1, "SSH Key name is required"),
-  isContainerHost: z.boolean().default(false),
-  isVirtualMachine: z.boolean().default(false),
-  isVmHost: z.boolean().default(false),
-  idDbHost: z.boolean().default(false),
-});
+    hostname: z.string().min(1, "Hostname is required"),
+    ipAddress: z.string().min(1, "IP Address is required"),
+    username: z.string().min(1, "Username is required"),
+    publicSshKeyname: z.string().min(1, "SSH Key name is required"),
+    isContainerHost: z.boolean(),
+    isVirtualMachine: z.boolean(),
+    isVmHost: z.boolean(),
+    idDbHost: z.boolean(),
+  });
 
 type NodeFormValues = z.infer<typeof nodeFormSchema>;
 
