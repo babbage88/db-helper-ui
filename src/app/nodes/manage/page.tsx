@@ -30,7 +30,7 @@ export default function ManageNodesPage() {
   const fetchNodes = React.useCallback(async () => {
     try {
       const response = await HostServersService.getAllHostServers();
-      setNodes(response);
+      setNodes(response as HostServer[]);
     } catch (error) {
       console.error("Failed to fetch nodes:", error);
     } finally {
