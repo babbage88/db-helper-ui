@@ -84,6 +84,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         ],
       },
       {
+        title: "Nodes",
+        url: "#",
+        icon: Server,
+        items: [
+          {
+            title: "Manage",
+            url: "/nodes/manage",
+          },
+        ],
+      },
+      {
         title: "Certificates",
         url: "#",
         icon: Lock,
