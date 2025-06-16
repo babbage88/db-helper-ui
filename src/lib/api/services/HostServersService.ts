@@ -2,7 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { CreateHostServerRequest } from '../models/CreateHostServerRequest';
 import type { HostServerResponse } from '../models/HostServerResponse';
+import type { UpdateHostServerRequest } from '../models/UpdateHostServerRequest';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -24,13 +26,17 @@ export class HostServersService {
     }
     /**
      * Create a new host server.
+     * @param body
      * @returns HostServerResponse (empty)
      * @throws ApiError
      */
-    public static createHostServer(): CancelablePromise<HostServerResponse> {
+    public static createHostServer(
+        body?: CreateHostServerRequest,
+    ): CancelablePromise<HostServerResponse> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/host-servers/create',
+            body: body,
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,
@@ -57,13 +63,17 @@ export class HostServersService {
     }
     /**
      * Update a host server.
+     * @param body
      * @returns HostServerResponse (empty)
      * @throws ApiError
      */
-    public static updateHostServer(): CancelablePromise<HostServerResponse> {
+    public static updateHostServer(
+        body?: UpdateHostServerRequest,
+    ): CancelablePromise<HostServerResponse> {
         return __request(OpenAPI, {
             method: 'PUT',
             url: '/host-servers/{ID}',
+            body: body,
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,

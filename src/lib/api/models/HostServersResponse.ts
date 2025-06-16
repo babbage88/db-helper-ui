@@ -2,8 +2,5 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type UserRoleDao = {
-    error?: string;
-    newUserRoleInfo?: UserRoleDao;
-};
-
+import type { HostServerResponse } from './HostServerResponse';
+export type HostServersResponse = Array<HostServerResponse>;
