@@ -27,6 +27,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import LogoutPage from "./components/ui/LogoutRoute";
 import { AuthContext } from "@/lib/auth-context";
+import ManageNodesPage from "@/app/nodes/manage/page";
 
 OpenAPI.TOKEN = localStorage.getItem("accessToken") || "";
 
@@ -135,6 +136,7 @@ export default function App() {
                 <Route path="/scripts" element={<DbUserSetup />} />
                 <Route path="/docs" element={<DocsMarkdown />} />
                 <Route path="/cert-renew" element={<CertificateRequestForm />} />
+                <Route path="/nodes/manage" element={<ManageNodesPage />} />
               </Route>
             </Routes>
           </SidebarProvider>
