@@ -12,5 +12,8 @@ export type HostServerResponse = {
     is_virtual_machine?: boolean;
     is_vm_host?: boolean;
     last_modified?: string;
+    ssh_key_id?: string;
+    sudo_password_token_id?: string;
+    username?: string;
 };
 

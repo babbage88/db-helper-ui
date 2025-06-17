@@ -27,5 +27,17 @@ export type UpdateHostServerRequest = {
      * Whether this server can host VMs
      */
     is_vm_host?: boolean;
+    /**
+     * SSH key ID for authentication
+     */
+    ssh_key_id?: string;
+    /**
+     * Optional sudo password token ID
+     */
+    sudo_password_token_id?: string;
+    /**
+     * Username for SSH connection
+     */
+    username?: string;
 };
 
