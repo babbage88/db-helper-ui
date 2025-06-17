@@ -27,9 +27,10 @@ type ActionHandlers = {
   onEdit: (node: Node) => void;
   onDelete: (node: Node) => void;
   onView: (node: Node) => void;
+  onAddSshKey: (node: Node) => void;
 };
 
-export function getColumns({ onEdit, onDelete, onView }: ActionHandlers): ColumnDef<Node>[] {
+export function getColumns({ onEdit, onDelete, onView, onAddSshKey }: ActionHandlers): ColumnDef<Node>[] {
   return [
     {
       accessorKey: "Hostname",
@@ -42,12 +43,15 @@ export function getColumns({ onEdit, onDelete, onView }: ActionHandlers): Column
     {
       accessorKey: "IsContainerHost",
       header: "Type",
-      cell: ({ row }) =>
-        row.original.IsContainerHost
-          ? "Container Host"
-          : row.original.IsVirtualMachine
-          ? "Virtual Machine"
-          : "Physical Server",
+      cell: ({ row }) => {
+        const types = [];
+        if (row.original.IsContainerHost) types.push("Container Host");
+        if (row.original.IsVirtualMachine) types.push("Virtual Machine");
+        if (row.original.IsVmHost) types.push("VM Host");
+        if (row.original.IDDbHost) types.push("DB Host");
+        if (types.length === 0) types.push("Physical Server");
+        return types.join(", ");
+      },
     },
     {
       accessorKey: "Username",
@@ -84,6 +88,9 @@ export function getColumns({ onEdit, onDelete, onView }: ActionHandlers): Column
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => onView(node)}>
                 View Details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddSshKey(node)}>
+                Add SSH Key
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

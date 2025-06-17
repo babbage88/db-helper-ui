@@ -63,16 +63,21 @@ export class HostServersService {
     }
     /**
      * Update a host server.
+     * @param id
      * @param body
      * @returns HostServerResponse (empty)
      * @throws ApiError
      */
     public static updateHostServer(
+        id: string,
         body?: UpdateHostServerRequest,
     ): CancelablePromise<HostServerResponse> {
         return __request(OpenAPI, {
             method: 'PUT',
             url: '/host-servers/{ID}',
+            path: {
+                'id': id,
+            },
             body: body,
             errors: {
                 400: `Invalid request`,
@@ -84,13 +89,19 @@ export class HostServersService {
     }
     /**
      * Delete a host server.
+     * @param id
      * @returns any Host server deleted successfully
      * @throws ApiError
      */
-    public static deleteHostServer(): CancelablePromise<any> {
+    public static deleteHostServer(
+        id: string,
+    ): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'DELETE',
             url: '/host-servers/{ID}',
+            path: {
+                'id': id,
+            },
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,

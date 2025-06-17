@@ -31,19 +31,19 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const [editNode, setEditNode] = React.useState<Node | null>(null);
   const [deleteNode, setDeleteNode] = React.useState<Node | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [sshKeyNode, setSshKeyNode] = React.useState<Node | null>(null); // For SSH Key modal
 
   // Handlers
   const handleEdit = (node: Node) => setEditNode(node);
   const handleView = (node: Node) => setViewNode(node);
   const handleDelete = (node: Node) => setDeleteNode(node);
+  const handleAddSshKey = (node: Node) => setSshKeyNode(node);
 
   const confirmDelete = async () => {
     if (!deleteNode) return;
     setIsDeleting(true);
     try {
-      // The API expects the ID in the URL, but our deleteHostServer has a placeholder
-      // You may need to update the API client to accept an ID, but for now, just call it
-      await HostServersService.deleteHostServer();
+      await HostServersService.deleteHostServer(deleteNode.ID.toString());
       setDeleteNode(null);
       if (onChange) onChange();
     } catch (e) {
@@ -57,6 +57,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
     onEdit: handleEdit,
     onDelete: handleDelete,
     onView: handleView,
+    onAddSshKey: handleAddSshKey,
   }), [data]);
 
   const table = useReactTable({
@@ -74,6 +75,16 @@ export function DataTable({ data, onChange }: DataTableProps) {
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     globalFilterFn: (row, columnId, filterValue) => {
+      // For Type column, match any type string
+      if (columnId === "IsContainerHost") {
+        const types = [];
+        if (row.original.IsContainerHost) types.push("Container Host");
+        if (row.original.IsVirtualMachine) types.push("Virtual Machine");
+        if (row.original.IsVmHost) types.push("VM Host");
+        if (row.original.IDDbHost) types.push("DB Host");
+        if (types.length === 0) types.push("Physical Server");
+        return types.some(type => type.toLowerCase().includes(String(filterValue).toLowerCase()));
+      }
       return Object.values(row.original).some((value) =>
         String(value ?? "").toLowerCase().includes(String(filterValue).toLowerCase())
       );
@@ -154,8 +165,8 @@ export function DataTable({ data, onChange }: DataTableProps) {
       </div>
       {/* View Modal */}
       {viewNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded shadow-lg min-w-[300px]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
+          <div className="bg-card p-6 rounded shadow-lg min-w-[300px]">
             <h2 className="font-bold mb-2">Node Details</h2>
             <pre className="text-xs mb-4">{JSON.stringify(viewNode, null, 2)}</pre>
             <Button onClick={() => setViewNode(null)}>Close</Button>
@@ -164,8 +175,8 @@ export function DataTable({ data, onChange }: DataTableProps) {
       )}
       {/* Delete Confirm Modal */}
       {deleteNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded shadow-lg min-w-[300px]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
+          <div className="bg-card p-6 rounded shadow-lg min-w-[300px]">
             <h2 className="font-bold mb-2">Delete Node</h2>
             <p>Are you sure you want to delete <b>{deleteNode.Hostname}</b>?</p>
             <div className="flex gap-2 mt-4">
@@ -181,8 +192,8 @@ export function DataTable({ data, onChange }: DataTableProps) {
       )}
       {/* Edit Modal (fully implemented) */}
       {editNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded shadow-lg min-w-[350px] max-w-[90vw]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
+          <div className="bg-card p-6 rounded shadow-lg min-w-[350px] max-w-[90vw]">
             <h2 className="font-bold mb-2">Edit Node</h2>
             <EditNodeForm
               node={editNode}
@@ -192,6 +203,16 @@ export function DataTable({ data, onChange }: DataTableProps) {
                 if (onChange) onChange();
               }}
             />
+          </div>
+        </div>
+      )}
+      {/* SSH Key Modal Placeholder */}
+      {sshKeyNode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
+          <div className="bg-card p-6 rounded shadow-lg min-w-[350px] max-w-[90vw]">
+            <h2 className="font-bold mb-2">Add SSH Key</h2>
+            {/* SSH Key form will go here */}
+            <Button onClick={() => setSshKeyNode(null)}>Close</Button>
           </div>
         </div>
       )}
@@ -228,10 +249,7 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
     setIsSaving(true);
     setError(null);
     try {
-      // The API client does not accept an ID, but the endpoint requires it.
-      // You need to update HostServersService.updateHostServer to accept an ID and use it in the URL.
-      // For now, this will NOT work unless you fix the API client!
-      await HostServersService.updateHostServer({
+      await HostServersService.updateHostServer(node.ID.toString(), {
         hostname: form.Hostname,
         ip_address: form.IpAddress,
         is_container_host: form.IsContainerHost,
