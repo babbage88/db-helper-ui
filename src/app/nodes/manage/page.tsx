@@ -88,7 +88,7 @@ export default function ManageNodesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <DataTable data={nodes} onChange={fetchNodes} />
+          {isLoading ? <div>Loading...</div> : <DataTable data={nodes} onChange={fetchNodes} />}
         </CardContent>
       </Card>
 
