@@ -10,22 +10,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { HostServersService } from "@/lib/api/services/HostServersService";
-import type { HostServer } from "@/lib/api/models/HostServer";
 import type { CreateHostServerRequest } from "@/lib/api/models/CreateHostServerRequest";
 import { AddNodeDialog } from "./add-node-dialog";
 import type { NodeFormValues } from "./add-node-dialog";
+import { DataTable } from "./data-table";
+import type { Node } from "./columns";
 
 export default function ManageNodesPage() {
-  const [nodes, setNodes] = React.useState<HostServer[]>([]);
+  const [nodes, setNodes] = React.useState<Node[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -33,7 +26,7 @@ export default function ManageNodesPage() {
     try {
       const response = await HostServersService.getAllHostServers();
       const mapped = (response as any[]).map(node => ({
-        ID: node.id,
+        ID: node.id ?? -1,
         Hostname: node.hostname,
         IpAddress: node.ip_address,
         IsContainerHost: node.is_container_host,
@@ -93,52 +86,7 @@ export default function ManageNodesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Hostname</TableHead>
-                <TableHead>IP Address</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Username</TableHead>
-                <TableHead>Last Modified</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow key="loading">
-                  <TableCell colSpan={5} className="text-center">
-                    Loading...
-                  </TableCell>
-                </TableRow>
-              ) : nodes.length === 0 ? (
-                <TableRow key="empty">
-                  <TableCell colSpan={5} className="text-center">
-                    No nodes found. Add your first node to get started.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                nodes.map((node) => (
-                  <TableRow key={node.ID}>
-                    <TableCell>{node.Hostname}</TableCell>
-                    <TableCell>{node.IpAddress}</TableCell>
-                    <TableCell>
-                      {node.IsContainerHost
-                        ? "Container Host"
-                        : node.IsVirtualMachine
-                        ? "Virtual Machine"
-                        : "Physical Server"}
-                    </TableCell>
-                    <TableCell>{node.Username}</TableCell>
-                    <TableCell>
-                      {node.LastModified
-                        ? new Date(node.LastModified).toLocaleDateString()
-                        : "N/A"}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <DataTable data={nodes} onChange={fetchNodes} />
         </CardContent>
       </Card>
 
