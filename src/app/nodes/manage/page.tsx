@@ -32,7 +32,19 @@ export default function ManageNodesPage() {
   const fetchNodes = React.useCallback(async () => {
     try {
       const response = await HostServersService.getAllHostServers();
-      setNodes(response as HostServer[]);
+      const mapped = (response as any[]).map(node => ({
+        ID: node.id,
+        Hostname: node.hostname,
+        IpAddress: node.ip_address,
+        IsContainerHost: node.is_container_host,
+        IsVirtualMachine: node.is_virtual_machine,
+        IsVmHost: node.is_vm_host,
+        IDDbHost: node.is_db_host,
+        LastModified: node.last_modified,
+        Username: node.username,
+        PublicSshKeyname: node.public_ssh_keyname,
+      }));
+      setNodes(mapped);
     } catch (error) {
       console.error("Failed to fetch nodes:", error);
     } finally {
