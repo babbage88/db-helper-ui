@@ -49,7 +49,7 @@ export default function ManageNodesPage() {
     fetchNodes();
   }, [fetchNodes]);
 
-  const handleAddNode = async (nodeData: NodeFormValues) => {
+  const handleAddNode = async (nodeData: NodeFormValues & { ssh_key_id?: string; sudo_password_token_id?: string }) => {
     try {
       const createRequest: CreateHostServerRequest = {
         hostname: nodeData.hostname,
@@ -57,9 +57,11 @@ export default function ManageNodesPage() {
         is_container_host: nodeData.isContainerHost,
         is_virtual_machine: nodeData.isVirtualMachine,
         is_vm_host: nodeData.isVmHost,
-        is_db_host: nodeData.idDbHost
+        is_db_host: nodeData.idDbHost,
+        username: nodeData.username,
+        ssh_key_id: nodeData.ssh_key_id,
+        sudo_password_token_id: nodeData.sudo_password_token_id,
       };
-      
       await HostServersService.createHostServer(createRequest);
       fetchNodes();
       setIsAddDialogOpen(false);

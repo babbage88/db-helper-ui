@@ -76,7 +76,7 @@ export class HostServersService {
             method: 'PUT',
             url: '/host-servers/{ID}',
             path: {
-                'id': id,
+                'ID': id,
             },
             body: body,
             errors: {
@@ -100,7 +100,7 @@ export class HostServersService {
             method: 'DELETE',
             url: '/host-servers/{ID}',
             path: {
-                'id': id,
+                'ID': id,
             },
             errors: {
                 400: `Invalid request`,

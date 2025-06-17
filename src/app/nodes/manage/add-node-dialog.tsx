@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SecretsService } from "@/lib/api/services/SecretsService";
 
 const nodeFormSchema = z.object({
     hostname: z.string().min(1, "Hostname is required"),
@@ -35,9 +36,14 @@ const nodeFormSchema = z.object({
     isVirtualMachine: z.boolean(),
     isVmHost: z.boolean(),
     idDbHost: z.boolean(),
+    sshPrivateKey: z.string().optional(),
+    sudoPassword: z.string().optional(),
   });
 
-export type NodeFormValues = z.infer<typeof nodeFormSchema>;
+export type NodeFormValues = z.infer<typeof nodeFormSchema> & {
+  ssh_key_id?: string;
+  sudo_password_token_id?: string;
+};
 
 interface AddNodeDialogProps {
   open: boolean;
@@ -53,7 +59,7 @@ export function AddNodeDialog({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const resolver: Resolver<NodeFormValues> = zodResolver(nodeFormSchema);
 
-  const form = useForm<NodeFormValues>({
+  const form = useForm<NodeFormValues & { sshPrivateKey?: string; sudoPassword?: string }>({
     resolver,
     defaultValues: {
       hostname: "",
@@ -64,13 +70,40 @@ export function AddNodeDialog({
       isVirtualMachine: false,
       isVmHost: false,
       idDbHost: false,
+      sshPrivateKey: "",
+      sudoPassword: "",
     },
   });
 
-  const handleSubmit: SubmitHandler<NodeFormValues> = async (data) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, files } = e.target;
+    if (files && files[0]) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        form.setValue(name as any, event.target?.result as string);
+      };
+      reader.readAsText(files[0]);
+    }
+  };
+
+  const handleSubmit: SubmitHandler<NodeFormValues & { sshPrivateKey?: string; sudoPassword?: string }> = async (data) => {
     try {
       setIsSubmitting(true);
-      await onSubmit(data);
+      let sshKeyId: string | undefined = undefined;
+      let sudoPasswordId: string | undefined = undefined;
+      if (data.sshPrivateKey) {
+        const secretRes = await SecretsService.createUserSecret({ secret: data.sshPrivateKey });
+        sshKeyId = secretRes.id || secretRes.ID || secretRes.secret_id;
+      }
+      if (data.sudoPassword) {
+        const secretRes = await SecretsService.createUserSecret({ secret: data.sudoPassword });
+        sudoPasswordId = secretRes.id || secretRes.ID || secretRes.secret_id;
+      }
+      await onSubmit({
+        ...data,
+        ssh_key_id: sshKeyId,
+        sudo_password_token_id: sudoPasswordId,
+      });
       form.reset();
     } finally {
       setIsSubmitting(false);
@@ -234,6 +267,51 @@ export function AddNodeDialog({
                     <FormLabel>DB Host</FormLabel>
                   </FormItem>
                 )}
+              />
+            </div>
+            <div>
+              <FormLabel>SSH Private Key</FormLabel>
+              <FormField
+                control={control}
+                name="sshPrivateKey"
+                render={({ field }) => (
+                  <Input
+                    name="sshPrivateKey"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Paste private key or upload file"
+                    className="mb-1"
+                  />
+                )}
+              />
+              <Input
+                type="file"
+                accept=".pem,.key,.txt"
+                name="sshPrivateKey"
+                onChange={handleFileChange}
+              />
+            </div>
+            <div>
+              <FormLabel>Sudo Password</FormLabel>
+              <FormField
+                control={control}
+                name="sudoPassword"
+                render={({ field }) => (
+                  <Input
+                    name="sudoPassword"
+                    type="password"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Enter sudo password or upload file"
+                    className="mb-1"
+                  />
+                )}
+              />
+              <Input
+                type="file"
+                accept=".txt"
+                name="sudoPassword"
+                onChange={handleFileChange}
               />
             </div>
             <DialogFooter>

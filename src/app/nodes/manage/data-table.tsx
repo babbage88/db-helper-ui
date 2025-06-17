@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getColumns, type Node } from "./columns";
 import { HostServersService } from "@/lib/api/services/HostServersService";
+import { SecretsService } from "@/lib/api/services/SecretsService";
 
 interface DataTableProps {
   data: Node[];
@@ -232,6 +233,9 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
     IsVirtualMachine: node.IsVirtualMachine,
     IsVmHost: node.IsVmHost,
     IDDbHost: node.IDDbHost,
+    Username: node.Username || "",
+    SshPrivateKey: "",
+    SudoPassword: "",
   });
   const [isSaving, setIsSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -244,11 +248,35 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
     }));
   };
 
+  // File input handler for secrets
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, files } = e.target;
+    if (files && files[0]) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setForm((prev) => ({ ...prev, [name]: event.target?.result as string }));
+      };
+      reader.readAsText(files[0]);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     setError(null);
     try {
+      let sshKeyId: string | undefined = undefined;
+      let sudoPasswordId: string | undefined = undefined;
+      // Create SSH Key secret if provided
+      if (form.SshPrivateKey) {
+        const secretRes = await SecretsService.createUserSecret({ secret: form.SshPrivateKey });
+        sshKeyId = secretRes.id || secretRes.ID || secretRes.secret_id;
+      }
+      // Create Sudo Password secret if provided
+      if (form.SudoPassword) {
+        const secretRes = await SecretsService.createUserSecret({ secret: form.SudoPassword });
+        sudoPasswordId = secretRes.id || secretRes.ID || secretRes.secret_id;
+      }
       await HostServersService.updateHostServer(node.ID.toString(), {
         hostname: form.Hostname,
         ip_address: form.IpAddress,
@@ -256,6 +284,9 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
         is_virtual_machine: form.IsVirtualMachine,
         is_vm_host: form.IsVmHost,
         is_db_host: form.IDDbHost,
+        username: form.Username,
+        ssh_key_id: sshKeyId,
+        sudo_password_token_id: sudoPasswordId,
       });
       onSuccess();
     } catch (e: any) {
@@ -285,6 +316,15 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
           value={form.IpAddress}
           onChange={handleChange}
           required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium">Username</label>
+        <input
+          className="border rounded px-2 py-1 w-full"
+          name="Username"
+          value={form.Username}
+          onChange={handleChange}
         />
       </div>
       <div className="flex gap-4">
@@ -324,6 +364,39 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
           />
           DB Host
         </label>
+      </div>
+      <div>
+        <label className="block text-sm font-medium">SSH Private Key</label>
+        <input
+          className="border rounded px-2 py-1 w-full mb-1"
+          name="SshPrivateKey"
+          value={form.SshPrivateKey}
+          onChange={handleChange}
+          placeholder="Paste private key or upload file"
+        />
+        <input
+          type="file"
+          accept=".pem,.key,.txt"
+          name="SshPrivateKey"
+          onChange={handleFileChange}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium">Sudo Password</label>
+        <input
+          className="border rounded px-2 py-1 w-full mb-1"
+          name="SudoPassword"
+          type="password"
+          value={form.SudoPassword}
+          onChange={handleChange}
+          placeholder="Enter sudo password or upload file"
+        />
+        <input
+          type="file"
+          accept=".txt"
+          name="SudoPassword"
+          onChange={handleFileChange}
+        />
       </div>
       {error && <div className="text-red-600 text-sm">{error}</div>}
       <div className="flex gap-2 justify-end">
