@@ -82,13 +82,13 @@ export default function ManageNodesPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
+                <TableRow key="loading">
                   <TableCell colSpan={5} className="text-center">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : nodes.length === 0 ? (
-                <TableRow>
+                <TableRow key="empty">
                   <TableCell colSpan={5} className="text-center">
                     No nodes found. Add your first node to get started.
                   </TableCell>
