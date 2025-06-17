@@ -37,7 +37,7 @@ const nodeFormSchema = z.object({
     idDbHost: z.boolean(),
   });
 
-type NodeFormValues = z.infer<typeof nodeFormSchema>;
+export type NodeFormValues = z.infer<typeof nodeFormSchema>;
 
 interface AddNodeDialogProps {
   open: boolean;

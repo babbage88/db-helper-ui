@@ -20,7 +20,9 @@ import {
 } from "@/components/ui/table";
 import { HostServersService } from "@/lib/api/services/HostServersService";
 import type { HostServer } from "@/lib/api/models/HostServer";
+import type { CreateHostServerRequest } from "@/lib/api/models/CreateHostServerRequest";
 import { AddNodeDialog } from "./add-node-dialog";
+import type { NodeFormValues } from "./add-node-dialog";
 
 export default function ManageNodesPage() {
   const [nodes, setNodes] = React.useState<HostServer[]>([]);
@@ -42,9 +44,18 @@ export default function ManageNodesPage() {
     fetchNodes();
   }, [fetchNodes]);
 
-  const handleAddNode = async (nodeData: any) => {
+  const handleAddNode = async (nodeData: NodeFormValues) => {
     try {
-      await HostServersService.createHostServer(nodeData);
+      const createRequest: CreateHostServerRequest = {
+        hostname: nodeData.hostname,
+        ip_address: nodeData.ipAddress,
+        is_container_host: nodeData.isContainerHost,
+        is_virtual_machine: nodeData.isVirtualMachine,
+        is_vm_host: nodeData.isVmHost,
+        is_db_host: nodeData.idDbHost
+      };
+      
+      await HostServersService.createHostServer(createRequest);
       fetchNodes();
       setIsAddDialogOpen(false);
     } catch (error) {
