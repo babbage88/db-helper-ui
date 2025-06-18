@@ -36,7 +36,8 @@ const nodeFormSchema = z.object({
     isVirtualMachine: z.boolean(),
     isVmHost: z.boolean(),
     idDbHost: z.boolean(),
-    sshPrivateKey: z.string().optional(),
+    sshPrivateKey: z.string().min(1, "Private SSH key is required"),
+    sshPublicKey: z.string().min(1, "Public SSH key is required"),
     sudoPassword: z.string().optional(),
   });
 
@@ -59,7 +60,7 @@ export function AddNodeDialog({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const resolver: Resolver<NodeFormValues> = zodResolver(nodeFormSchema);
 
-  const form = useForm<NodeFormValues & { sshPrivateKey?: string; sudoPassword?: string }>({
+  const form = useForm<NodeFormValues & { sshPrivateKey?: string; sshPublicKey?: string; sudoPassword?: string }>({
     resolver,
     defaultValues: {
       hostname: "",
@@ -71,6 +72,7 @@ export function AddNodeDialog({
       isVmHost: false,
       idDbHost: false,
       sshPrivateKey: "",
+      sshPublicKey: "",
       sudoPassword: "",
     },
   });
@@ -86,19 +88,30 @@ export function AddNodeDialog({
     }
   };
 
-  const handleSubmit: SubmitHandler<NodeFormValues & { sshPrivateKey?: string; sudoPassword?: string }> = async (data) => {
+  const handleSubmit: SubmitHandler<NodeFormValues & { sshPrivateKey?: string; sshPublicKey?: string; sudoPassword?: string }> = async (data) => {
     try {
       setIsSubmitting(true);
       let sshKeyId: string | undefined = undefined;
       let sudoPasswordId: string | undefined = undefined;
-      if (data.sshPrivateKey) {
-        const secretRes = await SecretsService.createUserSecret({ secret: data.sshPrivateKey });
-        sshKeyId = secretRes.id || secretRes.ID || secretRes.secret_id;
+
+      // Create SSH key first
+      if (data.sshPrivateKey && data.sshPublicKey) {
+        const sshKeyRequest = {
+          name: data.publicSshKeyname,
+          privateKey: data.sshPrivateKey,
+          publicKey: data.sshPublicKey,
+          keyType: "rsa", // Default to RSA, could be made configurable
+          description: `SSH key for ${data.hostname}`,
+        };
+        const sshKeyRes = await SecretsService.createSshKey(sshKeyRequest);
+        sshKeyId = sshKeyRes.id || sshKeyRes.ID || sshKeyRes.secret_id;
       }
+
       if (data.sudoPassword) {
         const secretRes = await SecretsService.createUserSecret({ secret: data.sudoPassword });
         sudoPasswordId = secretRes.id || secretRes.ID || secretRes.secret_id;
       }
+
       await onSubmit({
         ...data,
         ssh_key_id: sshKeyId,
@@ -288,6 +301,28 @@ export function AddNodeDialog({
                 type="file"
                 accept=".pem,.key,.txt"
                 name="sshPrivateKey"
+                onChange={handleFileChange}
+              />
+            </div>
+            <div>
+              <FormLabel>SSH Public Key</FormLabel>
+              <FormField
+                control={control}
+                name="sshPublicKey"
+                render={({ field }) => (
+                  <Input
+                    name="sshPublicKey"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Paste public key or upload file"
+                    className="mb-1"
+                  />
+                )}
+              />
+              <Input
+                type="file"
+                accept=".pub,.txt"
+                name="sshPublicKey"
                 onChange={handleFileChange}
               />
             </div>

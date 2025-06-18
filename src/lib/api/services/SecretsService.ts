@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { CreateSecretRequest } from '../models/CreateSecretRequest';
+import type { CreateSshKeyRequest } from '../models/CreateSshKeyRequest';
 import type { UserSecretEntry } from '../models/UserSecretEntry';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
@@ -148,6 +149,25 @@ export class SecretsService {
                 401: `Unauthorized`,
                 403: `Forbidden`,
                 404: `Not Found`,
+            },
+        });
+    }
+    /**
+     * Create a new SSH key.
+     * @param body
+     * @returns any SSH key created successfully
+     * @throws ApiError
+     */
+    public static createSshKey(
+        body: CreateSshKeyRequest,
+    ): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/secrets/ssh-key',
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
             },
         });
     }

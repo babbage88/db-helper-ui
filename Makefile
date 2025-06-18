@@ -18,6 +18,10 @@ buildandpush: create-builder
 	docker buildx use dbhelperui-builder
 	docker buildx build --build-arg NODE_ENV=production --platform linux/amd64,linux/arm64 -t $(GHCR_REPO)$(tag) . --push
 
+buildandpush-amd64: create-builder
+	docker buildx use dbhelperui-builder
+	docker buildx build --build-arg NODE_ENV=production --platform linux/amd64 -t $(GHCR_REPO)$(tag) . --push
+
 buildandpush-test:
 	docker buildx use dbhelperui-builder
 	docker buildx build --build-arg NODE_ENV=test --platform linux/amd64,linux/arm64 -t $(GHCR_REPO)$(testtag) . --push
