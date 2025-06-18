@@ -96,15 +96,17 @@ export function AddNodeDialog({
 
       // Create SSH key first
       if (data.sshPrivateKey && data.sshPublicKey) {
-        const sshKeyRequest = {
+        const sshKeyData = {
           name: data.publicSshKeyname,
           privateKey: data.sshPrivateKey,
           publicKey: data.sshPublicKey,
           keyType: "rsa", // Default to RSA, could be made configurable
           description: `SSH key for ${data.hostname}`,
         };
-        const sshKeyRes = await SecretsService.createSshKey(sshKeyRequest);
-        sshKeyId = sshKeyRes.id || sshKeyRes.ID || sshKeyRes.secret_id;
+        const secretRes = await SecretsService.createUserSecret({ 
+          secret: JSON.stringify(sshKeyData)
+        });
+        sshKeyId = secretRes.id || secretRes.ID || secretRes.secret_id;
       }
 
       if (data.sudoPassword) {
