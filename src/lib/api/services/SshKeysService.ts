@@ -28,4 +28,32 @@ export class SshKeysService {
             },
         });
     }
+    /**
+     * Delete an SSH key and its associated secret.
+     * @param id ID of the SSH key to delete
+     * @returns any (empty)
+     * @throws ApiError
+     */
+    public static deleteSshKey(
+        id: string,
+    ): CancelablePromise<{
+        /**
+         * Success message
+         */
+        message?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/ssh-keys/{id}',
+            path: {
+                'id': id,
+            },
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
 }
