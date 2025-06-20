@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SecretsService } from "@/lib/api/services/SecretsService";
+import { ExternalApplicationsService } from "@/lib/api/services/ExternalApplicationsService";
 
 const nodeFormSchema = z.object({
     hostname: z.string().min(1, "Hostname is required"),
@@ -97,6 +98,14 @@ export function AddNodeDialog({
 
       // Create SSH key first
       if (data.sshPrivateKey && data.sshPublicKey) {
+        // First, get the external application ID for "ssh_keys"
+        const appResponse = await ExternalApplicationsService.getExternalApplicationIdByName("ssh_keys");
+        const applicationId = appResponse.id;
+        
+        if (!applicationId) {
+          throw new Error("Could not find ssh_keys application");
+        }
+
         const sshKeyData = {
           name: data.publicSshKeyname,
           privateKey: data.sshPrivateKey,
@@ -105,7 +114,8 @@ export function AddNodeDialog({
           description: `SSH key for ${data.hostname}`,
         };
         const secretRes = await SecretsService.createUserSecret({ 
-          secret: JSON.stringify(sshKeyData)
+          secret: JSON.stringify(sshKeyData),
+          application_id: applicationId
         });
         sshKeyId = secretRes.id || secretRes.ID || secretRes.secret_id;
       }
