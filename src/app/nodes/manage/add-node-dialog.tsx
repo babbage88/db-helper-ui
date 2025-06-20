@@ -121,7 +121,34 @@ export function AddNodeDialog({
       }
 
       if (data.sudoPassword) {
-        const secretRes = await SecretsService.createUserSecret({ secret: data.sudoPassword });
+        // Get or create the external application ID for "sudo_pwd"
+        let sudoAppId: string;
+        try {
+          const sudoAppResponse = await ExternalApplicationsService.getExternalApplicationIdByName("sudo_pwd");
+          const responseId = sudoAppResponse.id;
+          
+          if (!responseId) {
+            throw new Error("sudo_pwd application not found");
+          }
+          sudoAppId = responseId;
+        } catch (error) {
+          // Application doesn't exist, create it
+          const createAppResponse = await ExternalApplicationsService.createExternalApplication({
+            name: "sudo_pwd",
+            appDescription: "Sudo passwords for managed nodes"
+          });
+          const responseId = createAppResponse.id;
+          
+          if (!responseId) {
+            throw new Error("Failed to create sudo_pwd application");
+          }
+          sudoAppId = responseId;
+        }
+
+        const secretRes = await SecretsService.createUserSecret({ 
+          secret: data.sudoPassword,
+          application_id: sudoAppId
+        });
         sudoPasswordId = secretRes.id || secretRes.ID || secretRes.secret_id;
       }
 
