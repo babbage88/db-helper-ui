@@ -93,6 +93,7 @@ export function AddNodeDialog({
       setIsSubmitting(true);
       let sshKeyId: string | undefined = undefined;
       let sudoPasswordId: string | undefined = undefined;
+      
 
       // Create SSH key first
       if (data.sshPrivateKey && data.sshPublicKey) {
