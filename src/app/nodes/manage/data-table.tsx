@@ -18,6 +18,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getColumns, type Node } from "./columns";
 import { HostServersService } from "@/lib/api/services/HostServersService";
 import { SecretsService } from "@/lib/api/services/SecretsService";
+import { ExternalApplicationsService } from "@/lib/api/services/ExternalApplicationsService";
 
 interface DataTableProps {
   data: Node[];
@@ -207,13 +208,19 @@ export function DataTable({ data, onChange }: DataTableProps) {
           </div>
         </div>
       )}
-      {/* SSH Key Modal Placeholder */}
+      {/* SSH Key Modal */}
       {sshKeyNode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
           <div className="bg-card p-6 rounded shadow-lg min-w-[350px] max-w-[90vw]">
-            <h2 className="font-bold mb-2">Add SSH Key</h2>
-            {/* SSH Key form will go here */}
-            <Button onClick={() => setSshKeyNode(null)}>Close</Button>
+            <h2 className="font-bold mb-2">Add SSH Key to {sshKeyNode.Hostname}</h2>
+            <AddSshKeyForm
+              node={sshKeyNode}
+              onCancel={() => setSshKeyNode(null)}
+              onSuccess={() => {
+                setSshKeyNode(null);
+                if (onChange) onChange();
+              }}
+            />
           </div>
         </div>
       )}
@@ -405,6 +412,150 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
         </Button>
         <Button type="submit" disabled={isSaving}>
           {isSaving ? "Saving..." : "Save"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function AddSshKeyForm({ node, onCancel, onSuccess }: {
+  node: Node;
+  onCancel: () => void;
+  onSuccess: () => void;
+}) {
+  const [form, setForm] = React.useState({
+    publicSshKeyname: "",
+    sshPrivateKey: "",
+    sshPublicKey: "",
+  });
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // File input handler for SSH keys
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, files } = e.target;
+    if (files && files[0]) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setForm((prev) => ({ ...prev, [name]: event.target?.result as string }));
+      };
+      reader.readAsText(files[0]);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setError(null);
+    try {
+      let sshKeyId: string | undefined = undefined;
+
+      // Create SSH key if both private and public keys are provided
+      if (form.sshPrivateKey && form.sshPublicKey) {
+        // First, get the external application ID for "ssh_keys"
+        const appResponse = await ExternalApplicationsService.getExternalApplicationIdByName("ssh_keys");
+        const applicationId = appResponse.id;
+        
+        if (!applicationId) {
+          throw new Error("Could not find ssh_keys application");
+        }
+
+        const sshKeyData = {
+          name: form.publicSshKeyname,
+          privateKey: form.sshPrivateKey,
+          publicKey: form.sshPublicKey,
+          keyType: "rsa", // Default to RSA, could be made configurable
+          description: `SSH key for ${node.Hostname}`,
+        };
+        const secretRes = await SecretsService.createUserSecret({ 
+          secret: JSON.stringify(sshKeyData),
+          application_id: applicationId
+        });
+        sshKeyId = secretRes.id || secretRes.ID || secretRes.secret_id;
+      }
+
+      // Update the node with the new SSH key ID
+      await HostServersService.updateHostServer(node.ID.toString(), {
+        hostname: node.Hostname,
+        ip_address: node.IpAddress,
+        is_container_host: node.IsContainerHost,
+        is_virtual_machine: node.IsVirtualMachine,
+        is_vm_host: node.IsVmHost,
+        is_db_host: node.IDDbHost,
+        username: node.Username,
+        ssh_key_id: sshKeyId,
+        sudo_password_token_id: undefined, // Keep existing sudo password
+      });
+      onSuccess();
+    } catch (e: any) {
+      setError(e?.message || "Failed to add SSH key");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium">SSH Key Name</label>
+        <input
+          className="border rounded px-2 py-1 w-full"
+          name="publicSshKeyname"
+          value={form.publicSshKeyname}
+          onChange={handleChange}
+          placeholder="id_rsa"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium">SSH Private Key</label>
+        <input
+          className="border rounded px-2 py-1 w-full mb-1"
+          name="sshPrivateKey"
+          value={form.sshPrivateKey}
+          onChange={handleChange}
+          placeholder="Paste private key or upload file"
+          required
+        />
+        <input
+          type="file"
+          accept=".pem,.key,.txt"
+          name="sshPrivateKey"
+          onChange={handleFileChange}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium">SSH Public Key</label>
+        <input
+          className="border rounded px-2 py-1 w-full mb-1"
+          name="sshPublicKey"
+          value={form.sshPublicKey}
+          onChange={handleChange}
+          placeholder="Paste public key or upload file"
+          required
+        />
+        <input
+          type="file"
+          accept=".pub,.txt"
+          name="sshPublicKey"
+          onChange={handleFileChange}
+        />
+      </div>
+      {error && <div className="text-red-600 text-sm">{error}</div>}
+      <div className="flex gap-2 justify-end">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSaving}>
+          {isSaving ? "Adding..." : "Add SSH Key"}
         </Button>
       </div>
     </form>
