@@ -19,6 +19,8 @@ import { getColumns, type Node } from "./columns";
 import { HostServersService } from "@/lib/api/services/HostServersService";
 import { SecretsService } from "@/lib/api/services/SecretsService";
 import { ExternalApplicationsService } from "@/lib/api/services/ExternalApplicationsService";
+import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
+import type { CreateSshKeyHostMappingRequest } from "@/lib/api/models/CreateSshKeyHostMappingRequest";
 
 interface DataTableProps {
   data: Node[];
@@ -494,6 +496,29 @@ function AddSshKeyForm({ node, onCancel, onSuccess }: {
         ssh_key_id: sshKeyId,
         sudo_password_token_id: undefined, // Keep existing sudo password
       });
+
+      // Create SSH key host mapping if SSH key was created and username exists
+      if (sshKeyId && node.Username) {
+        const userId = localStorage.getItem("userId");
+        if (!userId) {
+          console.warn("User ID not found in localStorage, skipping SSH key host mapping");
+        } else {
+          const mappingRequest: CreateSshKeyHostMappingRequest = {
+            hostServerId: node.ID.toString(),
+            hostserverUsername: node.Username,
+            sshKeyId: sshKeyId,
+            userId: userId,
+          };
+          
+          try {
+            await SshKeyHostMappingsService.createSshKeyHostMapping(mappingRequest);
+          } catch (mappingError) {
+            console.error("Failed to create SSH key host mapping:", mappingError);
+            // Don't fail the entire operation if mapping fails
+          }
+        }
+      }
+
       onSuccess();
     } catch (e: any) {
       setError(e?.message || "Failed to add SSH key");

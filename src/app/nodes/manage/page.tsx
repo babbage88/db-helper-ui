@@ -11,7 +11,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { HostServersService } from "@/lib/api/services/HostServersService";
+import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
 import type { CreateHostServerRequest } from "@/lib/api/models/CreateHostServerRequest";
+import type { CreateSshKeyHostMappingRequest } from "@/lib/api/models/CreateSshKeyHostMappingRequest";
 import { AddNodeDialog } from "./add-node-dialog";
 import type { NodeFormValues } from "./add-node-dialog";
 import { DataTable } from "./data-table";
@@ -62,7 +64,32 @@ export default function ManageNodesPage() {
         ssh_key_id: nodeData.ssh_key_id,
         sudo_password_token_id: nodeData.sudo_password_token_id,
       };
-      await HostServersService.createHostServer(createRequest);
+      
+      // Create the host server
+      const hostServerResponse = await HostServersService.createHostServer(createRequest);
+      
+      // If SSH key was provided, create the SSH key host mapping
+      if (nodeData.ssh_key_id && hostServerResponse.id && nodeData.username) {
+        const userId = localStorage.getItem("userId");
+        if (!userId) {
+          console.warn("User ID not found in localStorage, skipping SSH key host mapping");
+        } else {
+          const mappingRequest: CreateSshKeyHostMappingRequest = {
+            hostServerId: hostServerResponse.id,
+            hostserverUsername: nodeData.username,
+            sshKeyId: nodeData.ssh_key_id,
+            userId: userId,
+          };
+          
+          try {
+            await SshKeyHostMappingsService.createSshKeyHostMapping(mappingRequest);
+          } catch (mappingError) {
+            console.error("Failed to create SSH key host mapping:", mappingError);
+            // Don't fail the entire operation if mapping fails
+          }
+        }
+      }
+      
       fetchNodes();
       setIsAddDialogOpen(false);
     } catch (error) {
