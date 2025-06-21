@@ -2,8 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type RolePermissionMappingDao = {
+import type { AppPermissionDao } from './AppPermissionDao';
+export type CreateAppPermissionResult = {
     error?: string;
-    newMappingInfo?: RolePermissionMappingDao;
+    newPermissionInfo?: AppPermissionDao;
 };
 

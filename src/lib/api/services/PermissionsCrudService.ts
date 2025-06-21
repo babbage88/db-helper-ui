@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { AppPermissionDao } from '../models/AppPermissionDao';
 import type { CreateAppPermissionRequest } from '../models/CreateAppPermissionRequest';
+import type { CreateAppPermissionResult } from '../models/CreateAppPermissionResult';
 import type { CreateRolePermissionMappingRequest } from '../models/CreateRolePermissionMappingRequest';
 import type { GetAllAppPermissionsResponse } from '../models/GetAllAppPermissionsResponse';
 import type { RolePermissionMappingDao } from '../models/RolePermissionMappingDao';
@@ -14,12 +14,12 @@ export class PermissionsCrudService {
     /**
      * Create New App Permission.
      * @param body
-     * @returns AppPermissionDao (empty)
+     * @returns CreateAppPermissionResult (empty)
      * @throws ApiError
      */
     public static createAppPermission(
         body?: CreateAppPermissionRequest,
-    ): CancelablePromise<AppPermissionDao> {
+    ): CancelablePromise<CreateAppPermissionResult> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/create/permission',

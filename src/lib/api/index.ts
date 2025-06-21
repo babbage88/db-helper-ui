@@ -14,6 +14,7 @@ export type { AuthTokenDao } from './models/AuthTokenDao';
 export type { CertDnsRenewReq } from './models/CertDnsRenewReq';
 export type { CertificateData } from './models/CertificateData';
 export type { CreateAppPermissionRequest } from './models/CreateAppPermissionRequest';
+export type { CreateAppPermissionResult } from './models/CreateAppPermissionResult';
 export type { CreateExternalApplicationRequest } from './models/CreateExternalApplicationRequest';
 export type { CreateHostServerRequest } from './models/CreateHostServerRequest';
 export type { CreateNewUserRequest } from './models/CreateNewUserRequest';
