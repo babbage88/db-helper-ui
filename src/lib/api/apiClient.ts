@@ -74,7 +74,7 @@ apiClient.interceptors.response.use(
                 const newAccessToken = response.data.accessToken;
                 const newRefreshToken = response.data.refreshToken;
                 const userId = response.data.userId;
-                const username = response.data.username;
+                const username = response.data.userName;
                 const email = response.data.email;
 
                 TokenService.setAccessToken(newAccessToken);
