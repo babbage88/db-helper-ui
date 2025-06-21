@@ -27,6 +27,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SecretsService } from "@/lib/api/services/SecretsService";
 import { ExternalApplicationsService } from "@/lib/api/services/ExternalApplicationsService";
+import { HostServersService } from "@/lib/api/services/HostServersService";
+import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
+import type { CreateHostServerRequest } from "@/lib/api/models/CreateHostServerRequest";
+import type { CreateSshKeyHostMappingRequest } from "@/lib/api/models/CreateSshKeyHostMappingRequest";
 
 const nodeFormSchema = z.object({
     hostname: z.string().min(1, "Hostname is required"),
@@ -50,13 +54,13 @@ export type NodeFormValues = z.infer<typeof nodeFormSchema> & {
 interface AddNodeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: NodeFormValues) => void;
+  onSuccess: () => void;
 }
 
 export function AddNodeDialog({
   open,
   onOpenChange,
-  onSubmit,
+  onSuccess,
 }: AddNodeDialogProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const resolver: Resolver<NodeFormValues> = zodResolver(nodeFormSchema);
@@ -152,12 +156,38 @@ export function AddNodeDialog({
         sudoPasswordId = secretRes.id || secretRes.ID || secretRes.secret_id;
       }
 
-      await onSubmit({
-        ...data,
+      const createRequest: CreateHostServerRequest = {
+        hostname: data.hostname,
+        ip_address: data.ipAddress,
+        is_container_host: data.isContainerHost,
+        is_virtual_machine: data.isVirtualMachine,
+        is_vm_host: data.isVmHost,
+        is_db_host: data.idDbHost,
+        username: data.username,
         ssh_key_id: sshKeyId,
         sudo_password_token_id: sudoPasswordId,
-      });
+      };
+
+      const hostServerResponse = await HostServersService.createHostServer(createRequest);
+      const hostServerId = hostServerResponse.id;
+
+      if (sshKeyId && hostServerId && data.username) {
+        const userId = localStorage.getItem("userId");
+        if (!userId) {
+          console.warn("User ID not found in localStorage, skipping SSH key host mapping");
+        } else {
+          const mappingRequest: CreateSshKeyHostMappingRequest = {
+            hostServerId: hostServerId,
+            hostserverUsername: data.username,
+            sshKeyId: sshKeyId,
+            userId: userId,
+          };
+          await SshKeyHostMappingsService.createSshKeyHostMapping(mappingRequest);
+        }
+      }
+
       form.reset();
+      onSuccess();
     } finally {
       setIsSubmitting(false);
     }
@@ -333,16 +363,27 @@ export function AddNodeDialog({
                     value={field.value}
                     onChange={field.onChange}
                     placeholder="Paste private key or upload file"
-                    className="mb-1"
+                    className="mb-2"
                   />
                 )}
               />
-              <Input
-                type="file"
-                accept=".pem,.key,.txt"
-                name="sshPrivateKey"
-                onChange={handleFileChange}
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  accept=".pem,.key,.txt"
+                  name="sshPrivateKey"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="sshPrivateKeyFile"
+                />
+                <label
+                  htmlFor="sshPrivateKeyFile"
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer"
+                >
+                  Choose File
+                </label>
+                <span className="text-xs text-muted-foreground">or paste above</span>
+              </div>
             </div>
             <div>
               <FormLabel>SSH Public Key</FormLabel>
@@ -355,16 +396,27 @@ export function AddNodeDialog({
                     value={field.value}
                     onChange={field.onChange}
                     placeholder="Paste public key or upload file"
-                    className="mb-1"
+                    className="mb-2"
                   />
                 )}
               />
-              <Input
-                type="file"
-                accept=".pub,.txt"
-                name="sshPublicKey"
-                onChange={handleFileChange}
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  accept=".pub,.txt"
+                  name="sshPublicKey"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="sshPublicKeyFile"
+                />
+                <label
+                  htmlFor="sshPublicKeyFile"
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer"
+                >
+                  Choose File
+                </label>
+                <span className="text-xs text-muted-foreground">or paste above</span>
+              </div>
             </div>
             <div>
               <FormLabel>Sudo Password</FormLabel>
@@ -378,16 +430,27 @@ export function AddNodeDialog({
                     value={field.value}
                     onChange={field.onChange}
                     placeholder="Enter sudo password or upload file"
-                    className="mb-1"
+                    className="mb-2"
                   />
                 )}
               />
-              <Input
-                type="file"
-                accept=".txt"
-                name="sudoPassword"
-                onChange={handleFileChange}
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  accept=".txt"
+                  name="sudoPassword"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="sudoPasswordFile"
+                />
+                <label
+                  htmlFor="sudoPasswordFile"
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer"
+                >
+                  Choose File
+                </label>
+                <span className="text-xs text-muted-foreground">or paste above</span>
+              </div>
             </div>
             <DialogFooter className="sticky bottom-0 bg-background pt-4">
               <Button type="submit" disabled={isSubmitting}>

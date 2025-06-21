@@ -21,10 +21,15 @@ import { SecretsService } from "@/lib/api/services/SecretsService";
 import { ExternalApplicationsService } from "@/lib/api/services/ExternalApplicationsService";
 import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
 import type { CreateSshKeyHostMappingRequest } from "@/lib/api/models/CreateSshKeyHostMappingRequest";
+import type { CreateSshKeyHostMappingResponse } from "@/lib/api/models/CreateSshKeyHostMappingResponse";
 
 interface DataTableProps {
   data: Node[];
   onChange?: () => void; // callback to refetch data after CRUD
+}
+
+interface NodeDetails extends Node {
+  sshKeyHostMappings?: CreateSshKeyHostMappingResponse[];
 }
 
 export function DataTable({ data, onChange }: DataTableProps) {
@@ -32,6 +37,8 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [viewNode, setViewNode] = React.useState<Node | null>(null);
+  const [viewNodeDetails, setViewNodeDetails] = React.useState<NodeDetails | null>(null);
+  const [isViewLoading, setIsViewLoading] = React.useState(false);
   const [editNode, setEditNode] = React.useState<Node | null>(null);
   const [deleteNode, setDeleteNode] = React.useState<Node | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -39,7 +46,19 @@ export function DataTable({ data, onChange }: DataTableProps) {
 
   // Handlers
   const handleEdit = (node: Node) => setEditNode(node);
-  const handleView = (node: Node) => setViewNode(node);
+  const handleView = async (node: Node) => {
+    setViewNode(node);
+    setIsViewLoading(true);
+    try {
+      const mappings = await SshKeyHostMappingsService.getSshKeyHostMappingsByHostId(node.ID.toString());
+      setViewNodeDetails({ ...node, sshKeyHostMappings: mappings });
+    } catch (error) {
+      console.error("Failed to fetch SSH key mappings:", error);
+      setViewNodeDetails(node); // Show at least the basic node info
+    } finally {
+      setIsViewLoading(false);
+    }
+  };
   const handleDelete = (node: Node) => setDeleteNode(node);
   const handleAddSshKey = (node: Node) => setSshKeyNode(node);
 
@@ -172,8 +191,12 @@ export function DataTable({ data, onChange }: DataTableProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
           <div className="bg-card p-6 rounded shadow-lg min-w-[300px]">
             <h2 className="font-bold mb-2">Node Details</h2>
-            <pre className="text-xs mb-4">{JSON.stringify(viewNode, null, 2)}</pre>
-            <Button onClick={() => setViewNode(null)}>Close</Button>
+            {isViewLoading ? (
+              <div>Loading...</div>
+            ) : (
+              <pre className="text-xs mb-4">{JSON.stringify(viewNodeDetails, null, 2)}</pre>
+            )}
+            <Button onClick={() => { setViewNode(null); setViewNodeDetails(null); }}>Close</Button>
           </div>
         </div>
       )}

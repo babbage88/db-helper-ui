@@ -11,11 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { HostServersService } from "@/lib/api/services/HostServersService";
-import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
-import type { CreateHostServerRequest } from "@/lib/api/models/CreateHostServerRequest";
-import type { CreateSshKeyHostMappingRequest } from "@/lib/api/models/CreateSshKeyHostMappingRequest";
 import { AddNodeDialog } from "./add-node-dialog";
-import type { NodeFormValues } from "./add-node-dialog";
 import { DataTable } from "./data-table";
 import type { Node } from "./columns";
 
@@ -51,50 +47,9 @@ export default function ManageNodesPage() {
     fetchNodes();
   }, [fetchNodes]);
 
-  const handleAddNode = async (nodeData: NodeFormValues & { ssh_key_id?: string; sudo_password_token_id?: string }) => {
-    try {
-      const createRequest: CreateHostServerRequest = {
-        hostname: nodeData.hostname,
-        ip_address: nodeData.ipAddress,
-        is_container_host: nodeData.isContainerHost,
-        is_virtual_machine: nodeData.isVirtualMachine,
-        is_vm_host: nodeData.isVmHost,
-        is_db_host: nodeData.idDbHost,
-        username: nodeData.username,
-        ssh_key_id: nodeData.ssh_key_id,
-        sudo_password_token_id: nodeData.sudo_password_token_id,
-      };
-      
-      // Create the host server
-      const hostServerResponse = await HostServersService.createHostServer(createRequest);
-      
-      // If SSH key was provided, create the SSH key host mapping
-      if (nodeData.ssh_key_id && hostServerResponse.id && nodeData.username) {
-        const userId = localStorage.getItem("userId");
-        if (!userId) {
-          console.warn("User ID not found in localStorage, skipping SSH key host mapping");
-        } else {
-          const mappingRequest: CreateSshKeyHostMappingRequest = {
-            hostServerId: hostServerResponse.id,
-            hostserverUsername: nodeData.username,
-            sshKeyId: nodeData.ssh_key_id,
-            userId: userId,
-          };
-          
-          try {
-            await SshKeyHostMappingsService.createSshKeyHostMapping(mappingRequest);
-          } catch (mappingError) {
-            console.error("Failed to create SSH key host mapping:", mappingError);
-            // Don't fail the entire operation if mapping fails
-          }
-        }
-      }
-      
-      fetchNodes();
-      setIsAddDialogOpen(false);
-    } catch (error) {
-      console.error("Failed to add node:", error);
-    }
+  const handleAddNodeSuccess = () => {
+    fetchNodes();
+    setIsAddDialogOpen(false);
   };
 
   return (
@@ -122,7 +77,7 @@ export default function ManageNodesPage() {
       <AddNodeDialog
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
-        onSubmit={handleAddNode}
+        onSuccess={handleAddNodeSuccess}
       />
     </div>
   );
