@@ -44,7 +44,7 @@ export default function ManageNodesPage() {
         .map(server => {
           const mapping = userMappingsMap.get(server.id!);
           return {
-            ID: server.id ? parseInt(server.id, 10) : -1,
+            ID: server.id || "",
             Hostname: server.hostname || "",
             IpAddress: server.ip_address || "",
             IsContainerHost: server.is_container_host || false,

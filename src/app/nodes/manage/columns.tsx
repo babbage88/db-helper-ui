@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export type Node = {
-  ID: number;
+  ID: string;
   Hostname: string;
   IpAddress: string;
   IsContainerHost: boolean;
