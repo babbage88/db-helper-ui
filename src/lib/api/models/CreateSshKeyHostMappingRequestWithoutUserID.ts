@@ -15,5 +15,9 @@ export type CreateSshKeyHostMappingRequestWithoutUserID = {
      * ID of the SSH key to map
      */
     sshKeyId: string;
+    /**
+     * ID of the sudo password token
+     */
+    sudoPasswordTokenId?: string;
 };
 

@@ -16,6 +16,10 @@ export type CreateSshKeyHostMappingRequest = {
      */
     sshKeyId: string;
     /**
+     * ID of the sudo password token
+     */
+    sudoPasswordTokenId?: string;
+    /**
      * ID of the user who owns the mapping
      */
     userId: string;
