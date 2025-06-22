@@ -38,7 +38,7 @@ import { HostServersService } from "@/lib/api/services/HostServersService";
 import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
 import { SshKeysService } from "@/lib/api/services/SshKeysService";
 import type { CreateHostServerRequest } from "@/lib/api/models/CreateHostServerRequest";
-import type { CreateSshKeyHostMappingRequest } from "@/lib/api/models/CreateSshKeyHostMappingRequest";
+import type { CreateSshKeyHostMappingRequestWithoutUserID } from "@/lib/api/models/CreateSshKeyHostMappingRequestWithoutUserID";
 import type { CreateSshKeyRequest } from "@/lib/api/models/CreateSshKeyRequest";
 
 const nodeFormSchema = z.object({
@@ -173,18 +173,13 @@ export function AddNodeDialog({
       const hostServerId = hostServerResponse.id;
 
       if (sshKeyId && hostServerId && data.username) {
-        const userId = localStorage.getItem("userId");
-        if (!userId) {
-          console.warn("User ID not found in localStorage, skipping SSH key host mapping");
-        } else {
-          const mappingRequest: CreateSshKeyHostMappingRequest = {
-            hostServerId: hostServerId,
-            hostserverUsername: data.username,
-            sshKeyId: sshKeyId,
-            userId: userId,
-          };
-          await SshKeyHostMappingsService.createSshKeyHostMapping(mappingRequest);
-        }
+        const mappingRequest: CreateSshKeyHostMappingRequestWithoutUserID = {
+          hostServerId: hostServerId,
+          hostserverUsername: data.username,
+          sshKeyId: sshKeyId,
+          sudoPasswordTokenId: sudoPasswordId,
+        };
+        await SshKeyHostMappingsService.createSshKeyHostMapping(mappingRequest);
       }
 
       form.reset();
