@@ -21,7 +21,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { CertificateRequestForm } from "@/components/web-infra/CfCerts";
 import { Dashboard } from "@/components/ui/BobDashboard";
 import LoginPage from "@/app/LoginPage";
-import { AuthenticationService, type TokenRefreshReq } from "@/lib/api";
+import { AuthenticationService } from "@/lib/api";
 import { OpenAPI } from "@/lib/api";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
