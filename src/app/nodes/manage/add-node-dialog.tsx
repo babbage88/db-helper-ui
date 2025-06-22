@@ -24,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
+
 import {
   Select,
   SelectContent,
@@ -32,7 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SecretsService } from "@/lib/api/services/SecretsService";
 import { ExternalApplicationsService } from "@/lib/api/services/ExternalApplicationsService";
 import { HostServersService } from "@/lib/api/services/HostServersService";
@@ -40,7 +39,6 @@ import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappings
 import { SshKeysService } from "@/lib/api/services/SshKeysService";
 import type { CreateHostServerRequest } from "@/lib/api/models/CreateHostServerRequest";
 import type { CreateSshKeyHostMappingRequestWithoutUserID } from "@/lib/api/models/CreateSshKeyHostMappingRequestWithoutUserID";
-import type { CreateSshKeyRequest } from "@/lib/api/models/CreateSshKeyRequest";
 import type { SshKeyListItem } from "@/lib/api/models/SshKeyListItem";
 import { TokenService } from "@/lib/tokenManager";
 import { AddSshKeyDialog } from "@/components/db-helper/add-ssh-key-dialog";
@@ -132,29 +130,36 @@ export function AddNodeDialog({
   const handleSubmit: SubmitHandler<NodeFormValues> = async (data) => {
     try {
       setIsSubmitting(true);
-      const sshKeyId: string | undefined = data.selectedSshKeyId;
+      let sshKeyId: string | undefined = data.selectedSshKeyId;
       let sudoPasswordId: string | undefined = undefined;
 
       if (data.sudoPassword) {
-        let sudoAppId: string;
+        let sudoAppId: string | undefined;
+        
         try {
+          // First, try to get the existing application ID
           const sudoAppResponse = await ExternalApplicationsService.getExternalApplicationIdByName("sudo_pwd");
-          if (!sudoAppResponse.id) {
-            throw new Error("sudo_pwd application not found");
-          }
           sudoAppId = sudoAppResponse.id;
         } catch (error) {
+          // If it fails (e.g., 404 Not Found), we ignore the error and proceed to create it
+          console.log("sudo_pwd application not found, creating it.");
+        }
+
+        if (!sudoAppId) {
+          // If we still don't have an ID, create the application
           const createAppResponse = await ExternalApplicationsService.createExternalApplication({
             name: "sudo_pwd",
             appDescription: "Sudo passwords for managed nodes"
           });
-          if (!createAppResponse.id) {
-            throw new Error("Failed to create sudo_pwd application");
-          }
           sudoAppId = createAppResponse.id;
         }
+        
+        if (!sudoAppId) {
+          // If we *still* don't have an ID, something is wrong.
+          throw new Error("Failed to get or create sudo_pwd application");
+        }
 
-        const secretRes = await SecretsService.createUserSecret({ 
+        const secretRes = await SecretsService.createUserSecret({
           secret: data.sudoPassword,
           application_id: sudoAppId
         });
