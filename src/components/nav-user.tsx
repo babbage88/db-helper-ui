@@ -5,6 +5,7 @@ import {
   Bell,
   ChevronsUpDown,
   CreditCard,
+  KeyRound,
   Sparkles,
 } from "lucide-react"
 
@@ -29,6 +30,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { LogoutButton } from "./ui/LogoutButton"
+import { Link } from "react-router-dom"
 
 export function NavUser({
   user,
@@ -100,6 +102,15 @@ export function NavUser({
                 <Bell />
                 Notifications
               </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <Link to="/keys/manage">
+                <DropdownMenuItem>
+                  <KeyRound />
+                  Manage SSH Keys
+                </DropdownMenuItem>
+              </Link>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
