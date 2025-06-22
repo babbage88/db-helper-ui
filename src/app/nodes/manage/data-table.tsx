@@ -62,7 +62,21 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const handleDelete = (node: Node) => setDeleteNode(node);
   const handleAddSshKey = (node: Node) => setSshKeyNode(node);
 
-  const confirmDelete = async () => {
+  const confirmDeleteMapping = async () => {
+    if (!deleteNode || !deleteNode.mappingId) return;
+    setIsDeleting(true);
+    try {
+      await SshKeyHostMappingsService.deleteSshKeyHostMapping(deleteNode.mappingId);
+      setDeleteNode(null);
+      if (onChange) onChange();
+    } catch (e) {
+      console.error("Failed to delete mapping:", e);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const confirmDeleteNode = async () => {
     if (!deleteNode) return;
     setIsDeleting(true);
     try {
@@ -70,7 +84,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
       setDeleteNode(null);
       if (onChange) onChange();
     } catch (e) {
-      // handle error
+      console.error("Failed to delete node:", e);
     } finally {
       setIsDeleting(false);
     }
@@ -206,11 +220,17 @@ export function DataTable({ data, onChange }: DataTableProps) {
           <div className="bg-card p-6 rounded shadow-lg min-w-[300px]">
             <h2 className="font-bold mb-2">Delete Node</h2>
             <p>Are you sure you want to delete <b>{deleteNode.Hostname}</b>?</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              You can either remove your access to this node or delete the node for all users.
+            </p>
             <div className="flex gap-2 mt-4">
-              <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
-                {isDeleting ? "Deleting..." : "Delete"}
+              <Button variant="destructive" onClick={confirmDeleteNode} disabled={isDeleting}>
+                {isDeleting ? "Deleting..." : "Delete Node Completely"}
               </Button>
-              <Button variant="outline" onClick={() => setDeleteNode(null)}>
+               <Button variant="secondary" onClick={confirmDeleteMapping} disabled={isDeleting || !deleteNode.mappingId}>
+                {isDeleting ? "Deleting..." : "Delete My Access Only"}
+              </Button>
+              <Button variant="outline" onClick={() => setDeleteNode(null)} disabled={isDeleting}>
                 Cancel
               </Button>
             </div>
@@ -302,12 +322,12 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
       // Create SSH Key secret if provided
       if (form.SshPrivateKey) {
         const secretRes = await SecretsService.createUserSecret({ secret: form.SshPrivateKey });
-        sshKeyId = secretRes.id || secretRes.ID || secretRes.secret_id;
+        sshKeyId = secretRes.id;
       }
       // Create Sudo Password secret if provided
       if (form.SudoPassword) {
         const secretRes = await SecretsService.createUserSecret({ secret: form.SudoPassword });
-        sudoPasswordId = secretRes.id || secretRes.ID || secretRes.secret_id;
+        sudoPasswordId = secretRes.id;
       }
       await HostServersService.updateHostServer(node.ID.toString(), {
         hostname: form.Hostname,
@@ -505,7 +525,7 @@ function AddSshKeyForm({ node, onCancel, onSuccess }: {
           secret: JSON.stringify(sshKeyData),
           application_id: applicationId
         });
-        sshKeyId = secretRes.id || secretRes.ID || secretRes.secret_id;
+        sshKeyId = secretRes.id;
       }
 
       // Update the node with the new SSH key ID

@@ -166,20 +166,28 @@ export function AddNodeDialog({
         sudoPasswordId = secretRes.id;
       }
 
-      const createRequest: CreateHostServerRequest = {
-        hostname: data.hostname,
-        ip_address: data.ipAddress,
-        is_container_host: data.isContainerHost,
-        is_virtual_machine: data.isVirtualMachine,
-        is_vm_host: data.isVmHost,
-        is_db_host: data.idDbHost,
-        username: data.username,
-        ssh_key_id: sshKeyId,
-        sudo_password_token_id: sudoPasswordId,
-      };
+      const allServers = await HostServersService.getAllHostServers();
+      const existingHost = allServers.find(server => server.hostname === data.hostname);
 
-      const hostServerResponse = await HostServersService.createHostServer(createRequest);
-      const hostServerId = hostServerResponse.id;
+      let hostServerId: string | undefined;
+
+      if (existingHost) {
+        hostServerId = existingHost.id;
+      } else {
+        const createRequest: CreateHostServerRequest = {
+          hostname: data.hostname,
+          ip_address: data.ipAddress,
+          is_container_host: data.isContainerHost,
+          is_virtual_machine: data.isVirtualMachine,
+          is_vm_host: data.isVmHost,
+          is_db_host: data.idDbHost,
+          username: data.username,
+          ssh_key_id: sshKeyId,
+          sudo_password_token_id: sudoPasswordId,
+        };
+        const hostServerResponse = await HostServersService.createHostServer(createRequest);
+        hostServerId = hostServerResponse.id;
+      }
 
       if (sshKeyId && hostServerId && data.username) {
         const mappingRequest: CreateSshKeyHostMappingRequestWithoutUserID = {

@@ -21,6 +21,7 @@ export type Node = {
   LastModified?: string;
   Username?: string;
   PublicSshKeyname?: string;
+  mappingId?: string;
 };
 
 type ActionHandlers = {

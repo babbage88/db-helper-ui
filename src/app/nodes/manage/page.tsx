@@ -11,6 +11,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { HostServersService } from "@/lib/api/services/HostServersService";
+import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
+import { TokenService } from "@/lib/tokenManager";
 import { AddNodeDialog } from "./add-node-dialog";
 import { DataTable } from "./data-table";
 import type { Node } from "./columns";
@@ -21,23 +23,44 @@ export default function ManageNodesPage() {
   const [isLoading, setIsLoading] = React.useState(true);
 
   const fetchNodes = React.useCallback(async () => {
+    setIsLoading(true);
     try {
-      const response = await HostServersService.getAllHostServers();
-      const mapped = (response as any[]).map(node => ({
-        ID: node.id ?? -1,
-        Hostname: node.hostname,
-        IpAddress: node.ip_address,
-        IsContainerHost: node.is_container_host,
-        IsVirtualMachine: node.is_virtual_machine,
-        IsVmHost: node.is_vm_host,
-        IDDbHost: node.is_db_host,
-        LastModified: node.last_modified,
-        Username: node.username,
-        PublicSshKeyname: node.public_ssh_keyname,
-      }));
-      setNodes(mapped);
+      const userInfo = TokenService.getUserInfo();
+      if (!userInfo || !userInfo.userId) {
+        console.error("User not logged in");
+        setNodes([]);
+        return;
+      }
+
+      const [allServers, userMappings] = await Promise.all([
+        HostServersService.getAllHostServers(),
+        SshKeyHostMappingsService.getSshKeyHostMappingsByUserId(userInfo.userId)
+      ]);
+
+      const userMappingsMap = new Map(userMappings.map(m => [m.hostServerId, m]));
+
+      const accessibleNodes = allServers
+        .filter(server => server.id && userMappingsMap.has(server.id))
+        .map(server => {
+          const mapping = userMappingsMap.get(server.id!);
+          return {
+            ID: server.id ? parseInt(server.id, 10) : -1,
+            Hostname: server.hostname || "",
+            IpAddress: server.ip_address || "",
+            IsContainerHost: server.is_container_host || false,
+            IsVirtualMachine: server.is_virtual_machine || false,
+            IsVmHost: server.is_vm_host || false,
+            IDDbHost: server.is_db_host || false,
+            LastModified: server.last_modified,
+            Username: mapping?.hostserverUsername || server.username,
+            mappingId: mapping?.id,
+          };
+        });
+
+      setNodes(accessibleNodes as Node[]);
     } catch (error) {
       console.error("Failed to fetch nodes:", error);
+      setNodes([]);
     } finally {
       setIsLoading(false);
     }
