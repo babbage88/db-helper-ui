@@ -22,19 +22,19 @@ export default function LoginPage() {
 
     try {
       const data = await AuthenticationService.localLogin({ username: email, password });
-      const { accessToken, refreshToken, user_id } = data;
+      const { accessToken, refreshToken, userId } = data;
 
       if (!accessToken || !refreshToken) {
         throw new Error("Invalid response from server");
       }
 
-      const userId = user_id ?? "";
+      const currentUserId = userId ?? "";
       const username = data.userName ?? "";
       const userEmail = data.email ?? "";
 
       TokenService.setAccessToken(accessToken);
       TokenService.setRefreshToken(refreshToken);
-      TokenService.setUserInfo(userId, username, userEmail);
+      TokenService.setUserInfo(currentUserId, username, userEmail);
 
       setIsAuthenticated(true); 
       navigate("/dashboard");

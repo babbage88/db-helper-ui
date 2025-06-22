@@ -25,18 +25,28 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SecretsService } from "@/lib/api/services/SecretsService";
 import { ExternalApplicationsService } from "@/lib/api/services/ExternalApplicationsService";
 import { HostServersService } from "@/lib/api/services/HostServersService";
 import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
+import { SshKeysService } from "@/lib/api/services/SshKeysService";
 import type { CreateHostServerRequest } from "@/lib/api/models/CreateHostServerRequest";
 import type { CreateSshKeyHostMappingRequest } from "@/lib/api/models/CreateSshKeyHostMappingRequest";
+import type { CreateSshKeyRequest } from "@/lib/api/models/CreateSshKeyRequest";
 
 const nodeFormSchema = z.object({
     hostname: z.string().min(1, "Hostname is required"),
     ipAddress: z.string().min(1, "IP Address is required"),
     username: z.string().min(1, "Username is required"),
     publicSshKeyname: z.string().min(1, "SSH Key name is required"),
+    keyType: z.string().min(1, "SSH Key type is required"),
     isContainerHost: z.boolean(),
     isVirtualMachine: z.boolean(),
     isVmHost: z.boolean(),
@@ -65,13 +75,14 @@ export function AddNodeDialog({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const resolver: Resolver<NodeFormValues> = zodResolver(nodeFormSchema);
 
-  const form = useForm<NodeFormValues & { sshPrivateKey?: string; sshPublicKey?: string; sudoPassword?: string }>({
+  const form = useForm<NodeFormValues & { sshPrivateKey?: string; sshPublicKey?: string; sudoPassword?: string; keyType?: string }>({
     resolver,
     defaultValues: {
       hostname: "",
       ipAddress: "",
       username: "",
       publicSshKeyname: "",
+      keyType: "rsa",
       isContainerHost: false,
       isVirtualMachine: false,
       isVmHost: false,
@@ -93,7 +104,7 @@ export function AddNodeDialog({
     }
   };
 
-  const handleSubmit: SubmitHandler<NodeFormValues & { sshPrivateKey?: string; sshPublicKey?: string; sudoPassword?: string }> = async (data) => {
+  const handleSubmit: SubmitHandler<NodeFormValues & { sshPrivateKey?: string; sshPublicKey?: string; sudoPassword?: string; keyType?: string }> = async (data) => {
     try {
       setIsSubmitting(true);
       let sshKeyId: string | undefined = undefined;
@@ -102,26 +113,16 @@ export function AddNodeDialog({
 
       // Create SSH key first
       if (data.sshPrivateKey && data.sshPublicKey) {
-        // First, get the external application ID for "ssh_keys"
-        const appResponse = await ExternalApplicationsService.getExternalApplicationIdByName("ssh_keys");
-        const applicationId = appResponse.id;
-        
-        if (!applicationId) {
-          throw new Error("Could not find ssh_keys application");
-        }
-
-        const sshKeyData = {
+        const sshKeyRequest: CreateSshKeyRequest = {
           name: data.publicSshKeyname,
           privateKey: data.sshPrivateKey,
           publicKey: data.sshPublicKey,
-          keyType: "rsa", // Default to RSA, could be made configurable
+          keyType: data.keyType || "ed25519",
           description: `SSH key for ${data.hostname}`,
         };
-        const secretRes = await SecretsService.createUserSecret({ 
-          secret: JSON.stringify(sshKeyData),
-          application_id: applicationId
-        });
-        sshKeyId = secretRes.id || secretRes.ID || secretRes.secret_id;
+        
+        const sshKeyResponse = await SshKeysService.createSshKey(sshKeyRequest);
+        sshKeyId = sshKeyResponse.sshKeyId;
       }
 
       if (data.sudoPassword) {
@@ -270,6 +271,33 @@ export function AddNodeDialog({
                       <Input placeholder="id_rsa" {...field} />
                     )}
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="keyType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>SSH Key Type</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      {isSubmitting ? (
+                        <Skeleton className="h-10 w-full" />
+                      ) : (
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select SSH key type" />
+                        </SelectTrigger>
+                      )}
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="rsa">RSA</SelectItem>
+                      <SelectItem value="ed25519">Ed25519</SelectItem>
+                      <SelectItem value="ecdsa">ECDSA</SelectItem>
+                      <SelectItem value="dsa">DSA</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

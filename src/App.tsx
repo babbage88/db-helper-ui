@@ -52,37 +52,20 @@ export default function App() {
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
-    const refreshToken = localStorage.getItem("refreshToken");
-
-    const tryRefresh = async () => {
-      if (!refreshToken) return false;
-      try {
-        const refReq: TokenRefreshReq = { refreshToken };
-        const response = await AuthenticationService.refreshAccessToken(refReq);
-        localStorage.setItem("accessToken", response.accessToken!);
-        localStorage.setItem("refreshToken", response.refreshToken!);
-        OpenAPI.TOKEN = response.accessToken!;
-        return true;
-      } catch (err) {
-        console.error("Error refreshing token:", err);
-        return false;
-      }
-    };
 
     const checkAuth = async () => {
       if (!token) {
-        const refreshed = await tryRefresh();
-        setIsAuthenticated(refreshed);
+        setIsAuthenticated(false);
         return;
       }
 
-      OpenAPI.TOKEN = token;
       try {
+        // We assume the token is valid initially. 
+        // The interceptor will handle 401s if it's not.
         await AuthenticationService.verifyToken();
         setIsAuthenticated(true);
       } catch {
-        const refreshed = await tryRefresh();
-        setIsAuthenticated(refreshed);
+        setIsAuthenticated(false);
       }
     };
 

@@ -452,11 +452,12 @@ function AddSshKeyForm({ node, onCancel, onSuccess }: {
     publicSshKeyname: "",
     sshPrivateKey: "",
     sshPublicKey: "",
+    keyType: "rsa",
   });
   const [isSaving, setIsSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
@@ -497,7 +498,7 @@ function AddSshKeyForm({ node, onCancel, onSuccess }: {
           name: form.publicSshKeyname,
           privateKey: form.sshPrivateKey,
           publicKey: form.sshPublicKey,
-          keyType: "rsa", // Default to RSA, could be made configurable
+          keyType: form.keyType,
           description: `SSH key for ${node.Hostname}`,
         };
         const secretRes = await SecretsService.createUserSecret({ 
@@ -562,6 +563,21 @@ function AddSshKeyForm({ node, onCancel, onSuccess }: {
           placeholder="id_rsa"
           required
         />
+      </div>
+      <div>
+        <label className="block text-sm font-medium">SSH Key Type</label>
+        <select
+          className="border rounded px-2 py-1 w-full"
+          name="keyType"
+          value={form.keyType}
+          onChange={handleChange}
+          required
+        >
+          <option value="rsa">RSA</option>
+          <option value="ed25519">Ed25519</option>
+          <option value="ecdsa">ECDSA</option>
+          <option value="dsa">DSA</option>
+        </select>
       </div>
       <div>
         <label className="block text-sm font-medium">SSH Private Key</label>
