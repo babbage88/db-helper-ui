@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { CreateSshKeyHostMappingRequest } from '../models/CreateSshKeyHostMappingRequest';
+import type { CreateSshKeyHostMappingRequestWithoutUserID } from '../models/CreateSshKeyHostMappingRequestWithoutUserID';
 import type { CreateSshKeyHostMappingResponse } from '../models/CreateSshKeyHostMappingResponse';
 import type { DeleteSshKeyHostMappingResponse } from '../models/DeleteSshKeyHostMappingResponse';
 import type { UpdateSshKeyHostMappingRequest } from '../models/UpdateSshKeyHostMappingRequest';
@@ -17,7 +17,7 @@ export class SshKeyHostMappingsService {
      * @throws ApiError
      */
     public static createSshKeyHostMapping(
-        body?: CreateSshKeyHostMappingRequest,
+        body?: CreateSshKeyHostMappingRequestWithoutUserID,
     ): CancelablePromise<CreateSshKeyHostMappingResponse> {
         return __request(OpenAPI, {
             method: 'POST',

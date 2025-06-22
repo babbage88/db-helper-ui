@@ -21,6 +21,7 @@ export type { CreateNewUserRequest } from './models/CreateNewUserRequest';
 export type { CreateRolePermissionMappingRequest } from './models/CreateRolePermissionMappingRequest';
 export type { CreateSecretRequest } from './models/CreateSecretRequest';
 export type { CreateSshKeyHostMappingRequest } from './models/CreateSshKeyHostMappingRequest';
+export type { CreateSshKeyHostMappingRequestWithoutUserID } from './models/CreateSshKeyHostMappingRequestWithoutUserID';
 export type { CreateSshKeyHostMappingResponse } from './models/CreateSshKeyHostMappingResponse';
 export type { CreateSshKeyRequest } from './models/CreateSshKeyRequest';
 export type { CreateSshKeyResponse } from './models/CreateSshKeyResponse';
