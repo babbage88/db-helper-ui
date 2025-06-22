@@ -11,12 +11,14 @@ export class SecretsService {
     /**
      * Create a new external application secret.
      * @param body
-     * @returns any Secret stored successfully
+     * @returns any (empty)
      * @throws ApiError
      */
     public static createUserSecret(
         body?: CreateSecretRequest,
-    ): CancelablePromise<any> {
+    ): CancelablePromise<{
+        id?: string;
+    }> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/secrets/create',
