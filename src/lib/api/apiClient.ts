@@ -73,13 +73,9 @@ apiClient.interceptors.response.use(
 
                 const newAccessToken = response.data.accessToken;
                 const newRefreshToken = response.data.refreshToken;
-                const userId = response.data.userId;
-                const username = response.data.userName;
-                const email = response.data.email;
 
                 TokenService.setAccessToken(newAccessToken);
                 TokenService.setRefreshToken(newRefreshToken);
-                TokenService.setUserInfo(userId, username, email);
 
                 apiClient.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
                 processQueue(null, newAccessToken);
