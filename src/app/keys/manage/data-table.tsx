@@ -53,10 +53,8 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const [editKey, setEditKey] = React.useState<SshKey | null>(null);
-  const [isEditing, setIsEditing] = React.useState(false);
 
   const [mappingKey, setMappingKey] = React.useState<SshKey | null>(null);
-  const [isMapping, setIsMapping] = React.useState(false);
 
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = React.useState(false);
 
