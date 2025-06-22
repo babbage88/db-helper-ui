@@ -42,6 +42,8 @@ import type { CreateHostServerRequest } from "@/lib/api/models/CreateHostServerR
 import type { CreateSshKeyHostMappingRequestWithoutUserID } from "@/lib/api/models/CreateSshKeyHostMappingRequestWithoutUserID";
 import type { CreateSshKeyRequest } from "@/lib/api/models/CreateSshKeyRequest";
 import type { SshKeyListItem } from "@/lib/api/models/SshKeyListItem";
+import { TokenService } from "@/lib/tokenManager";
+import { AddSshKeyDialog } from "@/components/db-helper/add-ssh-key-dialog";
 
 const nodeFormSchema = z.object({
     hostname: z.string().min(1, "Hostname is required"),
@@ -52,51 +54,7 @@ const nodeFormSchema = z.object({
     isVirtualMachine: z.boolean(),
     isVmHost: z.boolean(),
     idDbHost: z.boolean(),
-    keyCreationMode: z.enum(["new", "existing"]),
-    publicSshKeyname: z.string().optional(),
-    keyType: z.string().optional(),
-    sshPrivateKey: z.string().optional(),
-    sshPublicKey: z.string().optional(),
-    selectedSshKeyId: z.string().optional(),
-  }).superRefine((data, ctx) => {
-    if (data.keyCreationMode === "new") {
-      if (!data.publicSshKeyname) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["publicSshKeyname"],
-          message: "SSH Key name is required",
-        });
-      }
-      if (!data.keyType) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["keyType"],
-          message: "SSH Key type is required",
-        });
-      }
-      if (!data.sshPrivateKey) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["sshPrivateKey"],
-          message: "Private SSH key is required",
-        });
-      }
-      if (!data.sshPublicKey) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["sshPublicKey"],
-          message: "Public SSH key is required",
-        });
-      }
-    } else if (data.keyCreationMode === "existing") {
-      if (!data.selectedSshKeyId) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["selectedSshKeyId"],
-          message: "Please select an SSH key",
-        });
-      }
-    }
+    selectedSshKeyId: z.string().min(1, "Please select an SSH key"),
   });
 
 export type NodeFormValues = z.infer<typeof nodeFormSchema> & {
@@ -118,6 +76,7 @@ export function AddNodeDialog({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [availableSshKeys, setAvailableSshKeys] = React.useState<SshKeyListItem[]>([]);
   const [isLoadingKeys, setIsLoadingKeys] = React.useState(false);
+  const [showAddSshKeyDialog, setShowAddSshKeyDialog] = React.useState(false);
   const resolver: Resolver<NodeFormValues> = zodResolver(nodeFormSchema);
 
   const form = useForm<NodeFormValues>({
@@ -126,49 +85,38 @@ export function AddNodeDialog({
       hostname: "",
       ipAddress: "",
       username: "",
-      publicSshKeyname: "",
-      keyType: "rsa",
       isContainerHost: false,
       isVirtualMachine: false,
       isVmHost: false,
       idDbHost: false,
-      sshPrivateKey: "",
-      sshPublicKey: "",
       sudoPassword: "",
-      keyCreationMode: "new",
     },
   });
 
+  const fetchKeys = React.useCallback(async () => {
+    setIsLoadingKeys(true);
+    try {
+      const userInfo = TokenService.getUserInfo();
+      if (!userInfo || !userInfo.userId) {
+        console.error("User ID not found. Cannot fetch SSH keys.");
+        setAvailableSshKeys([]);
+        return;
+      }
+
+      const keys = await SshKeysService.getSshKeysByUserId(userInfo.userId);
+      setAvailableSshKeys(keys);
+    } catch (error) {
+      console.error("Failed to fetch SSH keys:", error);
+    } finally {
+      setIsLoadingKeys(false);
+    }
+  }, []);
+
   React.useEffect(() => {
     if (open) {
-      const fetchKeys = async () => {
-        setIsLoadingKeys(true);
-        try {
-          const userId = localStorage.getItem("userId");
-          if (!userId) {
-            console.error("User ID not found. Cannot fetch SSH keys.");
-            // Fallback to new key creation mode
-            form.setValue("keyCreationMode", "new");
-            setAvailableSshKeys([]);
-            return;
-          }
-
-          const keys = await SshKeysService.getSshKeysByUserId(userId);
-          setAvailableSshKeys(keys);
-          if (keys.length > 0) {
-            form.setValue("keyCreationMode", "existing");
-          }
-        } catch (error) {
-          console.error("Failed to fetch SSH keys:", error);
-          // Fallback to new key creation if fetching fails
-          form.setValue("keyCreationMode", "new");
-        } finally {
-          setIsLoadingKeys(false);
-        }
-      };
       fetchKeys();
     }
-  }, [open, form]);
+  }, [open, fetchKeys]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, files } = e.target;
@@ -184,23 +132,8 @@ export function AddNodeDialog({
   const handleSubmit: SubmitHandler<NodeFormValues> = async (data) => {
     try {
       setIsSubmitting(true);
-      let sshKeyId: string | undefined = data.selectedSshKeyId;
+      const sshKeyId: string | undefined = data.selectedSshKeyId;
       let sudoPasswordId: string | undefined = undefined;
-
-      if (data.keyCreationMode === "new") {
-        if (data.publicSshKeyname && data.sshPrivateKey && data.sshPublicKey) {
-          const sshKeyRequest: CreateSshKeyRequest = {
-            name: data.publicSshKeyname,
-            privateKey: data.sshPrivateKey,
-            publicKey: data.sshPublicKey,
-            keyType: data.keyType || "ed25519",
-            description: `SSH key for ${data.hostname}`,
-          };
-          
-          const sshKeyResponse = await SshKeysService.createSshKey(sshKeyRequest);
-          sshKeyId = sshKeyResponse.sshKeyId;
-        }
-      }
 
       if (data.sudoPassword) {
         let sudoAppId: string;
@@ -261,9 +194,9 @@ export function AddNodeDialog({
   };
 
   const control: Control<NodeFormValues> = form.control;
-  const keyCreationMode = form.watch("keyCreationMode");
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] max-h-[90vh] flex flex-col">
         <DialogHeader>
@@ -316,153 +249,42 @@ export function AddNodeDialog({
             
             <FormField
               control={control}
-              name="keyCreationMode"
+              name="selectedSshKeyId"
               render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>SSH Key</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex space-x-4"
-                    >
-                      <FormItem className="flex items-center space-x-2">
-                        <FormControl>
-                          <RadioGroupItem value="new" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Create New</FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-2">
-                        <FormControl>
-                          <RadioGroupItem value="existing" disabled={isLoadingKeys || availableSshKeys.length === 0} />
-                        </FormControl>
-                        <FormLabel className="font-normal">Use Existing</FormLabel>
-                      </FormItem>
-                    </RadioGroup>
-                  </FormControl>
+                <FormItem>
+                  <FormLabel>Select SSH Key</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an existing SSH key" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {isLoadingKeys ? (
+                        <SelectItem value="loading" disabled>Loading keys...</SelectItem>
+                      ) : (
+                        availableSshKeys.map((key) => (
+                          <SelectItem key={key.id} value={key.id!}>
+                            {key.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {keyCreationMode === 'new' && (
-              <>
-                <FormField
-                  control={control}
-                  name="publicSshKeyname"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>SSH Key Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="id_rsa" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={control}
-                  name="keyType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>SSH Key Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select SSH key type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="rsa">RSA</SelectItem>
-                          <SelectItem value="ed25519">Ed25519</SelectItem>
-                          <SelectItem value="ecdsa">ECDSA</SelectItem>
-                          <SelectItem value="dsa">DSA</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div>
-                  <FormLabel>SSH Private Key</FormLabel>
-                  <FormField
-                    control={control}
-                    name="sshPrivateKey"
-                    render={({ field }) => (
-                      <Input
-                        {...field}
-                        value={field.value || ''}
-                        placeholder="Paste private key or upload file"
-                        className="mb-2"
-                      />
-                    )}
-                  />
-                  <Input
-                    type="file"
-                    accept=".pem,.key,.txt"
-                    name="sshPrivateKey"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    id="sshPrivateKeyFile"
-                  />
-                  <label htmlFor="sshPrivateKeyFile" className="text-sm font-medium text-blue-600 cursor-pointer">Choose File</label>
-                </div>
-                <div>
-                  <FormLabel>SSH Public Key</FormLabel>
-                  <FormField
-                    control={control}
-                    name="sshPublicKey"
-                    render={({ field }) => (
-                      <Input
-                        {...field}
-                        value={field.value || ''}
-                        placeholder="Paste public key or upload file"
-                        className="mb-2"
-                      />
-                    )}
-                  />
-                  <Input
-                    type="file"
-                    accept=".pub,.txt"
-                    name="sshPublicKey"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    id="sshPublicKeyFile"
-                  />
-                  <label htmlFor="sshPublicKeyFile" className="text-sm font-medium text-blue-600 cursor-pointer">Choose File</label>
-                </div>
-              </>
-            )}
-
-            {keyCreationMode === 'existing' && (
-              <FormField
-                control={control}
-                name="selectedSshKeyId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Select SSH Key</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an existing SSH key" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {isLoadingKeys ? (
-                          <SelectItem value="loading" disabled>Loading keys...</SelectItem>
-                        ) : (
-                          availableSshKeys.map((key) => (
-                            <SelectItem key={key.id} value={key.id!}>
-                              {key.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {!isLoadingKeys && availableSshKeys.length === 0 && (
+              <div className="text-center p-4 border rounded-md bg-muted/50">
+                <p className="text-sm text-muted-foreground mb-3">
+                  You don't have any SSH keys yet. Please add one to continue.
+                </p>
+                <Button type="button" onClick={() => setShowAddSshKeyDialog(true)}>
+                  Add SSH Key
+                </Button>
+              </div>
             )}
 
             <div className="grid grid-cols-2 gap-4">
@@ -542,5 +364,14 @@ export function AddNodeDialog({
         </Form>
       </DialogContent>
     </Dialog>
+    <AddSshKeyDialog
+      open={showAddSshKeyDialog}
+      onOpenChange={setShowAddSshKeyDialog}
+      onSuccess={() => {
+        setShowAddSshKeyDialog(false);
+        fetchKeys();
+      }}
+    />
+    </>
   );
 } 

@@ -53,6 +53,16 @@ export const TokenService = {
     localStorage.setItem(UID_KEY, userId);
     localStorage.setItem(EMAIL_KEY, email);
   },
+  getUserInfo: () => {
+    const userId = localStorage.getItem(UID_KEY);
+    const username = localStorage.getItem(USERNAME_KEY);
+    const email = localStorage.getItem(EMAIL_KEY);
+
+    if (userId && username && email) {
+      return { userId, username, email };
+    }
+    return null;
+  },
   clearUserInfo: () => {
     localStorage.removeItem(USERNAME_KEY);
     localStorage.removeItem(UID_KEY);

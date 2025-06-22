@@ -22,13 +22,13 @@ export default function LoginPage() {
 
     try {
       const data = await AuthenticationService.localLogin({ username: email, password });
-      const { accessToken, refreshToken, userId } = data;
+      const { accessToken, refreshToken } = data;
 
       if (!accessToken || !refreshToken) {
         throw new Error("Invalid response from server");
       }
 
-      const currentUserId = userId ?? "";
+      const currentUserId = data.user_id ?? "";
       const username = data.userName ?? "";
       const userEmail = data.email ?? "";
 
