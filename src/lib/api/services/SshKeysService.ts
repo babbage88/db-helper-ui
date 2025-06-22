@@ -4,6 +4,7 @@
 /* eslint-disable */
 import type { CreateSshKeyRequest } from '../models/CreateSshKeyRequest';
 import type { CreateSshKeyResponse } from '../models/CreateSshKeyResponse';
+import type { SshKeyListItem } from '../models/SshKeyListItem';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -21,6 +22,28 @@ export class SshKeysService {
             method: 'POST',
             url: '/ssh-keys/create',
             body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Get all SSH keys owned by a user.
+     * @param userId ID of the user to get SSH keys for
+     * @returns SshKeyListItem (empty)
+     * @throws ApiError
+     */
+    public static getSshKeysByUserId(
+        userId: string,
+    ): CancelablePromise<Array<SshKeyListItem>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ssh-keys/user/{userId}',
+            path: {
+                'userId': userId,
+            },
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,

@@ -6,6 +6,7 @@ import type { CreateNewUserRequest } from '../models/CreateNewUserRequest';
 import type { DisableUserRequest } from '../models/DisableUserRequest';
 import type { EnableDisableUserResponse } from '../models/EnableDisableUserResponse';
 import type { EnableUserRequest } from '../models/EnableUserRequest';
+import type { GetUserByIdResponse } from '../models/GetUserByIdResponse';
 import type { SoftDeleteUserByIdRequest } from '../models/SoftDeleteUserByIdRequest';
 import type { SoftDeleteUserByIdResponse } from '../models/SoftDeleteUserByIdResponse';
 import type { UpdateUserPasswordRequest } from '../models/UpdateUserPasswordRequest';
@@ -134,6 +135,47 @@ export class UserCrudService {
             method: 'POST',
             url: '/user/role/remove',
             body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Returns all active users.
+     * @returns string (empty)
+     * @throws ApiError
+     */
+    public static getAllUsers(): CancelablePromise<string> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/users',
+            responseHeader: 'users',
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Returns User Info for the user id specified in URL users.
+     * @param id ID of user
+     * @returns GetUserByIdResponse (empty)
+     * @throws ApiError
+     */
+    public static getUserById(
+        id: string,
+    ): CancelablePromise<GetUserByIdResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/users/{ID}',
+            path: {
+                'ID': id,
+            },
             errors: {
                 401: `Unauthorized`,
                 403: `Forbidden`,

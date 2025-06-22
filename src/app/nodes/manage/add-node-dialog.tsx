@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SecretsService } from "@/lib/api/services/SecretsService";
 import { ExternalApplicationsService } from "@/lib/api/services/ExternalApplicationsService";
 import { HostServersService } from "@/lib/api/services/HostServersService";
@@ -40,20 +41,62 @@ import { SshKeysService } from "@/lib/api/services/SshKeysService";
 import type { CreateHostServerRequest } from "@/lib/api/models/CreateHostServerRequest";
 import type { CreateSshKeyHostMappingRequestWithoutUserID } from "@/lib/api/models/CreateSshKeyHostMappingRequestWithoutUserID";
 import type { CreateSshKeyRequest } from "@/lib/api/models/CreateSshKeyRequest";
+import type { SshKeyListItem } from "@/lib/api/models/SshKeyListItem";
 
 const nodeFormSchema = z.object({
     hostname: z.string().min(1, "Hostname is required"),
     ipAddress: z.string().min(1, "IP Address is required"),
     username: z.string().min(1, "Username is required"),
-    publicSshKeyname: z.string().min(1, "SSH Key name is required"),
-    keyType: z.string().min(1, "SSH Key type is required"),
+    sudoPassword: z.string().optional(),
     isContainerHost: z.boolean(),
     isVirtualMachine: z.boolean(),
     isVmHost: z.boolean(),
     idDbHost: z.boolean(),
-    sshPrivateKey: z.string().min(1, "Private SSH key is required"),
-    sshPublicKey: z.string().min(1, "Public SSH key is required"),
-    sudoPassword: z.string().optional(),
+    keyCreationMode: z.enum(["new", "existing"]),
+    publicSshKeyname: z.string().optional(),
+    keyType: z.string().optional(),
+    sshPrivateKey: z.string().optional(),
+    sshPublicKey: z.string().optional(),
+    selectedSshKeyId: z.string().optional(),
+  }).superRefine((data, ctx) => {
+    if (data.keyCreationMode === "new") {
+      if (!data.publicSshKeyname) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["publicSshKeyname"],
+          message: "SSH Key name is required",
+        });
+      }
+      if (!data.keyType) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["keyType"],
+          message: "SSH Key type is required",
+        });
+      }
+      if (!data.sshPrivateKey) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["sshPrivateKey"],
+          message: "Private SSH key is required",
+        });
+      }
+      if (!data.sshPublicKey) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["sshPublicKey"],
+          message: "Public SSH key is required",
+        });
+      }
+    } else if (data.keyCreationMode === "existing") {
+      if (!data.selectedSshKeyId) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["selectedSshKeyId"],
+          message: "Please select an SSH key",
+        });
+      }
+    }
   });
 
 export type NodeFormValues = z.infer<typeof nodeFormSchema> & {
@@ -73,9 +116,11 @@ export function AddNodeDialog({
   onSuccess,
 }: AddNodeDialogProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [availableSshKeys, setAvailableSshKeys] = React.useState<SshKeyListItem[]>([]);
+  const [isLoadingKeys, setIsLoadingKeys] = React.useState(false);
   const resolver: Resolver<NodeFormValues> = zodResolver(nodeFormSchema);
 
-  const form = useForm<NodeFormValues & { sshPrivateKey?: string; sshPublicKey?: string; sudoPassword?: string; keyType?: string }>({
+  const form = useForm<NodeFormValues>({
     resolver,
     defaultValues: {
       hostname: "",
@@ -90,71 +135,97 @@ export function AddNodeDialog({
       sshPrivateKey: "",
       sshPublicKey: "",
       sudoPassword: "",
+      keyCreationMode: "new",
     },
   });
+
+  React.useEffect(() => {
+    if (open) {
+      const fetchKeys = async () => {
+        setIsLoadingKeys(true);
+        try {
+          const userId = localStorage.getItem("userId");
+          if (!userId) {
+            console.error("User ID not found. Cannot fetch SSH keys.");
+            // Fallback to new key creation mode
+            form.setValue("keyCreationMode", "new");
+            setAvailableSshKeys([]);
+            return;
+          }
+
+          const keys = await SshKeysService.getSshKeysByUserId(userId);
+          setAvailableSshKeys(keys);
+          if (keys.length > 0) {
+            form.setValue("keyCreationMode", "existing");
+          }
+        } catch (error) {
+          console.error("Failed to fetch SSH keys:", error);
+          // Fallback to new key creation if fetching fails
+          form.setValue("keyCreationMode", "new");
+        } finally {
+          setIsLoadingKeys(false);
+        }
+      };
+      fetchKeys();
+    }
+  }, [open, form]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, files } = e.target;
     if (files && files[0]) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        form.setValue(name as any, event.target?.result as string);
+        form.setValue(name as keyof NodeFormValues, event.target?.result as string);
       };
       reader.readAsText(files[0]);
     }
   };
 
-  const handleSubmit: SubmitHandler<NodeFormValues & { sshPrivateKey?: string; sshPublicKey?: string; sudoPassword?: string; keyType?: string }> = async (data) => {
+  const handleSubmit: SubmitHandler<NodeFormValues> = async (data) => {
     try {
       setIsSubmitting(true);
-      let sshKeyId: string | undefined = undefined;
+      let sshKeyId: string | undefined = data.selectedSshKeyId;
       let sudoPasswordId: string | undefined = undefined;
-      
 
-      // Create SSH key first
-      if (data.sshPrivateKey && data.sshPublicKey) {
-        const sshKeyRequest: CreateSshKeyRequest = {
-          name: data.publicSshKeyname,
-          privateKey: data.sshPrivateKey,
-          publicKey: data.sshPublicKey,
-          keyType: data.keyType || "ed25519",
-          description: `SSH key for ${data.hostname}`,
-        };
-        
-        const sshKeyResponse = await SshKeysService.createSshKey(sshKeyRequest);
-        sshKeyId = sshKeyResponse.sshKeyId;
+      if (data.keyCreationMode === "new") {
+        if (data.publicSshKeyname && data.sshPrivateKey && data.sshPublicKey) {
+          const sshKeyRequest: CreateSshKeyRequest = {
+            name: data.publicSshKeyname,
+            privateKey: data.sshPrivateKey,
+            publicKey: data.sshPublicKey,
+            keyType: data.keyType || "ed25519",
+            description: `SSH key for ${data.hostname}`,
+          };
+          
+          const sshKeyResponse = await SshKeysService.createSshKey(sshKeyRequest);
+          sshKeyId = sshKeyResponse.sshKeyId;
+        }
       }
 
       if (data.sudoPassword) {
-        // Get or create the external application ID for "sudo_pwd"
         let sudoAppId: string;
         try {
           const sudoAppResponse = await ExternalApplicationsService.getExternalApplicationIdByName("sudo_pwd");
-          const responseId = sudoAppResponse.id;
-          
-          if (!responseId) {
+          if (!sudoAppResponse.id) {
             throw new Error("sudo_pwd application not found");
           }
-          sudoAppId = responseId;
+          sudoAppId = sudoAppResponse.id;
         } catch (error) {
-          // Application doesn't exist, create it
           const createAppResponse = await ExternalApplicationsService.createExternalApplication({
             name: "sudo_pwd",
             appDescription: "Sudo passwords for managed nodes"
           });
-          const responseId = createAppResponse.id;
-          
-          if (!responseId) {
+          if (!createAppResponse.id) {
             throw new Error("Failed to create sudo_pwd application");
           }
-          sudoAppId = responseId;
+          sudoAppId = createAppResponse.id;
         }
 
         const secretRes = await SecretsService.createUserSecret({ 
           secret: data.sudoPassword,
           application_id: sudoAppId
         });
-        sudoPasswordId = secretRes.id || secretRes.ID || secretRes.secret_id;
+        sudoPasswordId = secretRes.id;
       }
 
       const createRequest: CreateHostServerRequest = {
@@ -190,6 +261,7 @@ export function AddNodeDialog({
   };
 
   const control: Control<NodeFormValues> = form.control;
+  const keyCreationMode = form.watch("keyCreationMode");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -209,11 +281,7 @@ export function AddNodeDialog({
                 <FormItem>
                   <FormLabel>Hostname</FormLabel>
                   <FormControl>
-                    {isSubmitting ? (
-                      <Skeleton className="h-10 w-full" />
-                    ) : (
-                      <Input placeholder="server.example.com" {...field} />
-                    )}
+                    <Input placeholder="server.example.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -226,11 +294,7 @@ export function AddNodeDialog({
                 <FormItem>
                   <FormLabel>IP Address</FormLabel>
                   <FormControl>
-                    {isSubmitting ? (
-                      <Skeleton className="h-10 w-full" />
-                    ) : (
-                      <Input placeholder="192.168.1.1" {...field} />
-                    )}
+                    <Input placeholder="192.168.1.1" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -243,76 +307,171 @@ export function AddNodeDialog({
                 <FormItem>
                   <FormLabel>Username</FormLabel>
                   <FormControl>
-                    {isSubmitting ? (
-                      <Skeleton className="h-10 w-full" />
-                    ) : (
-                      <Input placeholder="root" {...field} />
-                    )}
+                    <Input placeholder="root" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            
             <FormField
               control={control}
-              name="publicSshKeyname"
+              name="keyCreationMode"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SSH Key Name</FormLabel>
+                <FormItem className="space-y-3">
+                  <FormLabel>SSH Key</FormLabel>
                   <FormControl>
-                    {isSubmitting ? (
-                      <Skeleton className="h-10 w-full" />
-                    ) : (
-                      <Input placeholder="id_rsa" {...field} />
-                    )}
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex space-x-4"
+                    >
+                      <FormItem className="flex items-center space-x-2">
+                        <FormControl>
+                          <RadioGroupItem value="new" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Create New</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2">
+                        <FormControl>
+                          <RadioGroupItem value="existing" disabled={isLoadingKeys || availableSshKeys.length === 0} />
+                        </FormControl>
+                        <FormLabel className="font-normal">Use Existing</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
-              control={control}
-              name="keyType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SSH Key Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      {isSubmitting ? (
-                        <Skeleton className="h-10 w-full" />
-                      ) : (
+
+            {keyCreationMode === 'new' && (
+              <>
+                <FormField
+                  control={control}
+                  name="publicSshKeyname"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SSH Key Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="id_rsa" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={control}
+                  name="keyType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SSH Key Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select SSH key type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="rsa">RSA</SelectItem>
+                          <SelectItem value="ed25519">Ed25519</SelectItem>
+                          <SelectItem value="ecdsa">ECDSA</SelectItem>
+                          <SelectItem value="dsa">DSA</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div>
+                  <FormLabel>SSH Private Key</FormLabel>
+                  <FormField
+                    control={control}
+                    name="sshPrivateKey"
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        value={field.value || ''}
+                        placeholder="Paste private key or upload file"
+                        className="mb-2"
+                      />
+                    )}
+                  />
+                  <Input
+                    type="file"
+                    accept=".pem,.key,.txt"
+                    name="sshPrivateKey"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="sshPrivateKeyFile"
+                  />
+                  <label htmlFor="sshPrivateKeyFile" className="text-sm font-medium text-blue-600 cursor-pointer">Choose File</label>
+                </div>
+                <div>
+                  <FormLabel>SSH Public Key</FormLabel>
+                  <FormField
+                    control={control}
+                    name="sshPublicKey"
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        value={field.value || ''}
+                        placeholder="Paste public key or upload file"
+                        className="mb-2"
+                      />
+                    )}
+                  />
+                  <Input
+                    type="file"
+                    accept=".pub,.txt"
+                    name="sshPublicKey"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="sshPublicKeyFile"
+                  />
+                  <label htmlFor="sshPublicKeyFile" className="text-sm font-medium text-blue-600 cursor-pointer">Choose File</label>
+                </div>
+              </>
+            )}
+
+            {keyCreationMode === 'existing' && (
+              <FormField
+                control={control}
+                name="selectedSshKeyId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Select SSH Key</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select SSH key type" />
+                          <SelectValue placeholder="Select an existing SSH key" />
                         </SelectTrigger>
-                      )}
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="rsa">RSA</SelectItem>
-                      <SelectItem value="ed25519">Ed25519</SelectItem>
-                      <SelectItem value="ecdsa">ECDSA</SelectItem>
-                      <SelectItem value="dsa">DSA</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                      </FormControl>
+                      <SelectContent>
+                        {isLoadingKeys ? (
+                          <SelectItem value="loading" disabled>Loading keys...</SelectItem>
+                        ) : (
+                          availableSshKeys.map((key) => (
+                            <SelectItem key={key.id} value={key.id!}>
+                              {key.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={control}
                 name="isContainerHost"
                 render={({ field }) => (
                   <FormItem className="flex items-center space-x-2">
-                    <FormControl>
-                      {isSubmitting ? (
-                        <Skeleton className="h-4 w-4" />
-                      ) : (
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      )}
-                    </FormControl>
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                     <FormLabel>Container Host</FormLabel>
                   </FormItem>
                 )}
@@ -322,16 +481,7 @@ export function AddNodeDialog({
                 name="isVirtualMachine"
                 render={({ field }) => (
                   <FormItem className="flex items-center space-x-2">
-                    <FormControl>
-                      {isSubmitting ? (
-                        <Skeleton className="h-4 w-4" />
-                      ) : (
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      )}
-                    </FormControl>
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                     <FormLabel>Virtual Machine</FormLabel>
                   </FormItem>
                 )}
@@ -341,16 +491,7 @@ export function AddNodeDialog({
                 name="isVmHost"
                 render={({ field }) => (
                   <FormItem className="flex items-center space-x-2">
-                    <FormControl>
-                      {isSubmitting ? (
-                        <Skeleton className="h-4 w-4" />
-                      ) : (
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      )}
-                    </FormControl>
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                     <FormLabel>VM Host</FormLabel>
                   </FormItem>
                 )}
@@ -360,87 +501,13 @@ export function AddNodeDialog({
                 name="idDbHost"
                 render={({ field }) => (
                   <FormItem className="flex items-center space-x-2">
-                    <FormControl>
-                      {isSubmitting ? (
-                        <Skeleton className="h-4 w-4" />
-                      ) : (
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      )}
-                    </FormControl>
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                     <FormLabel>DB Host</FormLabel>
                   </FormItem>
                 )}
               />
             </div>
-            <div>
-              <FormLabel>SSH Private Key</FormLabel>
-              <FormField
-                control={control}
-                name="sshPrivateKey"
-                render={({ field }) => (
-                  <Input
-                    name="sshPrivateKey"
-                    value={field.value}
-                    onChange={field.onChange}
-                    placeholder="Paste private key or upload file"
-                    className="mb-2"
-                  />
-                )}
-              />
-              <div className="flex items-center gap-2">
-                <Input
-                  type="file"
-                  accept=".pem,.key,.txt"
-                  name="sshPrivateKey"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="sshPrivateKeyFile"
-                />
-                <label
-                  htmlFor="sshPrivateKeyFile"
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer"
-                >
-                  Choose File
-                </label>
-                <span className="text-xs text-muted-foreground">or paste above</span>
-              </div>
-            </div>
-            <div>
-              <FormLabel>SSH Public Key</FormLabel>
-              <FormField
-                control={control}
-                name="sshPublicKey"
-                render={({ field }) => (
-                  <Input
-                    name="sshPublicKey"
-                    value={field.value}
-                    onChange={field.onChange}
-                    placeholder="Paste public key or upload file"
-                    className="mb-2"
-                  />
-                )}
-              />
-              <div className="flex items-center gap-2">
-                <Input
-                  type="file"
-                  accept=".pub,.txt"
-                  name="sshPublicKey"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="sshPublicKeyFile"
-                />
-                <label
-                  htmlFor="sshPublicKeyFile"
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer"
-                >
-                  Choose File
-                </label>
-                <span className="text-xs text-muted-foreground">or paste above</span>
-              </div>
-            </div>
+            
             <div>
               <FormLabel>Sudo Password</FormLabel>
               <FormField
@@ -448,32 +515,23 @@ export function AddNodeDialog({
                 name="sudoPassword"
                 render={({ field }) => (
                   <Input
-                    name="sudoPassword"
+                    {...field}
+                    value={field.value || ''}
                     type="password"
-                    value={field.value}
-                    onChange={field.onChange}
                     placeholder="Enter sudo password or upload file"
                     className="mb-2"
                   />
                 )}
               />
-              <div className="flex items-center gap-2">
-                <Input
-                  type="file"
-                  accept=".txt"
-                  name="sudoPassword"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="sudoPasswordFile"
-                />
-                <label
-                  htmlFor="sudoPasswordFile"
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer"
-                >
-                  Choose File
-                </label>
-                <span className="text-xs text-muted-foreground">or paste above</span>
-              </div>
+              <Input
+                type="file"
+                accept=".txt"
+                name="sudoPassword"
+                onChange={handleFileChange}
+                className="hidden"
+                id="sudoPasswordFile"
+              />
+              <label htmlFor="sudoPasswordFile" className="text-sm font-medium text-blue-600 cursor-pointer">Choose File</label>
             </div>
             <DialogFooter className="sticky bottom-0 bg-background pt-4">
               <Button type="submit" disabled={isSubmitting}>

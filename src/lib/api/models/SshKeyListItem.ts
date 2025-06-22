@@ -2,12 +2,14 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type RolePermissionMappingDao = {
+export type SshKeyListItem = {
     createdAt?: string;
-    enabled?: boolean;
+    description?: string;
     id?: string;
+    keyType?: string;
     lastModified?: string;
-    permissionId?: string;
-    roleId?: string;
+    name?: string;
+    ownerUserId?: string;
+    publicKey?: string;
 };
 
