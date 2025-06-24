@@ -10,6 +10,7 @@ import {
   useReactTable,
   type SortingState,
   type ColumnFiltersState,
+  type RowSelectionState,
 } from "@tanstack/react-table";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [viewNode, setViewNode] = React.useState<Node | null>(null);
   const [viewNodeDetails, setViewNodeDetails] = React.useState<NodeDetails | null>(null);
   const [isViewLoading, setIsViewLoading] = React.useState(false);
@@ -43,6 +45,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const [deleteNode, setDeleteNode] = React.useState<Node | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [sshKeyNode, setSshKeyNode] = React.useState<Node | null>(null); // For SSH Key modal
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = React.useState(false);
 
   // Handlers
   const handleEdit = (node: Node) => setEditNode(node);
@@ -104,9 +107,11 @@ export function DataTable({ data, onChange }: DataTableProps) {
       sorting,
       columnFilters,
       globalFilter,
+      rowSelection,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -126,7 +131,44 @@ export function DataTable({ data, onChange }: DataTableProps) {
         String(value ?? "").toLowerCase().includes(String(filterValue).toLowerCase())
       );
     },
+    enableRowSelection: true,
   });
+
+  const numSelected = Object.keys(rowSelection).length;
+
+  const confirmBulkDelete = async () => {
+    setIsDeleting(true);
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const idsToDelete = selectedRows.map(row => row.original.ID);
+    try {
+      await Promise.all(idsToDelete.map(id => HostServersService.deleteHostServer(id)));
+      if (onChange) onChange();
+      setRowSelection({});
+    } catch (e) {
+      console.error("Failed to bulk delete nodes:", e);
+    } finally {
+      setIsDeleting(false);
+      setIsBulkDeleteConfirmOpen(false);
+    }
+  };
+
+  const confirmBulkDeleteMappings = async () => {
+    setIsDeleting(true);
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const mappingsToDelete = selectedRows
+      .map(row => row.original.mappingId)
+      .filter(mappingId => mappingId); // Only delete rows that have mappings
+    try {
+      await Promise.all(mappingsToDelete.map(mappingId => SshKeyHostMappingsService.deleteSshKeyHostMapping(mappingId!)));
+      if (onChange) onChange();
+      setRowSelection({});
+    } catch (e) {
+      console.error("Failed to bulk delete mappings:", e);
+    } finally {
+      setIsDeleting(false);
+      setIsBulkDeleteConfirmOpen(false);
+    }
+  };
 
   return (
     <div>
@@ -137,6 +179,15 @@ export function DataTable({ data, onChange }: DataTableProps) {
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-sm"
         />
+        {numSelected > 0 && (
+          <Button
+            variant="destructive"
+            onClick={() => setIsBulkDeleteConfirmOpen(true)}
+            className="ml-4"
+          >
+            Delete Selected ({numSelected})
+          </Button>
+        )}
       </div>
       <div className="rounded-md border">
         <Table>
@@ -179,7 +230,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
       </div>
       <div className="flex items-center justify-between space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
-          Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+          {numSelected} of {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
         <div className="space-x-2">
           <Button
@@ -200,6 +251,29 @@ export function DataTable({ data, onChange }: DataTableProps) {
           </Button>
         </div>
       </div>
+      {/* Bulk Delete Confirmation Dialog */}
+      {isBulkDeleteConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
+          <div className="bg-card p-6 rounded shadow-lg min-w-[300px]">
+            <h2 className="font-bold mb-2">Delete Selected Nodes</h2>
+            <p>Are you sure you want to delete {numSelected} selected node(s)?</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              You can either remove your access to these nodes or delete the nodes for all users.
+            </p>
+            <div className="flex gap-2 mt-4">
+              <Button variant="destructive" onClick={confirmBulkDelete} disabled={isDeleting}>
+                {isDeleting ? "Deleting..." : "Delete Nodes Completely"}
+              </Button>
+              <Button variant="secondary" onClick={confirmBulkDeleteMappings} disabled={isDeleting}>
+                {isDeleting ? "Deleting..." : "Delete My Access Only"}
+              </Button>
+              <Button variant="outline" onClick={() => setIsBulkDeleteConfirmOpen(false)} disabled={isDeleting}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* View Modal */}
       {viewNode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
