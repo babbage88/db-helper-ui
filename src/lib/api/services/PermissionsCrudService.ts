@@ -5,8 +5,8 @@
 import type { CreateAppPermissionRequest } from '../models/CreateAppPermissionRequest';
 import type { CreateAppPermissionResult } from '../models/CreateAppPermissionResult';
 import type { CreateRolePermissionMappingRequest } from '../models/CreateRolePermissionMappingRequest';
+import type { CreateRolePermissionMappingResponse } from '../models/CreateRolePermissionMappingResponse';
 import type { GetAllAppPermissionsResponse } from '../models/GetAllAppPermissionsResponse';
-import type { RolePermissionMappingDao } from '../models/RolePermissionMappingDao';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -52,12 +52,12 @@ export class PermissionsCrudService {
     /**
      * Map App Permission to User Role.
      * @param body
-     * @returns RolePermissionMappingDao (empty)
+     * @returns CreateRolePermissionMappingResponse (empty)
      * @throws ApiError
      */
     public static createRolePermissionMapping(
         body?: CreateRolePermissionMappingRequest,
-    ): CancelablePromise<RolePermissionMappingDao> {
+    ): CancelablePromise<CreateRolePermissionMappingResponse> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/roles/permission',

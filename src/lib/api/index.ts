@@ -19,6 +19,7 @@ export type { CreateExternalApplicationRequest } from './models/CreateExternalAp
 export type { CreateHostServerRequest } from './models/CreateHostServerRequest';
 export type { CreateNewUserRequest } from './models/CreateNewUserRequest';
 export type { CreateRolePermissionMappingRequest } from './models/CreateRolePermissionMappingRequest';
+export type { CreateRolePermissionMappingResponse } from './models/CreateRolePermissionMappingResponse';
 export type { CreateSecretRequest } from './models/CreateSecretRequest';
 export type { CreateSshKeyHostMappingRequest } from './models/CreateSshKeyHostMappingRequest';
 export type { CreateSshKeyHostMappingRequestWithoutUserID } from './models/CreateSshKeyHostMappingRequestWithoutUserID';
