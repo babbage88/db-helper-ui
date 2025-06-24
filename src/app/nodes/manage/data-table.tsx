@@ -15,7 +15,7 @@ import {
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { getColumns, type Node } from "./columns";
 import { HostServersService } from "@/lib/api/services/HostServersService";
 import { SecretsService } from "@/lib/api/services/SecretsService";
@@ -23,6 +23,8 @@ import { ExternalApplicationsService } from "@/lib/api/services/ExternalApplicat
 import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
 import type { CreateSshKeyHostMappingRequestWithoutUserID } from "@/lib/api/models/CreateSshKeyHostMappingRequestWithoutUserID";
 import type { CreateSshKeyHostMappingResponse } from "@/lib/api/models/CreateSshKeyHostMappingResponse";
+import { NetworkPingService } from "@/lib/api/services/NetworkPingService";
+import type { PingResponse } from "@/lib/api/models/PingResponse";
 
 interface DataTableProps {
   data: Node[];
@@ -46,6 +48,61 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [sshKeyNode, setSshKeyNode] = React.useState<Node | null>(null); // For SSH Key modal
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = React.useState(false);
+  const [nodesWithPingStatus, setNodesWithPingStatus] = React.useState<Node[]>([]);
+  const [isPinging, setIsPinging] = React.useState(false);
+
+  // Ping all nodes to check their status
+  const pingNodes = React.useCallback(async (nodes: Node[]) => {
+    setIsPinging(true);
+    const pingPromises = nodes.map(async (node) => {
+      try {
+        const pingResponse = await NetworkPingService.pingHostServer({
+          hostServerId: node.ID
+        });
+        return {
+          ...node,
+          pingStatus: {
+            success: pingResponse.success,
+            latency: pingResponse.latency,
+            error: pingResponse.error
+          }
+        };
+      } catch (error) {
+        return {
+          ...node,
+          pingStatus: {
+            success: false,
+            latency: "0ms",
+            error: "Ping failed"
+          }
+        };
+      }
+    });
+
+    const results = await Promise.all(pingPromises);
+    setNodesWithPingStatus(results);
+    setIsPinging(false);
+  }, []);
+
+  // Update ping status when data changes
+  React.useEffect(() => {
+    if (data.length > 0) {
+      pingNodes(data);
+    } else {
+      setNodesWithPingStatus([]);
+    }
+  }, [data, pingNodes]);
+
+  // Periodic refresh every 30 seconds
+  React.useEffect(() => {
+    if (data.length === 0) return;
+    
+    const interval = setInterval(() => {
+      pingNodes(data);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [data, pingNodes]);
 
   // Handlers
   const handleEdit = (node: Node) => setEditNode(node);
@@ -98,10 +155,10 @@ export function DataTable({ data, onChange }: DataTableProps) {
     onDelete: handleDelete,
     onView: handleView,
     onAddSshKey: handleAddSshKey,
-  }), [data]);
+  }), []);
 
   const table = useReactTable({
-    data,
+    data: nodesWithPingStatus,
     columns,
     state: {
       sorting,
@@ -179,6 +236,16 @@ export function DataTable({ data, onChange }: DataTableProps) {
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-sm"
         />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => pingNodes(data)}
+          disabled={isPinging}
+          className="ml-2"
+        >
+          <RefreshCw className={`h-4 w-4 mr-1 ${isPinging ? 'animate-spin' : ''}`} />
+          {isPinging ? 'Pinging...' : 'Refresh Status'}
+        </Button>
         {numSelected > 0 && (
           <Button
             variant="destructive"

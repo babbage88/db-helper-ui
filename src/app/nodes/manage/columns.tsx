@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Wifi, WifiOff } from "lucide-react";
 
 export type Node = {
   ID: string;
@@ -23,6 +24,7 @@ export type Node = {
   Username?: string;
   PublicSshKeyname?: string;
   mappingId?: string;
+  pingStatus?: { success: boolean };
 };
 
 type ActionHandlers = {
@@ -80,6 +82,34 @@ export function getColumns({ onEdit, onDelete, onView, onAddSshKey }: ActionHand
     {
       accessorKey: "Username",
       header: "Username",
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const status = row.original.pingStatus;
+        if (status === undefined) {
+          return (
+            <div className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground">
+              Checking...
+            </div>
+          );
+        }
+        if (status.success) {
+          return (
+            <div className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-500 text-white">
+              <Wifi className="h-3 w-3 mr-1" />
+              Online
+            </div>
+          );
+        }
+        return (
+          <div className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-destructive text-white">
+            <WifiOff className="h-3 w-3 mr-1" />
+            Offline
+          </div>
+        );
+      },
     },
     {
       accessorKey: "LastModified",
