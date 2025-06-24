@@ -92,22 +92,22 @@ export function AddNodeDialog({
   });
 
   const fetchKeys = React.useCallback(async () => {
-    setIsLoadingKeys(true);
-    try {
+        setIsLoadingKeys(true);
+        try {
       const userInfo = TokenService.getUserInfo();
       if (!userInfo || !userInfo.userId) {
-        console.error("User ID not found. Cannot fetch SSH keys.");
-        setAvailableSshKeys([]);
-        return;
-      }
+            console.error("User ID not found. Cannot fetch SSH keys.");
+            setAvailableSshKeys([]);
+            return;
+          }
 
       const keys = await SshKeysService.getSshKeysByUserId(userInfo.userId);
-      setAvailableSshKeys(keys);
-    } catch (error) {
-      console.error("Failed to fetch SSH keys:", error);
-    } finally {
-      setIsLoadingKeys(false);
-    }
+          setAvailableSshKeys(keys);
+        } catch (error) {
+          console.error("Failed to fetch SSH keys:", error);
+        } finally {
+          setIsLoadingKeys(false);
+        }
   }, []);
 
   React.useEffect(() => {
@@ -159,7 +159,7 @@ export function AddNodeDialog({
           throw new Error("Failed to get or create sudo_pwd application");
         }
 
-        const secretRes = await SecretsService.createUserSecret({
+        const secretRes = await SecretsService.createUserSecret({ 
           secret: data.sudoPassword,
           application_id: sudoAppId
         });
@@ -174,18 +174,18 @@ export function AddNodeDialog({
       if (existingHost) {
         hostServerId = existingHost.id;
       } else {
-        const createRequest: CreateHostServerRequest = {
-          hostname: data.hostname,
-          ip_address: data.ipAddress,
-          is_container_host: data.isContainerHost,
-          is_virtual_machine: data.isVirtualMachine,
-          is_vm_host: data.isVmHost,
-          is_db_host: data.idDbHost,
-          username: data.username,
-          ssh_key_id: sshKeyId,
-          sudo_password_token_id: sudoPasswordId,
-        };
-        const hostServerResponse = await HostServersService.createHostServer(createRequest);
+      const createRequest: CreateHostServerRequest = {
+        hostname: data.hostname,
+        ip_address: data.ipAddress,
+        is_container_host: data.isContainerHost,
+        is_virtual_machine: data.isVirtualMachine,
+        is_vm_host: data.isVmHost,
+        is_db_host: data.idDbHost,
+        username: data.username,
+        ssh_key_id: sshKeyId,
+        sudo_password_token_id: sudoPasswordId,
+      };
+      const hostServerResponse = await HostServersService.createHostServer(createRequest);
         hostServerId = hostServerResponse.id;
       }
 
@@ -263,31 +263,31 @@ export function AddNodeDialog({
             <FormField
               control={control}
               name="selectedSshKeyId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Select SSH Key</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an existing SSH key" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {isLoadingKeys ? (
-                        <SelectItem value="loading" disabled>Loading keys...</SelectItem>
-                      ) : (
-                        availableSshKeys.map((key) => (
-                          <SelectItem key={key.id} value={key.id!}>
-                            {key.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Select SSH Key</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an existing SSH key" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {isLoadingKeys ? (
+                          <SelectItem value="loading" disabled>Loading keys...</SelectItem>
+                        ) : (
+                          availableSshKeys.map((key) => (
+                            <SelectItem key={key.id} value={key.id!}>
+                              {key.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
             {!isLoadingKeys && availableSshKeys.length === 0 && (
               <div className="text-center p-4 border rounded-md bg-muted/50">

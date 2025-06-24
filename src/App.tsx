@@ -96,7 +96,7 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <div className="flex min-h-screen w-full">
-                      <div className="w-64 shrink-0 ">
+                      <div className="hidden sm:block w-64 shrink-0">
                         <AppSidebar />
                       </div>
                       <div className="flex flex-col flex-1">

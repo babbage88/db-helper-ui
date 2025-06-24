@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Wifi, WifiOff } from "lucide-react";
+import { EthernetPort, WifiOff } from "lucide-react";
 
 export type Node = {
   ID: string;
@@ -98,14 +98,14 @@ export function getColumns({ onEdit, onDelete, onView, onAddSshKey }: ActionHand
         if (status.success) {
           return (
             <div className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-500 text-white">
-              <Wifi className="h-3 w-3 mr-1" />
+              <EthernetPort className="h-4 w-4 mr-1" />
               Online
             </div>
           );
         }
         return (
           <div className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-destructive text-white">
-            <WifiOff className="h-3 w-3 mr-1" />
+            <WifiOff className="h-4 w-4 mr-1" />
             Offline
           </div>
         );

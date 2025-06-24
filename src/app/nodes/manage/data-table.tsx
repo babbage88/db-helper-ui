@@ -15,7 +15,7 @@ import {
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, Filter } from "lucide-react";
 import { getColumns, type Node } from "./columns";
 import { HostServersService } from "@/lib/api/services/HostServersService";
 import { SecretsService } from "@/lib/api/services/SecretsService";
@@ -24,7 +24,6 @@ import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappings
 import type { CreateSshKeyHostMappingRequestWithoutUserID } from "@/lib/api/models/CreateSshKeyHostMappingRequestWithoutUserID";
 import type { CreateSshKeyHostMappingResponse } from "@/lib/api/models/CreateSshKeyHostMappingResponse";
 import { NetworkPingService } from "@/lib/api/services/NetworkPingService";
-import type { PingResponse } from "@/lib/api/models/PingResponse";
 
 interface DataTableProps {
   data: Node[];
@@ -228,161 +227,199 @@ export function DataTable({ data, onChange }: DataTableProps) {
   };
 
   return (
-    <div>
-      <div className="flex items-center py-4">
-        <Input
-          placeholder="Filter nodes..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="max-w-sm"
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => pingNodes(data)}
-          disabled={isPinging}
-          className="ml-2"
-        >
-          <RefreshCw className={`h-4 w-4 mr-1 ${isPinging ? 'animate-spin' : ''}`} />
-          {isPinging ? 'Pinging...' : 'Refresh Status'}
-        </Button>
-        {numSelected > 0 && (
+    <div className="w-full px-2 sm:px-0">
+      {/* Responsive Filter Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 py-4">
+        <div className="flex-1 min-w-0">
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Filter nodes..."
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              className="pl-10 w-full sm:max-w-sm"
+            />
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button
-            variant="destructive"
-            onClick={() => setIsBulkDeleteConfirmOpen(true)}
-            className="ml-4"
+            variant="outline"
+            size="sm"
+            onClick={() => pingNodes(data)}
+            disabled={isPinging}
+            className="w-full sm:w-auto"
           >
-            Delete Selected ({numSelected})
+            <RefreshCw className={`h-4 w-4 mr-1 ${isPinging ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">{isPinging ? 'Pinging...' : 'Refresh Status'}</span>
+            <span className="sm:hidden">{isPinging ? 'Pinging...' : 'Refresh'}</span>
           </Button>
-        )}
+          {numSelected > 0 && (
+            <Button
+              variant="destructive"
+              onClick={() => setIsBulkDeleteConfirmOpen(true)}
+              className="w-full sm:w-auto"
+            >
+              Delete Selected ({numSelected})
+            </Button>
+          )}
+        </div>
       </div>
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} colSpan={header.colSpan}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
+
+      {/* Responsive Table Container */}
+      <div className="rounded-md border overflow-hidden w-full">
+        <div className="overflow-x-auto w-full">
+          <Table className="min-w-full w-full">
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead 
+                      key={header.id} 
+                      colSpan={header.colSpan}
+                      className="whitespace-nowrap"
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={table.getAllColumns().length} className="h-24 text-center">
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell 
+                        key={cell.id}
+                        className="whitespace-nowrap"
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={table.getAllColumns().length} className="h-24 text-center">
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
-      <div className="flex items-center justify-between space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
+
+      {/* Responsive Pagination */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4">
+        <div className="flex-1 text-sm text-muted-foreground text-center sm:text-left">
           {numSelected} of {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
-        <div className="space-x-2">
+        <div className="flex items-center justify-center sm:justify-end space-x-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
+            className="w-10 h-10 p-0"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
+          <div className="text-sm text-muted-foreground px-2">
+            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+          </div>
           <Button
             variant="outline"
             size="sm"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
+            className="w-10 h-10 p-0"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
-      {/* Bulk Delete Confirmation Dialog */}
+
+      {/* Responsive Bulk Delete Confirmation Dialog */}
       {isBulkDeleteConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
-          <div className="bg-card p-6 rounded shadow-lg min-w-[300px]">
-            <h2 className="font-bold mb-2">Delete Selected Nodes</h2>
-            <p>Are you sure you want to delete {numSelected} selected node(s)?</p>
-            <p className="text-sm text-muted-foreground mt-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 sm:p-4">
+          <div className="bg-card p-2 sm:p-6 rounded shadow-lg w-full sm:max-w-md sm:mx-auto">
+            <h2 className="font-bold mb-2 text-lg">Delete Selected Nodes</h2>
+            <p className="mb-4">Are you sure you want to delete {numSelected} selected node(s)?</p>
+            <p className="text-sm text-muted-foreground mb-4">
               You can either remove your access to these nodes or delete the nodes for all users.
             </p>
-            <div className="flex gap-2 mt-4">
-              <Button variant="destructive" onClick={confirmBulkDelete} disabled={isDeleting}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="destructive" onClick={confirmBulkDelete} disabled={isDeleting} className="w-full sm:w-auto">
                 {isDeleting ? "Deleting..." : "Delete Nodes Completely"}
               </Button>
-              <Button variant="secondary" onClick={confirmBulkDeleteMappings} disabled={isDeleting}>
+              <Button variant="secondary" onClick={confirmBulkDeleteMappings} disabled={isDeleting} className="w-full sm:w-auto">
                 {isDeleting ? "Deleting..." : "Delete My Access Only"}
               </Button>
-              <Button variant="outline" onClick={() => setIsBulkDeleteConfirmOpen(false)} disabled={isDeleting}>
+              <Button variant="outline" onClick={() => setIsBulkDeleteConfirmOpen(false)} disabled={isDeleting} className="w-full sm:w-auto">
                 Cancel
               </Button>
             </div>
           </div>
         </div>
       )}
-      {/* View Modal */}
+
+      {/* Responsive View Modal */}
       {viewNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
-          <div className="bg-card p-6 rounded shadow-lg min-w-[300px]">
-            <h2 className="font-bold mb-2">Node Details</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 sm:p-4">
+          <div className="bg-card p-2 sm:p-6 rounded shadow-lg w-full sm:max-w-2xl sm:mx-auto max-h-[90vh] overflow-y-auto">
+            <h2 className="font-bold mb-2 text-lg">Node Details</h2>
             {isViewLoading ? (
-              <div>Loading...</div>
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+                Loading...
+              </div>
             ) : (
-              <pre className="text-xs mb-4">{JSON.stringify(viewNodeDetails, null, 2)}</pre>
+              <div className="overflow-x-auto">
+                <pre className="text-xs mb-4 whitespace-pre-wrap">{JSON.stringify(viewNodeDetails, null, 2)}</pre>
+              </div>
             )}
-            <Button onClick={() => { setViewNode(null); setViewNodeDetails(null); }}>Close</Button>
+            <div className="flex justify-end">
+              <Button onClick={() => { setViewNode(null); setViewNodeDetails(null); }}>Close</Button>
+            </div>
           </div>
         </div>
       )}
-      {/* Delete Confirm Modal */}
+
+      {/* Responsive Delete Confirm Modal */}
       {deleteNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
-          <div className="bg-card p-6 rounded shadow-lg min-w-[300px]">
-            <h2 className="font-bold mb-2">Delete Node</h2>
-            <p>Are you sure you want to delete <b>{deleteNode.Hostname}</b>?</p>
-            <p className="text-sm text-muted-foreground mt-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 sm:p-4">
+          <div className="bg-card p-2 sm:p-6 rounded shadow-lg w-full sm:max-w-md sm:mx-auto">
+            <h2 className="font-bold mb-2 text-lg">Delete Node</h2>
+            <p className="mb-4">Are you sure you want to delete <b>{deleteNode.Hostname}</b>?</p>
+            <p className="text-sm text-muted-foreground mb-4">
               You can either remove your access to this node or delete the node for all users.
             </p>
-            <div className="flex gap-2 mt-4">
-              <Button variant="destructive" onClick={confirmDeleteNode} disabled={isDeleting}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="destructive" onClick={confirmDeleteNode} disabled={isDeleting} className="w-full sm:w-auto">
                 {isDeleting ? "Deleting..." : "Delete Node Completely"}
               </Button>
-               <Button variant="secondary" onClick={confirmDeleteMapping} disabled={isDeleting || !deleteNode.mappingId}>
+              <Button variant="secondary" onClick={confirmDeleteMapping} disabled={isDeleting || !deleteNode.mappingId} className="w-full sm:w-auto">
                 {isDeleting ? "Deleting..." : "Delete My Access Only"}
               </Button>
-              <Button variant="outline" onClick={() => setDeleteNode(null)} disabled={isDeleting}>
+              <Button variant="outline" onClick={() => setDeleteNode(null)} disabled={isDeleting} className="w-full sm:w-auto">
                 Cancel
               </Button>
             </div>
           </div>
         </div>
       )}
-      {/* Edit Modal (fully implemented) */}
+
+      {/* Responsive Edit Modal */}
       {editNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
-          <div className="bg-card p-6 rounded shadow-lg min-w-[350px] max-w-[90vw]">
-            <h2 className="font-bold mb-2">Edit Node</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 sm:p-4">
+          <div className="bg-card p-2 sm:p-6 rounded shadow-lg w-full sm:max-w-2xl sm:mx-auto max-h-[90vh] overflow-y-auto">
+            <h2 className="font-bold mb-2 text-lg">Edit Node</h2>
             <EditNodeForm
               node={editNode}
               onCancel={() => setEditNode(null)}
@@ -394,11 +431,12 @@ export function DataTable({ data, onChange }: DataTableProps) {
           </div>
         </div>
       )}
-      {/* SSH Key Modal */}
+
+      {/* Responsive SSH Key Modal */}
       {sshKeyNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
-          <div className="bg-card p-6 rounded shadow-lg min-w-[350px] max-w-[90vw]">
-            <h2 className="font-bold mb-2">Add SSH Key to {sshKeyNode.Hostname}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 sm:p-4">
+          <div className="bg-card p-2 sm:p-6 rounded shadow-lg w-full sm:max-w-2xl sm:mx-auto max-h-[90vh] overflow-y-auto">
+            <h2 className="font-bold mb-2 text-lg">Add SSH Key to {sshKeyNode.Hostname}</h2>
             <AddSshKeyForm
               node={sshKeyNode}
               onCancel={() => setSshKeyNode(null)}
@@ -491,113 +529,134 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium">Hostname</label>
-        <input
-          className="border rounded px-2 py-1 w-full"
-          name="Hostname"
-          value={form.Hostname}
-          onChange={handleChange}
-          required
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Hostname</label>
+          <input
+            className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            name="Hostname"
+            value={form.Hostname}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">IP Address</label>
+          <input
+            className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            name="IpAddress"
+            value={form.IpAddress}
+            onChange={handleChange}
+            required
+          />
+        </div>
       </div>
       <div>
-        <label className="block text-sm font-medium">IP Address</label>
+        <label className="block text-sm font-medium mb-1">Username</label>
         <input
-          className="border rounded px-2 py-1 w-full"
-          name="IpAddress"
-          value={form.IpAddress}
-          onChange={handleChange}
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium">Username</label>
-        <input
-          className="border rounded px-2 py-1 w-full"
+          className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           name="Username"
           value={form.Username}
           onChange={handleChange}
         />
       </div>
-      <div className="flex gap-4">
-        <label className="flex items-center gap-1">
-          <input
-            type="checkbox"
-            name="IsContainerHost"
-            checked={form.IsContainerHost}
-            onChange={handleChange}
-          />
-          Container Host
-        </label>
-        <label className="flex items-center gap-1">
-          <input
-            type="checkbox"
-            name="IsVirtualMachine"
-            checked={form.IsVirtualMachine}
-            onChange={handleChange}
-          />
-          Virtual Machine
-        </label>
-        <label className="flex items-center gap-1">
-          <input
-            type="checkbox"
-            name="IsVmHost"
-            checked={form.IsVmHost}
-            onChange={handleChange}
-          />
-          VM Host
-        </label>
-        <label className="flex items-center gap-1">
-          <input
-            type="checkbox"
-            name="IDDbHost"
-            checked={form.IDDbHost}
-            onChange={handleChange}
-          />
-          DB Host
-        </label>
-      </div>
+      
+      {/* Responsive Checkbox Grid */}
       <div>
-        <label className="block text-sm font-medium">SSH Private Key</label>
-        <input
-          className="border rounded px-2 py-1 w-full mb-1"
+        <label className="block text-sm font-medium mb-2">Node Types</label>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="IsContainerHost"
+              checked={form.IsContainerHost}
+              onChange={handleChange}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <span className="text-sm">Container Host</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="IsVirtualMachine"
+              checked={form.IsVirtualMachine}
+              onChange={handleChange}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <span className="text-sm">Virtual Machine</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="IsVmHost"
+              checked={form.IsVmHost}
+              onChange={handleChange}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <span className="text-sm">VM Host</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="IDDbHost"
+              checked={form.IDDbHost}
+              onChange={handleChange}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <span className="text-sm">DB Host</span>
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">SSH Private Key</label>
+        <textarea
+          className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px] resize-y"
           name="SshPrivateKey"
           value={form.SshPrivateKey}
-          onChange={handleChange}
-          placeholder="Paste private key or upload file"
+          onChange={(e) => setForm(prev => ({ ...prev, SshPrivateKey: e.target.value }))}
+          placeholder="Paste private key content here..."
         />
-        <input
-          type="file"
-          accept=".pem,.key,.txt"
-          name="SshPrivateKey"
-          onChange={handleFileChange}
-        />
+        <div className="mt-2">
+          <input
+            type="file"
+            accept=".pem,.key,.txt"
+            name="SshPrivateKey"
+            onChange={handleFileChange}
+            className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+          />
+        </div>
       </div>
+      
       <div>
-        <label className="block text-sm font-medium">Sudo Password</label>
+        <label className="block text-sm font-medium mb-1">Sudo Password</label>
         <input
-          className="border rounded px-2 py-1 w-full mb-1"
+          className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           name="SudoPassword"
           type="password"
           value={form.SudoPassword}
           onChange={handleChange}
-          placeholder="Enter sudo password or upload file"
+          placeholder="Enter sudo password"
         />
-        <input
-          type="file"
-          accept=".txt"
-          name="SudoPassword"
-          onChange={handleFileChange}
-        />
+        <div className="mt-2">
+          <input
+            type="file"
+            accept=".txt"
+            name="SudoPassword"
+            onChange={handleFileChange}
+            className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+          />
+        </div>
       </div>
-      {error && <div className="text-red-600 text-sm">{error}</div>}
-      <div className="flex gap-2 justify-end">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
+      
+      {error && <div className="text-red-600 text-sm p-3 bg-red-50 rounded-md">{error}</div>}
+      
+      <div className="flex flex-col sm:flex-row gap-2 justify-end pt-4">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving} className="w-full sm:w-auto">
           Cancel
         </Button>
-        <Button type="submit" disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save"}
+        <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
+          {isSaving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
     </form>
@@ -708,72 +767,84 @@ function AddSshKeyForm({ node, onCancel, onSuccess }: {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium">SSH Key Name</label>
-        <input
-          className="border rounded px-2 py-1 w-full"
-          name="publicSshKeyname"
-          value={form.publicSshKeyname}
-          onChange={handleChange}
-          placeholder="id_rsa"
-          required
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">SSH Key Name</label>
+          <input
+            className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            name="publicSshKeyname"
+            value={form.publicSshKeyname}
+            onChange={handleChange}
+            placeholder="id_rsa"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">SSH Key Type</label>
+          <select
+            className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            name="keyType"
+            value={form.keyType}
+            onChange={handleChange}
+            required
+          >
+            <option value="rsa">RSA</option>
+            <option value="ed25519">Ed25519</option>
+            <option value="ecdsa">ECDSA</option>
+            <option value="dsa">DSA</option>
+          </select>
+        </div>
       </div>
+      
       <div>
-        <label className="block text-sm font-medium">SSH Key Type</label>
-        <select
-          className="border rounded px-2 py-1 w-full"
-          name="keyType"
-          value={form.keyType}
-          onChange={handleChange}
-          required
-        >
-          <option value="rsa">RSA</option>
-          <option value="ed25519">Ed25519</option>
-          <option value="ecdsa">ECDSA</option>
-          <option value="dsa">DSA</option>
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm font-medium">SSH Private Key</label>
-        <input
-          className="border rounded px-2 py-1 w-full mb-1"
+        <label className="block text-sm font-medium mb-1">SSH Private Key</label>
+        <textarea
+          className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px] resize-y"
           name="sshPrivateKey"
           value={form.sshPrivateKey}
-          onChange={handleChange}
-          placeholder="Paste private key or upload file"
+          onChange={(e) => setForm(prev => ({ ...prev, sshPrivateKey: e.target.value }))}
+          placeholder="Paste private key content here..."
           required
         />
-        <input
-          type="file"
-          accept=".pem,.key,.txt"
-          name="sshPrivateKey"
-          onChange={handleFileChange}
-        />
+        <div className="mt-2">
+          <input
+            type="file"
+            accept=".pem,.key,.txt"
+            name="sshPrivateKey"
+            onChange={handleFileChange}
+            className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+          />
+        </div>
       </div>
+      
       <div>
-        <label className="block text-sm font-medium">SSH Public Key</label>
-        <input
-          className="border rounded px-2 py-1 w-full mb-1"
+        <label className="block text-sm font-medium mb-1">SSH Public Key</label>
+        <textarea
+          className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px] resize-y"
           name="sshPublicKey"
           value={form.sshPublicKey}
-          onChange={handleChange}
-          placeholder="Paste public key or upload file"
+          onChange={(e) => setForm(prev => ({ ...prev, sshPublicKey: e.target.value }))}
+          placeholder="Paste public key content here..."
           required
         />
-        <input
-          type="file"
-          accept=".pub,.txt"
-          name="sshPublicKey"
-          onChange={handleFileChange}
-        />
+        <div className="mt-2">
+          <input
+            type="file"
+            accept=".pub,.txt"
+            name="sshPublicKey"
+            onChange={handleFileChange}
+            className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+          />
+        </div>
       </div>
-      {error && <div className="text-red-600 text-sm">{error}</div>}
-      <div className="flex gap-2 justify-end">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
+      
+      {error && <div className="text-red-600 text-sm p-3 bg-red-50 rounded-md">{error}</div>}
+      
+      <div className="flex flex-col sm:flex-row gap-2 justify-end pt-4">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving} className="w-full sm:w-auto">
           Cancel
         </Button>
-        <Button type="submit" disabled={isSaving}>
+        <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
           {isSaving ? "Adding..." : "Add SSH Key"}
         </Button>
       </div>
