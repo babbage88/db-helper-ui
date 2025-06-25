@@ -68,7 +68,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     navMain: [
       {
         title: "Database",
-        url: "#",
+        url: "/dbusersetup",
         icon: Database,
         isActive: true,
         items: [

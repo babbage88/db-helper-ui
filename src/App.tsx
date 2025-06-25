@@ -85,6 +85,8 @@ export default function App() {
   return (
     <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated }}>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+        {/* Hidden element to force Tailwind v4 to generate data-active classes */}
+        <div className="hidden data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground" />
         <Router>
           <SidebarProvider>
             <Routes>
@@ -121,11 +123,19 @@ export default function App() {
 function SidebarResponsiveLayout() {
   const { state } = useSidebar();
   return (
-    <div className="flex min-h-screen w-full">
-      <div className="hidden sm:block w-64 shrink-0">
+    <div className="min-h-screen w-full">
+      <div
+        className={clsx(
+          "hidden sm:block shrink-0 transition-all duration-200",
+          state === "collapsed" ? "w-16" : "w-64 border-r"
+        )}
+      >
         <AppSidebar />
       </div>
-      <div className="flex flex-col flex-1 transition-all duration-200">
+      <div className={clsx(
+        "flex flex-col min-h-screen transition-all duration-200",
+        state === "collapsed" ? "sm:ml-16" : "sm:ml-64"
+      )}>
         <header className="flex items-center justify-end px-4 py-2">
           <SidebarTrigger />
           <ModeToggle />
