@@ -76,8 +76,8 @@ export default function ManageNodesPage() {
   };
 
   return (
-    <div className="w-full px-0 sm:container sm:mx-auto py-4 sm:py-10">
-      <Card className="w-full rounded-none sm:rounded-xl">
+    <div className="w-full px-2 sm:px-6 py-4 sm:py-10">
+      <Card className="w-full rounded-none sm:rounded-2xl">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -92,7 +92,7 @@ export default function ManageNodesPage() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="px-2 sm:px-6">
+        <CardContent className="px-2 sm:px-10">
           {isLoading ? <div>Loading...</div> : <DataTable data={nodes} onChange={fetchNodes} />}
         </CardContent>
       </Card>

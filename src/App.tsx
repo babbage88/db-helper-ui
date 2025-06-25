@@ -24,11 +24,12 @@ import LoginPage from "@/app/LoginPage";
 import { AuthenticationService } from "@/lib/api";
 import { OpenAPI } from "@/lib/api";
 import { AppSidebar } from "@/components/app-sidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import LogoutPage from "./components/ui/LogoutRoute";
 import { AuthContext } from "@/lib/auth-context";
 import ManageNodesPage from "@/app/nodes/manage/page";
 import ManageSshKeysPage from "@/app/keys/manage/page";
+import clsx from "clsx";
 
 OpenAPI.TOKEN = localStorage.getItem("accessToken") || "";
 
@@ -95,21 +96,7 @@ export default function App() {
               <Route
                 element={
                   <ProtectedRoute>
-                    <div className="flex min-h-screen w-full">
-                      <div className="hidden sm:block w-64 shrink-0">
-                        <AppSidebar />
-                      </div>
-                      <div className="flex flex-col flex-1">
-                        <header className="flex items-center justify-end px-4 py-2">
-                          <SidebarTrigger />
-                          <ModeToggle />
-                        </header>
-                        <main className="flex-1 overflow-auto p-4">
-                          <Outlet />
-                        </main>
-                      </div>
-                      <Toaster />
-                    </div>
+                    <SidebarResponsiveLayout />
                   </ProtectedRoute>
                 }
               >
@@ -128,5 +115,26 @@ export default function App() {
         </Router>
       </ThemeProvider>
     </AuthContext.Provider>
+  );
+}
+
+function SidebarResponsiveLayout() {
+  const { state } = useSidebar();
+  return (
+    <div className="flex min-h-screen w-full">
+      <div className="hidden sm:block w-64 shrink-0">
+        <AppSidebar />
+      </div>
+      <div className="flex flex-col flex-1 transition-all duration-200">
+        <header className="flex items-center justify-end px-4 py-2">
+          <SidebarTrigger />
+          <ModeToggle />
+        </header>
+        <main className="flex-1 overflow-auto p-4">
+          <Outlet />
+        </main>
+      </div>
+      <Toaster />
+    </div>
   );
 }
