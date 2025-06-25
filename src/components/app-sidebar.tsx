@@ -85,7 +85,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       },
       {
         title: "Nodes",
-        url: "#",
+        url: "/nodes/manage",
         icon: Server,
         items: [
           {
@@ -96,7 +96,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       },
       {
         title: "Certificates",
-        url: "#",
+        url: "/cert-renew",
         icon: Lock,
         items: [
           {
