@@ -5,7 +5,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
-import { SshConnectionService } from "@/lib/api/services/SshConnectionService";
+import { SshService } from "@/lib/api/services/SshService";
 
 interface TerminalProps {
   nodeId: string;
@@ -115,7 +115,7 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
     // Close SSH connection on server
     if (connectionIdRef.current) {
       try {
-        await SshConnectionService.closeSshConnection(connectionIdRef.current);
+        await SshService.closeSshConnection();
       } catch (error) {
         console.error('Failed to close SSH connection:', error);
       }
@@ -134,20 +134,25 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
       terminalInstance.current.writeln(`Connecting to ${username}@${ipAddress} (${hostname})...`);
       terminalInstance.current.writeln('');
 
-      // Create SSH connection
-      const connectionResponse = await SshConnectionService.createSshConnection({
-        hostServerId: nodeId,
-        username: username
-      });
+      // Create SSH connection - the backend should get connection info from session/context
+      // or we may need to modify the backend to accept parameters
+      const connectionResponse = await SshService.createSshConnection();
 
       if (!connectionResponse.success) {
         throw new Error(connectionResponse.error || 'Failed to establish SSH connection');
+      }
+
+      if (!connectionResponse.connectionId) {
+        throw new Error('No connection ID received from server');
       }
 
       connectionIdRef.current = connectionResponse.connectionId;
 
       // Connect to WebSocket
       const wsUrl = connectionResponse.websocketUrl;
+      if (!wsUrl) {
+        throw new Error('No WebSocket URL received from server');
+      }
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -230,61 +235,51 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
-      {/* Terminal Header */}
-      <div className="flex items-center justify-between bg-muted px-4 py-2 border-b">
-        <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 rounded-full bg-red-500"></div>
-          <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
-        </div>
-        <div className="flex items-center space-x-4">
-          <span className="text-sm font-medium">
-            {username}@{hostname} ({ipAddress})
-          </span>
-          {isConnecting && (
-            <span className="text-sm text-muted-foreground">Connecting...</span>
-          )}
-          {isConnected && (
-            <span className="text-sm text-green-600">Connected</span>
-          )}
-          {error && (
-            <span className="text-sm text-red-600">Error: {error}</span>
-          )}
-        </div>
-        <button
-          onClick={handleClose}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* Terminal Content */}
-      <div className="flex-1 p-2">
-        <div 
-          ref={terminalRef} 
-          className="w-full h-full bg-[#1e1e1e] rounded"
-        />
-      </div>
-
-      {/* Connection Status */}
-      {!isConnected && !isConnecting && error && (
-        <div className="bg-destructive/10 border border-destructive/20 p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-destructive">
-              Connection failed: {error}
-            </span>
+  if (error) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <h3 className="text-lg font-semibold mb-4">Connection Error</h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <div className="flex justify-end space-x-2">
             <button
-              onClick={initializeConnection}
-              className="text-sm bg-primary text-primary-foreground px-3 py-1 rounded hover:bg-primary/90"
+              onClick={handleClose}
+              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
             >
-              Retry
+              Close
             </button>
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-black rounded-lg shadow-xl w-full h-full max-w-6xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+          </div>
+          <div className="text-white text-sm">
+            {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'} - {username}@{hostname}
+          </div>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+        
+        {/* Terminal */}
+        <div className="flex-1 p-2">
+          <div ref={terminalRef} className="w-full h-full"></div>
+        </div>
+      </div>
     </div>
   );
 } 
