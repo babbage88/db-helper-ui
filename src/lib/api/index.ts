@@ -80,3 +80,6 @@ export { SecretsService } from './services/SecretsService';
 export { SshKeyHostMappingsService } from './services/SshKeyHostMappingsService';
 export { SshKeysService } from './services/SshKeysService';
 export { UserCrudService } from './services/UserCrudService';
+export { SshConnectionService } from './services/SshConnectionService';
+export type { SshConnectionRequest } from './services/SshConnectionService';
+export type { SshConnectionResponse } from './services/SshConnectionService';

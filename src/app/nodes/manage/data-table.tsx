@@ -24,6 +24,7 @@ import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappings
 import type { CreateSshKeyHostMappingRequestWithoutUserID } from "@/lib/api/models/CreateSshKeyHostMappingRequestWithoutUserID";
 import type { CreateSshKeyHostMappingResponse } from "@/lib/api/models/CreateSshKeyHostMappingResponse";
 import { NetworkPingService } from "@/lib/api/services/NetworkPingService";
+import { TerminalFallbackComponent } from "@/components/db-helper/terminal-fallback";
 
 interface DataTableProps {
   data: Node[];
@@ -49,6 +50,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = React.useState(false);
   const [nodesWithPingStatus, setNodesWithPingStatus] = React.useState<Node[]>([]);
   const [isPinging, setIsPinging] = React.useState(false);
+  const [terminalNode, setTerminalNode] = React.useState<Node | null>(null); // For Terminal modal
 
   // Ping all nodes to check their status
   const pingNodes = React.useCallback(async (nodes: Node[]) => {
@@ -120,6 +122,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
   };
   const handleDelete = (node: Node) => setDeleteNode(node);
   const handleAddSshKey = (node: Node) => setSshKeyNode(node);
+  const handleConnect = (node: Node) => setTerminalNode(node);
 
   const confirmDeleteMapping = async () => {
     if (!deleteNode || !deleteNode.mappingId) return;
@@ -154,6 +157,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
     onDelete: handleDelete,
     onView: handleView,
     onAddSshKey: handleAddSshKey,
+    onConnect: handleConnect,
   }), []);
 
   const table = useReactTable({
@@ -447,6 +451,17 @@ export function DataTable({ data, onChange }: DataTableProps) {
             />
           </div>
         </div>
+      )}
+
+      {/* Terminal Modal */}
+      {terminalNode && (
+        <TerminalFallbackComponent
+          nodeId={terminalNode.ID}
+          hostname={terminalNode.Hostname}
+          ipAddress={terminalNode.IpAddress}
+          username={terminalNode.Username || "root"}
+          onClose={() => setTerminalNode(null)}
+        />
       )}
     </div>
   );

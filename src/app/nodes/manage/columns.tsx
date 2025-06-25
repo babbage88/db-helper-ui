@@ -32,9 +32,10 @@ type ActionHandlers = {
   onDelete: (node: Node) => void;
   onView: (node: Node) => void;
   onAddSshKey: (node: Node) => void;
+  onConnect: (node: Node) => void;
 };
 
-export function getColumns({ onEdit, onDelete, onView, onAddSshKey }: ActionHandlers): ColumnDef<Node>[] {
+export function getColumns({ onEdit, onDelete, onView, onAddSshKey, onConnect }: ActionHandlers): ColumnDef<Node>[] {
   return [
     {
       id: "select",
@@ -145,6 +146,9 @@ export function getColumns({ onEdit, onDelete, onView, onAddSshKey }: ActionHand
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onAddSshKey(node)}>
                 Add SSH Key
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onConnect(node)}>
+                Connect
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
