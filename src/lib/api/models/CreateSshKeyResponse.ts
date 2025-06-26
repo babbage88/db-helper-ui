@@ -10,6 +10,10 @@ export type CreateSshKeyResponse = {
     /**
      * ID of the stored private key secret
      */
+    passphraseSecretId: string;
+    /**
+     * ID of the stored private key secret
+     */
     privKeySecretId: string;
     /**
      * ID of the created SSH key

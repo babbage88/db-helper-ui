@@ -53,7 +53,7 @@ export type { RolePermissionMappingDao } from './models/RolePermissionMappingDao
 export type { SoftDeleteUserByIdRequest } from './models/SoftDeleteUserByIdRequest';
 export type { SoftDeleteUserByIdResponse } from './models/SoftDeleteUserByIdResponse';
 export type { SshConnectionCloseResponse } from './models/SshConnectionCloseResponse';
-export type { SshConnectionRequest } from './models/SshConnectionRequest';
+export type { SshConnectionRequestDetails } from './models/SshConnectionRequestDetails';
 export type { SshConnectionResponse } from './models/SshConnectionResponse';
 export type { SshKeyListItem } from './models/SshKeyListItem';
 export type { TokenRefreshReq } from './models/TokenRefreshReq';

@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { SshConnectionCloseResponse } from '../models/SshConnectionCloseResponse';
+import type { SshConnectionRequestDetails } from '../models/SshConnectionRequestDetails';
 import type { SshConnectionResponse } from '../models/SshConnectionResponse';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
@@ -10,13 +11,17 @@ import { request as __request } from '../core/request';
 export class SshService {
     /**
      * Create a new SSH connection to a host server.
+     * @param body
      * @returns SshConnectionResponse SshConnectionResponse
      * @throws ApiError
      */
-    public static createSshConnection(): CancelablePromise<SshConnectionResponse> {
+    public static createSshConnection(
+        body?: SshConnectionRequestDetails,
+    ): CancelablePromise<SshConnectionResponse> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/ssh/connect',
+            body: body,
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,

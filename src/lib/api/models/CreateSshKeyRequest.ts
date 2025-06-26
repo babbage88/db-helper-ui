@@ -20,6 +20,10 @@ export type CreateSshKeyRequest = {
      */
     name: string;
     /**
+     * Optional ssh key passphrase
+     */
+    passphrase?: string;
+    /**
      * Private key in PEM format
      */
     privateKey: string;

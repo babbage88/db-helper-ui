@@ -5,7 +5,7 @@
 /**
  * SSH Connection Request
  */
-export type SshConnectionRequest = {
+export type SshConnectionRequestDetails = {
     /**
      * Host server ID to connect to
      */

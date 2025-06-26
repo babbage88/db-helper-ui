@@ -25,6 +25,134 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  const cleanupConnection = React.useCallback(async () => {
+    // Close WebSocket connection
+    if (websocketRef.current) {
+      websocketRef.current.close();
+      websocketRef.current = null;
+    }
+
+    // Close SSH connection on server
+    if (connectionIdRef.current) {
+      try {
+        await SshService.closeSshConnectionById(connectionIdRef.current);
+      } catch (error) {
+        console.error('Failed to close SSH connection:', error);
+      }
+      connectionIdRef.current = null;
+    }
+  }, []);
+
+  const initializeConnection = React.useCallback(async () => {
+    if (!terminalInstance.current) return;
+
+    setIsConnecting(true);
+    setError(null);
+
+    try {
+      // Display connection message
+      terminalInstance.current.writeln(`Connecting to ${username}@${ipAddress} (${hostname})...`);
+      terminalInstance.current.writeln('');
+
+      // Create SSH connection - the backend should get connection info from session/context
+      // or we may need to modify the backend to accept parameters
+      const connectionResponse = await SshService.createSshConnection({
+        hostServerId: nodeId,
+        username: username
+      });
+
+      if (!connectionResponse.success) {
+        throw new Error(connectionResponse.error || 'Failed to establish SSH connection');
+      }
+
+      if (!connectionResponse.connectionId) {
+        throw new Error('No connection ID received from server');
+      }
+
+      connectionIdRef.current = connectionResponse.connectionId;
+
+      // Connect to WebSocket
+      const wsUrl = connectionResponse.websocketUrl;
+      if (!wsUrl) {
+        throw new Error('No WebSocket URL received from server');
+      }
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        if (terminalInstance.current) {
+          terminalInstance.current.writeln(`Connected to ${hostname} (${ipAddress})`);
+          terminalInstance.current.writeln(`Welcome ${username}!`);
+          terminalInstance.current.writeln('');
+        }
+        setIsConnected(true);
+        setIsConnecting(false);
+
+        // Send initial terminal size
+        if (fitAddon.current) {
+          const dims = fitAddon.current.proposeDimensions();
+          if (dims) {
+            ws.send(JSON.stringify({
+              type: 'resize',
+              cols: dims.cols,
+              rows: dims.rows
+            }));
+          }
+        }
+      };
+
+      ws.onmessage = (event) => {
+        if (terminalInstance.current) {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'data') {
+              terminalInstance.current.write(data.data);
+            } else if (data.type === 'error') {
+              terminalInstance.current.writeln(`\r\nError: ${data.message}`);
+            }
+          } catch {
+            // If not JSON, treat as raw data
+            terminalInstance.current.write(event.data);
+          }
+        }
+      };
+
+      ws.onerror = () => {
+        console.error('WebSocket error');
+        setError('WebSocket connection failed');
+        setIsConnecting(false);
+        if (terminalInstance.current) {
+          terminalInstance.current.writeln('Connection failed. Please try again.');
+        }
+      };
+
+      ws.onclose = () => {
+        setIsConnected(false);
+        if (terminalInstance.current) {
+          terminalInstance.current.writeln('\r\nConnection closed.');
+        }
+      };
+
+      websocketRef.current = ws;
+
+      // Set up terminal input handling
+      terminalInstance.current.onData((data) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'input',
+            data: data
+          }));
+        }
+      });
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to connect');
+      setIsConnecting(false);
+      if (terminalInstance.current) {
+        terminalInstance.current.writeln('Connection failed. Please try again.');
+      }
+    }
+  }, [nodeId, hostname, ipAddress, username]);
+
   React.useEffect(() => {
     if (!terminalRef.current) return;
 
@@ -103,132 +231,7 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
         terminalInstance.current.dispose();
       }
     };
-  }, [nodeId, hostname, ipAddress, username]);
-
-  const cleanupConnection = async () => {
-    // Close WebSocket connection
-    if (websocketRef.current) {
-      websocketRef.current.close();
-      websocketRef.current = null;
-    }
-
-    // Close SSH connection on server
-    if (connectionIdRef.current) {
-      try {
-        await SshService.closeSshConnection();
-      } catch (error) {
-        console.error('Failed to close SSH connection:', error);
-      }
-      connectionIdRef.current = null;
-    }
-  };
-
-  const initializeConnection = async () => {
-    if (!terminalInstance.current) return;
-
-    setIsConnecting(true);
-    setError(null);
-
-    try {
-      // Display connection message
-      terminalInstance.current.writeln(`Connecting to ${username}@${ipAddress} (${hostname})...`);
-      terminalInstance.current.writeln('');
-
-      // Create SSH connection - the backend should get connection info from session/context
-      // or we may need to modify the backend to accept parameters
-      const connectionResponse = await SshService.createSshConnection();
-
-      if (!connectionResponse.success) {
-        throw new Error(connectionResponse.error || 'Failed to establish SSH connection');
-      }
-
-      if (!connectionResponse.connectionId) {
-        throw new Error('No connection ID received from server');
-      }
-
-      connectionIdRef.current = connectionResponse.connectionId;
-
-      // Connect to WebSocket
-      const wsUrl = connectionResponse.websocketUrl;
-      if (!wsUrl) {
-        throw new Error('No WebSocket URL received from server');
-      }
-      const ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        if (terminalInstance.current) {
-          terminalInstance.current.writeln(`Connected to ${hostname} (${ipAddress})`);
-          terminalInstance.current.writeln(`Welcome ${username}!`);
-          terminalInstance.current.writeln('');
-        }
-        setIsConnected(true);
-        setIsConnecting(false);
-
-        // Send initial terminal size
-        if (fitAddon.current) {
-          const dims = fitAddon.current.proposeDimensions();
-          if (dims) {
-            ws.send(JSON.stringify({
-              type: 'resize',
-              cols: dims.cols,
-              rows: dims.rows
-            }));
-          }
-        }
-      };
-
-      ws.onmessage = (event) => {
-        if (terminalInstance.current) {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'data') {
-              terminalInstance.current.write(data.data);
-            } else if (data.type === 'error') {
-              terminalInstance.current.writeln(`\r\nError: ${data.message}`);
-            }
-          } catch (error) {
-            // If not JSON, treat as raw data
-            terminalInstance.current.write(event.data);
-          }
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setError('WebSocket connection failed');
-        setIsConnecting(false);
-        if (terminalInstance.current) {
-          terminalInstance.current.writeln('Connection failed. Please try again.');
-        }
-      };
-
-      ws.onclose = () => {
-        setIsConnected(false);
-        if (terminalInstance.current) {
-          terminalInstance.current.writeln('\r\nConnection closed.');
-        }
-      };
-
-      websocketRef.current = ws;
-
-      // Set up terminal input handling
-      terminalInstance.current.onData((data) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({
-            type: 'input',
-            data: data
-          }));
-        }
-      });
-
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to connect');
-      setIsConnecting(false);
-      if (terminalInstance.current) {
-        terminalInstance.current.writeln('Connection failed. Please try again.');
-      }
-    }
-  };
+  }, [initializeConnection, cleanupConnection]);
 
   const handleClose = () => {
     cleanupConnection();

@@ -24,7 +24,7 @@ import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappings
 import type { CreateSshKeyHostMappingRequestWithoutUserID } from "@/lib/api/models/CreateSshKeyHostMappingRequestWithoutUserID";
 import type { CreateSshKeyHostMappingResponse } from "@/lib/api/models/CreateSshKeyHostMappingResponse";
 import { NetworkPingService } from "@/lib/api/services/NetworkPingService";
-import { TerminalFallbackComponent } from "@/components/db-helper/terminal-fallback";
+import { TerminalComponent } from "@/components/db-helper/terminal";
 
 interface DataTableProps {
   data: Node[];
@@ -455,7 +455,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
 
       {/* Terminal Modal */}
       {terminalNode && (
-        <TerminalFallbackComponent
+        <TerminalComponent
           nodeId={terminalNode.ID}
           hostname={terminalNode.Hostname}
           ipAddress={terminalNode.IpAddress}
