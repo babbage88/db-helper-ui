@@ -36,6 +36,7 @@ const sshKeyFormSchema = z.object({
   name: z.string().min(1, "Key name is required"),
   keyType: z.string().min(1, "Key type is required"),
   privateKey: z.string().min(1, "Private key is required"),
+  passphrase: z.string().optional(),
   publicKey: z.string().min(1, "Public key is required"),
   description: z.string().optional(),
 });
@@ -59,6 +60,7 @@ export function AddSshKeyDialog({ open, onOpenChange, onSuccess }: AddSshKeyDial
       privateKey: "",
       publicKey: "",
       description: "",
+      passphrase: "",
     },
   });
 
@@ -79,6 +81,7 @@ export function AddSshKeyDialog({ open, onOpenChange, onSuccess }: AddSshKeyDial
       const sshKeyRequest: CreateSshKeyRequest = {
         name: data.name,
         privateKey: data.privateKey,
+        passphrase: data.passphrase,
         publicKey: data.publicKey,
         keyType: data.keyType,
         description: data.description || `SSH key for general use`,
@@ -166,6 +169,21 @@ export function AddSshKeyDialog({ open, onOpenChange, onSuccess }: AddSshKeyDial
               <label htmlFor="privateKeyFile" className="text-sm font-medium text-blue-600 cursor-pointer">Choose File</label>
             </div>
             <div>
+              <div>
+                <FormLabel>SSH Passphrase</FormLabel>
+                <FormField
+                  control={form.control}
+                  name="passphrase"
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      value={field.value || ''}
+                      placeholder="Enter passphrase"
+                      className="mb-2"
+                    />
+                  )}
+                />
+              </div>
               <FormLabel>SSH Public Key</FormLabel>
               <FormField
                 control={form.control}

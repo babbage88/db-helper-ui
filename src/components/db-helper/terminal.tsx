@@ -35,7 +35,7 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
     // Close SSH connection on server
     if (connectionIdRef.current) {
       try {
-        await SshService.closeSshConnectionById(connectionIdRef.current);
+        await SshService.closeSshConnection(connectionIdRef.current);
       } catch (error) {
         console.error('Failed to close SSH connection:', error);
       }
