@@ -10,6 +10,8 @@ export type SshKeyListItem = {
     lastModified?: string;
     name?: string;
     ownerUserId?: string;
+    passphraseId?: string;
+    privateKeyId?: string;
     publicKey?: string;
 };
 

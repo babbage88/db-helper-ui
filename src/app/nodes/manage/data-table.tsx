@@ -19,9 +19,7 @@ import { ChevronLeft, ChevronRight, RefreshCw, Filter } from "lucide-react";
 import { getColumns, type Node } from "./columns";
 import { HostServersService } from "@/lib/api/services/HostServersService";
 import { SecretsService } from "@/lib/api/services/SecretsService";
-import { ExternalApplicationsService } from "@/lib/api/services/ExternalApplicationsService";
 import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
-import type { CreateSshKeyHostMappingRequestWithoutUserID } from "@/lib/api/models/CreateSshKeyHostMappingRequestWithoutUserID";
 import type { CreateSshKeyHostMappingResponse } from "@/lib/api/models/CreateSshKeyHostMappingResponse";
 import { NetworkPingService } from "@/lib/api/services/NetworkPingService";
 import { TerminalComponent } from "@/components/db-helper/terminal";
@@ -46,7 +44,6 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const [editNode, setEditNode] = React.useState<Node | null>(null);
   const [deleteNode, setDeleteNode] = React.useState<Node | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const [sshKeyNode, setSshKeyNode] = React.useState<Node | null>(null); // For SSH Key modal
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = React.useState(false);
   const [nodesWithPingStatus, setNodesWithPingStatus] = React.useState<Node[]>([]);
   const [isPinging, setIsPinging] = React.useState(false);
@@ -121,7 +118,6 @@ export function DataTable({ data, onChange }: DataTableProps) {
     }
   };
   const handleDelete = (node: Node) => setDeleteNode(node);
-  const handleAddSshKey = (node: Node) => setSshKeyNode(node);
   const handleConnect = (node: Node) => setTerminalNode(node);
 
   const confirmDeleteMapping = async () => {
@@ -156,7 +152,6 @@ export function DataTable({ data, onChange }: DataTableProps) {
     onEdit: handleEdit,
     onDelete: handleDelete,
     onView: handleView,
-    onAddSshKey: handleAddSshKey,
     onConnect: handleConnect,
   }), []);
 
@@ -436,23 +431,6 @@ export function DataTable({ data, onChange }: DataTableProps) {
         </div>
       )}
 
-      {/* Responsive SSH Key Modal */}
-      {sshKeyNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 sm:p-4">
-          <div className="bg-card p-2 sm:p-6 rounded shadow-lg w-full sm:max-w-2xl sm:mx-auto max-h-[90vh] overflow-y-auto">
-            <h2 className="font-bold mb-2 text-lg">Add SSH Key to {sshKeyNode.Hostname}</h2>
-            <AddSshKeyForm
-              node={sshKeyNode}
-              onCancel={() => setSshKeyNode(null)}
-              onSuccess={() => {
-                setSshKeyNode(null);
-                if (onChange) onChange();
-              }}
-            />
-          </div>
-        </div>
-      )}
-
       {/* Terminal Modal */}
       {terminalNode && (
         <TerminalComponent
@@ -672,200 +650,6 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
         </Button>
         <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
           {isSaving ? "Saving..." : "Save Changes"}
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-function AddSshKeyForm({ node, onCancel, onSuccess }: {
-  node: Node;
-  onCancel: () => void;
-  onSuccess: () => void;
-}) {
-  const [form, setForm] = React.useState({
-    publicSshKeyname: "",
-    sshPrivateKey: "",
-    sshPublicKey: "",
-    keyType: "rsa",
-  });
-  const [isSaving, setIsSaving] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  // File input handler for SSH keys
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, files } = e.target;
-    if (files && files[0]) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setForm((prev) => ({ ...prev, [name]: event.target?.result as string }));
-      };
-      reader.readAsText(files[0]);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setError(null);
-    try {
-      let sshKeyId: string | undefined = undefined;
-
-      // Create SSH key if both private and public keys are provided
-      if (form.sshPrivateKey && form.sshPublicKey) {
-        // First, get the external application ID for "ssh_keys"
-        const appResponse = await ExternalApplicationsService.getExternalApplicationIdByName("ssh_keys");
-        const applicationId = appResponse.id;
-        const sshPassPhraseResponse = await ExternalApplicationsService.getExternalApplicationIdByName("ssh_passphrase");
-        const sshPassPhraseId = sshPassPhraseResponse.id;
-        
-        if (!applicationId) {
-          throw new Error("Could not find ssh_keys application");
-        }
-        if (!sshPassPhraseId) {
-          throw new Error("Could not find ssh_passphrase application id");
-        }
-
-        const sshKeyData = {
-          name: form.publicSshKeyname,
-          privateKey: form.sshPrivateKey,
-          publicKey: form.sshPublicKey,
-          keyType: form.keyType,
-          description: `SSH key for ${node.Hostname}`,
-        };
-        const secretRes = await SecretsService.createUserSecret({ 
-          secret: JSON.stringify(sshKeyData),
-          application_id: applicationId
-        });
-        sshKeyId = secretRes.id;
-      }
-
-      // Update the node with the new SSH key ID
-      await HostServersService.updateHostServer(node.ID.toString(), {
-        hostname: node.Hostname,
-        ip_address: node.IpAddress,
-        is_container_host: node.IsContainerHost,
-        is_virtual_machine: node.IsVirtualMachine,
-        is_vm_host: node.IsVmHost,
-        is_db_host: node.IDDbHost,
-        username: node.Username,
-        ssh_key_id: sshKeyId,
-        sudo_password_token_id: undefined, // Keep existing sudo password
-      });
-
-      // Create SSH key host mapping if SSH key was created and username exists
-      if (sshKeyId && node.Username) {
-        const mappingRequest: CreateSshKeyHostMappingRequestWithoutUserID = {
-          hostServerId: node.ID.toString(),
-          hostserverUsername: node.Username,
-          sshKeyId: sshKeyId,
-        };
-        
-        try {
-          await SshKeyHostMappingsService.createSshKeyHostMapping(mappingRequest);
-        } catch (mappingError) {
-          console.error("Failed to create SSH key host mapping:", mappingError);
-          // Don't fail the entire operation if mapping fails
-        }
-      }
-
-      onSuccess();
-    } catch (e: any) {
-      setError(e?.message || "Failed to add SSH key");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">SSH Key Name</label>
-          <input
-            className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            name="publicSshKeyname"
-            value={form.publicSshKeyname}
-            onChange={handleChange}
-            placeholder="id_rsa"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">SSH Key Type</label>
-          <select
-            className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            name="keyType"
-            value={form.keyType}
-            onChange={handleChange}
-            required
-          >
-            <option value="rsa">RSA</option>
-            <option value="ed25519">Ed25519</option>
-            <option value="ecdsa">ECDSA</option>
-            <option value="dsa">DSA</option>
-          </select>
-        </div>
-      </div>
-      
-      <div>
-        <label className="block text-sm font-medium mb-1">SSH Private Key</label>
-        <textarea
-          className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px] resize-y"
-          name="sshPrivateKey"
-          value={form.sshPrivateKey}
-          onChange={(e) => setForm(prev => ({ ...prev, sshPrivateKey: e.target.value }))}
-          placeholder="Paste private key content here..."
-          required
-        />
-        <div className="mt-2">
-          <input
-            type="file"
-            accept="*"
-            name="sshPrivateKey"
-            onChange={handleFileChange}
-            className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-          />
-        </div>
-      </div>
-      
-      <div>
-        <label className="block text-sm font-medium mb-1">SSH Public Key</label>
-        <textarea
-          className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px] resize-y"
-          name="sshPublicKey"
-          value={form.sshPublicKey}
-          onChange={(e) => setForm(prev => ({ ...prev, sshPublicKey: e.target.value }))}
-          placeholder="Paste public key content here..."
-          required
-        />
-        <div className="mt-2">
-          <input
-            type="file"
-            accept=".pub,.txt"
-            name="sshPublicKey"
-            onChange={handleFileChange}
-            className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-          />
-        </div>
-      </div>
-      
-      {error && <div className="text-red-600 text-sm p-3 bg-red-50 rounded-md">{error}</div>}
-      
-      <div className="flex flex-col sm:flex-row gap-2 justify-end pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving} className="w-full sm:w-auto">
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
-          {isSaving ? "Adding..." : "Add SSH Key"}
         </Button>
       </div>
     </form>

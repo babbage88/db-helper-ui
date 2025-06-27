@@ -51,6 +51,7 @@ interface AddSshKeyDialogProps {
 
 export function AddSshKeyDialog({ open, onOpenChange, onSuccess }: AddSshKeyDialogProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const form = useForm<SshKeyFormValues>({
     resolver: zodResolver(sshKeyFormSchema),
@@ -78,6 +79,8 @@ export function AddSshKeyDialog({ open, onOpenChange, onSuccess }: AddSshKeyDial
   const handleSubmit = async (data: SshKeyFormValues) => {
     try {
       setIsSubmitting(true);
+      setError(null);
+      
       const sshKeyRequest: CreateSshKeyRequest = {
         name: data.name,
         privateKey: data.privateKey,
@@ -86,12 +89,21 @@ export function AddSshKeyDialog({ open, onOpenChange, onSuccess }: AddSshKeyDial
         keyType: data.keyType,
         description: data.description || `SSH key for general use`,
       };
+      console.log("SSH key passphrase:", sshKeyRequest.passphrase);
+      // Debug logging to see what's being sent
+      console.log("Submitting SSH key request:", {
+        ...sshKeyRequest,
+        privateKey: sshKeyRequest.privateKey ? "[PRIVATE KEY CONTENT]" : "undefined",
+        publicKey: sshKeyRequest.publicKey ? "[PUBLIC KEY CONTENT]" : "undefined",
+        passphrase: sshKeyRequest.passphrase ? "[PASSPHRASE CONTENT]" : "undefined"
+      });
+      
       await SshKeysService.createSshKey(sshKeyRequest);
       form.reset();
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create SSH key:", error);
-      // Here you could add user-facing error handling, e.g., a toast notification
+      setError(error?.message || "Failed to create SSH key. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -144,70 +156,78 @@ export function AddSshKeyDialog({ open, onOpenChange, onSuccess }: AddSshKeyDial
                 </FormItem>
               )}
             />
-             <div>
-              <FormLabel>SSH Private Key</FormLabel>
-              <FormField
-                control={form.control}
-                name="privateKey"
-                render={({ field }) => (
-                  <Input
-                    {...field}
-                    value={field.value || ''}
-                    placeholder="Paste private key or upload file"
-                    className="mb-2"
-                  />
-                )}
-              />
-              <Input
-                type="file"
-                accept=".pem,.key,.txt"
-                name="privateKey"
-                onChange={handleFileChange}
-                className="hidden"
-                id="privateKeyFile"
-              />
-              <label htmlFor="privateKeyFile" className="text-sm font-medium text-blue-600 cursor-pointer">Choose File</label>
-            </div>
-            <div>
-              <div>
-                <FormLabel>SSH Passphrase</FormLabel>
-                <FormField
-                  control={form.control}
-                  name="passphrase"
-                  render={({ field }) => (
+            <FormField
+              control={form.control}
+              name="privateKey"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>SSH Private Key</FormLabel>
+                  <FormControl>
                     <Input
-                      type={"password"}
                       {...field}
                       value={field.value || ''}
-                      placeholder="Enter passphrase"
+                      placeholder="Paste private key or upload file"
                       className="mb-2"
                     />
-                  )}
-                />
-              </div>
-              <FormLabel>SSH Public Key</FormLabel>
-              <FormField
-                control={form.control}
-                name="publicKey"
-                render={({ field }) => (
+                  </FormControl>
                   <Input
-                    {...field}
-                    value={field.value || ''}
-                    placeholder="Paste public key or upload file"
-                    className="mb-2"
+                    type="file"
+                    accept="*"
+                    name="privateKey"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="privateKeyFile"
                   />
-                )}
-              />
-              <Input
-                type="file"
-                accept=".pub,.txt"
-                name="publicKey"
-                onChange={handleFileChange}
-                className="hidden"
-                id="publicKeyFile"
-              />
-              <label htmlFor="publicKeyFile" className="text-sm font-medium text-blue-600 cursor-pointer">Choose File</label>
-            </div>
+                  <label htmlFor="privateKeyFile" className="text-sm font-medium text-blue-600 cursor-pointer">Choose File</label>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="passphrase"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>SSH Passphrase (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      {...field}
+                      value={field.value || ''}
+                      placeholder="Enter passphrase if your private key is encrypted"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="publicKey"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>SSH Public Key</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value || ''}
+                      placeholder="Paste public key or upload file"
+                      className="mb-2"
+                    />
+                  </FormControl>
+                  <Input
+                    type="file"
+                    accept=".pub,.txt"
+                    name="publicKey"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="publicKeyFile"
+                  />
+                  <label htmlFor="publicKeyFile" className="text-sm font-medium text-blue-600 cursor-pointer">Choose File</label>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="description"
@@ -221,6 +241,13 @@ export function AddSshKeyDialog({ open, onOpenChange, onSuccess }: AddSshKeyDial
                 </FormItem>
               )}
             />
+            
+            {error && (
+              <div className="text-red-600 text-sm p-3 bg-red-50 rounded-md border border-red-200">
+                {error}
+              </div>
+            )}
+            
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Adding..." : "Add Key"}
