@@ -176,6 +176,7 @@ export function AddSshKeyDialog({ open, onOpenChange, onSuccess }: AddSshKeyDial
                   name="passphrase"
                   render={({ field }) => (
                     <Input
+                      type={"password"}
                       {...field}
                       value={field.value || ''}
                       placeholder="Enter passphrase"

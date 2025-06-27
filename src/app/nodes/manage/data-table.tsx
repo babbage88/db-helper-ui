@@ -724,9 +724,14 @@ function AddSshKeyForm({ node, onCancel, onSuccess }: {
         // First, get the external application ID for "ssh_keys"
         const appResponse = await ExternalApplicationsService.getExternalApplicationIdByName("ssh_keys");
         const applicationId = appResponse.id;
+        const sshPassPhraseResponse = await ExternalApplicationsService.getExternalApplicationIdByName("ssh_passphrase");
+        const sshPassPhraseId = sshPassPhraseResponse.id;
         
         if (!applicationId) {
           throw new Error("Could not find ssh_keys application");
+        }
+        if (!sshPassPhraseId) {
+          throw new Error("Could not find ssh_passphrase application id");
         }
 
         const sshKeyData = {
@@ -824,7 +829,7 @@ function AddSshKeyForm({ node, onCancel, onSuccess }: {
         <div className="mt-2">
           <input
             type="file"
-            accept=".pem,.key,.txt"
+            accept="*"
             name="sshPrivateKey"
             onChange={handleFileChange}
             className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
