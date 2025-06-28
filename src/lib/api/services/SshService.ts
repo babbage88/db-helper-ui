@@ -63,7 +63,7 @@ export class SshService {
     public static sshWebSocket(): CancelablePromise<void> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/ssh/websocket/{connectionId}',
+            url: '/ssh/websocket/{CONNID}',
             errors: {
                 400: `Invalid connection ID`,
                 401: `Unauthorized`,
