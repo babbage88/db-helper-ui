@@ -242,8 +242,8 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
         brightCyan: '#29b8db',
         brightWhite: '#ffffff',
       },
-      rows: 30,
-      cols: 100,
+      rows: 80,
+      cols: 24,
     });
 
     // Add addons

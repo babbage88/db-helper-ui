@@ -7,9 +7,17 @@
  */
 export type SshConnectionRequestDetails = {
     /**
+     * Terminal column width
+     */
+    columns?: number;
+    /**
      * Host server ID to connect to
      */
     hostServerId: string;
+    /**
+     * Terminal row height
+     */
+    rows?: number;
     /**
      * Username to connect as on the remote server
      */

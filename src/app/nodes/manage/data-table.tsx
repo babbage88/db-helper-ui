@@ -22,7 +22,7 @@ import { SecretsService } from "@/lib/api/services/SecretsService";
 import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
 import type { CreateSshKeyHostMappingResponse } from "@/lib/api/models/CreateSshKeyHostMappingResponse";
 import { NetworkPingService } from "@/lib/api/services/NetworkPingService";
-import { TerminalComponent } from "@/components/db-helper/terminal";
+import { TerminalComponent } from "@/app/nodes/manage/terminal/terminal";
 
 interface DataTableProps {
   data: Node[];
