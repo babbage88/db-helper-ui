@@ -2,7 +2,7 @@ GHCR_REPO:=ghcr.io/babbage88/dbhelperui:
 BUILDER:=dbhelperui-builder
 B2_BUCKET:=b2://db-bob
 README_NAME:=README.md
-tag:=v0.0.1
+tag:=$(shell jq -r .version package.json)
 testtag:=test
 
 check-builder:
