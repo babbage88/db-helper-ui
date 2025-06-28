@@ -97,9 +97,16 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
       terminalInstance.current.writeln(`Connecting to ${username}@${ipAddress} (${hostname})...`);
       terminalInstance.current.writeln('');
 
-      // Hardcoded for diagnostic
+      // Get initial terminal size (robust dynamic sizing)
       let initialCols = 80;
       let initialRows = 24;
+      if (fitAddon.current) {
+        const dims = fitAddon.current.proposeDimensions();
+        if (dims) {
+          initialCols = Math.min(Math.max(dims.cols, 40), 120); // Clamp between 40 and 120
+          initialRows = Math.min(Math.max(dims.rows, 10), 40);  // Clamp between 10 and 40
+        }
+      }
       console.log('Initial cols/rows sent to backend:', initialCols, initialRows);
 
       // Create SSH connection - the backend should get connection info from session/context
@@ -148,13 +155,17 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
         // Send initial terminal size only if it has changed
         if (fitAddon.current) {
           const dims = fitAddon.current.proposeDimensions();
-          if (dims && (dims.cols !== initialCols || dims.rows !== initialRows)) {
-            console.log('Sending resize event on ws.onopen:', dims.cols, dims.rows);
-            ws.send(JSON.stringify({
-              type: 'resize',
-              cols: dims.cols,
-              rows: dims.rows
-            }));
+          if (dims) {
+            const cols = Math.min(Math.max(dims.cols, 40), 120);
+            const rows = Math.min(Math.max(dims.rows, 10), 40);
+            if (cols !== initialCols || rows !== initialRows) {
+              console.log('Sending resize event on ws.onopen:', cols, rows);
+              ws.send(JSON.stringify({
+                type: 'resize',
+                cols,
+                rows
+              }));
+            }
           }
         }
 
