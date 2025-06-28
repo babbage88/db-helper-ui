@@ -17,8 +17,15 @@ interface TerminalProps {
   onClose: () => void;
 }
 
+interface SshConnectionWithSizeParams {
+  hostServerId: string;
+  username: string;
+  columns?: number;
+  rows?: number;
+}
+
 // Helper to refresh token and retry SSH connect
-async function createSshConnectionWithRefresh(params: { hostServerId: string, username: string }) {
+async function createSshConnectionWithRefresh(params: SshConnectionWithSizeParams) {
   try {
     return await SshService.createSshConnection(params);
   } catch (err: any) {
@@ -90,11 +97,18 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
       terminalInstance.current.writeln(`Connecting to ${username}@${ipAddress} (${hostname})...`);
       terminalInstance.current.writeln('');
 
+      // Hardcoded for diagnostic
+      let initialCols = 80;
+      let initialRows = 24;
+      console.log('Initial cols/rows sent to backend:', initialCols, initialRows);
+
       // Create SSH connection - the backend should get connection info from session/context
       // or we may need to modify the backend to accept parameters
       const connectionResponse = await createSshConnectionWithRefresh({
         hostServerId: nodeId,
-        username: username
+        username: username,
+        columns: initialCols,
+        rows: initialRows,
       });
 
       if (!connectionResponse.success) {
@@ -131,10 +145,11 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
         setIsConnected(true);
         setIsConnecting(false);
 
-        // Send initial terminal size
+        // Send initial terminal size only if it has changed
         if (fitAddon.current) {
           const dims = fitAddon.current.proposeDimensions();
-          if (dims) {
+          if (dims && (dims.cols !== initialCols || dims.rows !== initialRows)) {
+            console.log('Sending resize event on ws.onopen:', dims.cols, dims.rows);
             ws.send(JSON.stringify({
               type: 'resize',
               cols: dims.cols,
@@ -255,7 +270,7 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
 
     // Open terminal
     terminal.open(terminalRef.current);
-    fit.fit();
+    setTimeout(() => fit.fit(), 0); // Ensure DOM is ready before fitting
 
     // Store references
     terminalInstance.current = terminal;
@@ -318,7 +333,7 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
   }
 
   return (
-    <div className="fixed inset-0 bg-black flex flex-col z-50">
+    <div className="fixed inset-0 bg-black flex flex-col z-50" style={{height: '100%', minHeight: 0}}>
       {/* Header */}
       <div className="db-terminal-header">
         <div className="window-controls">
@@ -339,8 +354,8 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
       </div>
       
       {/* Terminal */}
-      <div className="flex-1">
-        <div ref={terminalRef} className="w-full h-full px-4"></div>
+      <div className="flex-1" style={{height: '100%', minHeight: 0}}>
+        <div ref={terminalRef} className="w-full h-full" style={{height: '100%', minHeight: 0}}></div>
       </div>
     </div>
   );
