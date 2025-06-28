@@ -33,18 +33,18 @@ export class SshService {
     }
     /**
      * Close an SSH connection.
-     * @param connectionId
+     * @param connid
      * @returns SshConnectionCloseResponse SshConnectionCloseResponse
      * @throws ApiError
      */
     public static closeSshConnection(
-        connectionId: string,
+        connid: string,
     ): CancelablePromise<SshConnectionCloseResponse> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/ssh/connect/{connectionId}',
+            url: '/ssh/connect/{CONNID}',
             path: {
-                'connectionId': connectionId,
+                'CONNID': connid,
             },
             errors: {
                 400: `Invalid connection ID`,

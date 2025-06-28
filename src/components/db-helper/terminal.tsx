@@ -6,6 +6,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { SshService } from "@/lib/api/services/SshService";
+import { TokenService } from '@/lib/tokenManager';
 
 interface TerminalProps {
   nodeId: string;
@@ -13,6 +14,39 @@ interface TerminalProps {
   ipAddress: string;
   username: string;
   onClose: () => void;
+}
+
+// Helper to refresh token and retry SSH connect
+async function createSshConnectionWithRefresh(params: { hostServerId: string, username: string }) {
+  try {
+    return await SshService.createSshConnection(params);
+  } catch (err: any) {
+    // If 401, try to refresh and retry
+    if (err?.status === 401 || err?.response?.status === 401) {
+      // Call your refresh endpoint and update tokens
+      const refreshToken = TokenService.getRefreshToken();
+      if (refreshToken) {
+        // You may need to call your refresh endpoint here
+        // Example:
+        const response = await fetch(`${import.meta.env.VITE_API_WEB_INFRA_URL}/token/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          await TokenService.setAccessToken(data.accessToken);
+          await TokenService.setRefreshToken(data.refreshToken);
+          // Retry the SSH connection
+          return await SshService.createSshConnection(params);
+        } else {
+          // TokenService.clearTokens();
+          // TokenService.clearUserInfo();
+        }
+      }
+    }
+    throw err;
+  }
 }
 
 export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClose }: TerminalProps) {
@@ -48,6 +82,7 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
 
     setIsConnecting(true);
     setError(null);
+    let keepAliveInterval: NodeJS.Timeout | null = null;
 
     try {
       // Display connection message
@@ -56,7 +91,7 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
 
       // Create SSH connection - the backend should get connection info from session/context
       // or we may need to modify the backend to accept parameters
-      const connectionResponse = await SshService.createSshConnection({
+      const connectionResponse = await createSshConnectionWithRefresh({
         hostServerId: nodeId,
         username: username
       });
@@ -72,10 +107,18 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
       connectionIdRef.current = connectionResponse.connectionId;
 
       // Connect to WebSocket
-      const wsUrl = connectionResponse.websocketUrl;
+      let wsUrl = connectionResponse.websocketUrl;
       if (!wsUrl) {
         throw new Error('No WebSocket URL received from server');
       }
+      // Always get the latest JWT from storage right before opening the WebSocket
+      let jwt = await TokenService.getAccessToken();
+      if (jwt) {
+        const urlObj = new URL(wsUrl);
+        urlObj.searchParams.set('token', jwt);
+        wsUrl = urlObj.toString();
+      }
+      console.log("WebSocket URL (with latest token):", wsUrl);
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -98,6 +141,13 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
             }));
           }
         }
+
+        // Start keepalive ping
+        keepAliveInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 20000); // 20 seconds
       };
 
       ws.onmessage = (event) => {
@@ -123,12 +173,18 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
         if (terminalInstance.current) {
           terminalInstance.current.writeln('Connection failed. Please try again.');
         }
+        if (keepAliveInterval) {
+          clearInterval(keepAliveInterval);
+        }
       };
 
       ws.onclose = () => {
         setIsConnected(false);
         if (terminalInstance.current) {
           terminalInstance.current.writeln('\r\nConnection closed.');
+        }
+        if (keepAliveInterval) {
+          clearInterval(keepAliveInterval);
         }
       };
 
@@ -149,6 +205,9 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
       setIsConnecting(false);
       if (terminalInstance.current) {
         terminalInstance.current.writeln('Connection failed. Please try again.');
+      }
+      if (keepAliveInterval) {
+        clearInterval(keepAliveInterval);
       }
     }
   }, [nodeId, hostname, ipAddress, username]);
