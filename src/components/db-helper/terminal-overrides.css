@@ -1,0 +1,67 @@
+/* Ghostty-style terminal: edge-to-edge, no gutter, no padding */
+.xterm-rows,
+.xterm-viewport,
+.xterm-screen {
+  padding: 0 !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+.xterm,
+.xterm-viewport,
+.xterm-screen {
+  background: #181a1b !important;
+}
+
+/* Remove all aggressive hacks */
+.xterm-rows {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+
+/* Hide scrollbar completely for a clean look */
+.xterm-viewport::-webkit-scrollbar {
+  display: none;
+}
+.xterm-viewport {
+  scrollbar-width: none;
+}
+
+/* Header bar: minimal, flat, Ghostty-inspired */
+.db-terminal-header {
+  background: #181a1b;
+  border-bottom: 1px solid #232526;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  color: #fff;
+  height: 24px;
+  min-height: 24px;
+  box-shadow: none;
+}
+.db-terminal-header .window-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+.db-terminal-header .window-controls > div {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.db-terminal-header .window-controls .red { background: #e06c75; }
+.db-terminal-header .window-controls .yellow { background: #e5c07b; }
+.db-terminal-header .window-controls .green { background: #98c379; }
+.db-terminal-header .close-btn {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  padding: 0 0.2rem;
+}
+.db-terminal-header .close-btn:hover {
+  color: #fff;
+} 

@@ -5,6 +5,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
+import "./terminal-overrides.css";
 import { SshService } from "@/lib/api/services/SshService";
 import { TokenService } from '@/lib/tokenManager';
 
@@ -218,7 +219,7 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
     // Initialize terminal
     const terminal = new Terminal({
       cursorBlink: true,
-      fontSize: 14,
+      fontSize: 16,
       fontFamily: "Monaco, Menlo, 'Ubuntu Mono', monospace",
       theme: {
         background: '#1e1e1e',
@@ -317,30 +318,29 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-black rounded-lg shadow-xl w-full h-full max-w-6xl max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-          </div>
-          <div className="text-white text-sm">
-            {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'} - {username}@{hostname}
-          </div>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-white"
-          >
-            ✕
-          </button>
+    <div className="fixed inset-0 bg-black flex flex-col z-50">
+      {/* Header */}
+      <div className="db-terminal-header">
+        <div className="window-controls">
+          <div className="red"></div>
+          <div className="yellow"></div>
+          <div className="green"></div>
         </div>
-        
-        {/* Terminal */}
-        <div className="flex-1 p-2">
-          <div ref={terminalRef} className="w-full h-full"></div>
+        <div>
+          {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'} - {username}@{hostname}
         </div>
+        <button
+          onClick={handleClose}
+          className="close-btn"
+          aria-label="Close terminal"
+        >
+          ✕
+        </button>
+      </div>
+      
+      {/* Terminal */}
+      <div className="flex-1">
+        <div ref={terminalRef} className="w-full h-full px-4"></div>
       </div>
     </div>
   );
