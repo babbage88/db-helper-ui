@@ -66,8 +66,11 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
   const [isConnected, setIsConnected] = React.useState(false);
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const hasClosedRef = React.useRef(false);
 
   const cleanupConnection = React.useCallback(async () => {
+    if (hasClosedRef.current) return;
+    hasClosedRef.current = true;
     // Close WebSocket connection
     if (websocketRef.current) {
       websocketRef.current.close();
