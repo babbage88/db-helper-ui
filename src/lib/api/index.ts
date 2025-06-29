@@ -56,6 +56,7 @@ export type { SshConnectionCloseResponse } from './models/SshConnectionCloseResp
 export type { SshConnectionRequestDetails } from './models/SshConnectionRequestDetails';
 export type { SshConnectionResponse } from './models/SshConnectionResponse';
 export type { SshKeyListItem } from './models/SshKeyListItem';
+export type { SshSessionSummary } from './models/SshSessionSummary';
 export type { TokenRefreshReq } from './models/TokenRefreshReq';
 export type { UpdateExternalApplicationRequest } from './models/UpdateExternalApplicationRequest';
 export type { UpdateHostServerRequest } from './models/UpdateHostServerRequest';

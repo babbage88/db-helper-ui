@@ -5,6 +5,7 @@
 import type { SshConnectionCloseResponse } from '../models/SshConnectionCloseResponse';
 import type { SshConnectionRequestDetails } from '../models/SshConnectionRequestDetails';
 import type { SshConnectionResponse } from '../models/SshConnectionResponse';
+import type { SshSessionSummary } from '../models/SshSessionSummary';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -52,6 +53,20 @@ export class SshService {
                 403: `Access denied`,
                 404: `Session not found`,
                 500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * List all active SSH sessions.
+     * @returns SshSessionSummary SshSessionSummary
+     * @throws ApiError
+     */
+    public static listSshSessions(): CancelablePromise<Array<SshSessionSummary>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ssh/sessions',
+            errors: {
+                401: `Unauthorized`,
             },
         });
     }
