@@ -250,6 +250,7 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
       cursorBlink: true,
       fontSize: 16,
       fontFamily: "Monaco, Menlo, 'Ubuntu Mono', monospace",
+      scrollback: 5000, // Increase scrollback buffer for large outputs
       theme: {
         background: '#1e1e1e',
         foreground: '#ffffff',
@@ -290,7 +291,8 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
     terminalInstance.current = terminal;
     fitAddon.current = fit;
 
-    // Handle window resize
+    // Handle window resize with debounce
+    let resizeTimeout: NodeJS.Timeout | undefined;
     const handleResize = () => {
       if (fitAddon.current) {
         fitAddon.current.fit();
@@ -298,11 +300,14 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
         if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
           const dims = fitAddon.current.proposeDimensions();
           if (dims) {
-            websocketRef.current.send(JSON.stringify({
-              type: 'resize',
-              cols: dims.cols,
-              rows: dims.rows
-            }));
+            if (resizeTimeout) clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+              websocketRef.current && websocketRef.current.send(JSON.stringify({
+                type: 'resize',
+                cols: dims.cols,
+                rows: dims.rows
+              }));
+            }, 100); // 100ms debounce
           }
         }
       }
