@@ -4,6 +4,10 @@
 /* eslint-disable */
 export type CreateHostServerRequest = {
     /**
+     * Host server type IDs that this server supports
+     */
+    host_server_type_ids?: Array<string>;
+    /**
      * Hostname of the server
      */
     hostname: string;
@@ -27,6 +31,10 @@ export type CreateHostServerRequest = {
      * Whether this server can host VMs
      */
     is_vm_host?: boolean;
+    /**
+     * Platform type IDs that this server supports
+     */
+    platform_type_ids?: Array<string>;
     /**
      * SSH key ID for authentication
      */
