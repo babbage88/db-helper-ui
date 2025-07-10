@@ -45,60 +45,59 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const [deleteNode, setDeleteNode] = React.useState<Node | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = React.useState(false);
-  const [nodesWithPingStatus, setNodesWithPingStatus] = React.useState<Node[]>([]);
+  const [pingStatusMap, setPingStatusMap] = React.useState<Record<string, { success: boolean; latency: string; error?: string }>>({});
   const [isPinging, setIsPinging] = React.useState(false);
   const [terminalNode, setTerminalNode] = React.useState<Node | null>(null); // For Terminal modal
 
-  // Ping all nodes to check their status
+  // Ping all nodes to check their status (update as each finishes)
   const pingNodes = React.useCallback(async (nodes: Node[]) => {
     setIsPinging(true);
-    const pingPromises = nodes.map(async (node) => {
-      try {
-        const pingResponse = await NetworkPingService.pingHostServer({
-          hostServerId: node.ID
-        });
-        return {
-          ...node,
-          pingStatus: {
-            success: pingResponse.success,
-            latency: pingResponse.latency,
-            error: pingResponse.error
-          }
-        };
-      } catch (error) {
-        return {
-          ...node,
-          pingStatus: {
-            success: false,
-            latency: "0ms",
-            error: "Ping failed"
-          }
-        };
-      }
-    });
-
-    const results = await Promise.all(pingPromises);
-    setNodesWithPingStatus(results);
+    await Promise.all(
+      nodes.map(async (node) => {
+        try {
+          const pingResponse = await NetworkPingService.pingHostServer({
+            hostServerId: node.ID
+          });
+          setPingStatusMap((prev) => ({
+            ...prev,
+            [node.ID]: {
+              success: pingResponse.success,
+              latency: pingResponse.latency,
+              error: pingResponse.error
+            }
+          }));
+        } catch (error) {
+          setPingStatusMap((prev) => ({
+            ...prev,
+            [node.ID]: {
+              success: false,
+              latency: "0ms",
+              error: "Ping failed"
+            }
+          }));
+        }
+      })
+    );
     setIsPinging(false);
   }, []);
 
   // Update ping status when data changes
   React.useEffect(() => {
     if (data.length > 0) {
+      // Reset pingStatusMap for new data
+      setPingStatusMap({});
       pingNodes(data);
     } else {
-      setNodesWithPingStatus([]);
+      setPingStatusMap({});
     }
   }, [data, pingNodes]);
 
   // Periodic refresh every 30 seconds
   React.useEffect(() => {
     if (data.length === 0) return;
-    
     const interval = setInterval(() => {
       pingNodes(data);
     }, 30000);
-
     return () => clearInterval(interval);
   }, [data, pingNodes]);
 
@@ -153,10 +152,11 @@ export function DataTable({ data, onChange }: DataTableProps) {
     onDelete: handleDelete,
     onView: handleView,
     onConnect: handleConnect,
-  }), []);
+    pingStatusMap, // pass the map for use in columns
+  }), [pingStatusMap]);
 
   const table = useReactTable({
-    data: nodesWithPingStatus,
+    data, // always use the original data
     columns,
     state: {
       sorting,
@@ -439,6 +439,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
           ipAddress={terminalNode.IpAddress}
           username={terminalNode.Username || "root"}
           onClose={() => setTerminalNode(null)}
+          term="xterm-256color" // You can change this to any term type you want
         />
       )}
     </div>

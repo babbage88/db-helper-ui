@@ -15,6 +15,7 @@ interface TerminalProps {
   ipAddress: string;
   username: string;
   onClose: () => void;
+  term?: string;
 }
 
 interface SshConnectionWithSizeParams {
@@ -22,6 +23,7 @@ interface SshConnectionWithSizeParams {
   username: string;
   columns?: number;
   rows?: number;
+  term?: string;
 }
 
 // Helper to refresh token and retry SSH connect
@@ -57,7 +59,7 @@ async function createSshConnectionWithRefresh(params: SshConnectionWithSizeParam
   }
 }
 
-export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClose }: TerminalProps) {
+export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClose, term = "xterm-256color" }: TerminalProps) {
   const terminalRef = React.useRef<HTMLDivElement>(null);
   const terminalInstance = React.useRef<Terminal | null>(null);
   const fitAddon = React.useRef<FitAddon | null>(null);
@@ -119,6 +121,7 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
         username: username,
         columns: initialCols,
         rows: initialRows,
+        term: term,
       });
 
       if (!connectionResponse.success) {
@@ -171,6 +174,17 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
             }
           }
         }
+
+        // Set TERM environment variable after connection (fallback method)
+        // This will work even if the backend doesn't support the term parameter
+        setTimeout(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'input',
+              data: `export TERM=${term}\r`
+            }));
+          }
+        }, 1000); // Wait 1 second after connection
 
         // Start keepalive ping
         keepAliveInterval = setInterval(() => {
@@ -240,7 +254,7 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
         clearInterval(keepAliveInterval);
       }
     }
-  }, [nodeId, hostname, ipAddress, username]);
+  }, [nodeId, hostname, ipAddress, username, term]);
 
   React.useEffect(() => {
     if (!terminalRef.current) return;

@@ -32,9 +32,10 @@ type ActionHandlers = {
   onDelete: (node: Node) => void;
   onView: (node: Node) => void;
   onConnect: (node: Node) => void;
+  pingStatusMap?: Record<string, { success: boolean; latency: string; error?: string }>;
 };
 
-export function getColumns({ onEdit, onDelete, onView, onConnect }: ActionHandlers): ColumnDef<Node>[] {
+export function getColumns({ onEdit, onDelete, onView, onConnect, pingStatusMap }: ActionHandlers): ColumnDef<Node>[] {
   return [
     {
       id: "select",
@@ -87,7 +88,7 @@ export function getColumns({ onEdit, onDelete, onView, onConnect }: ActionHandle
       id: "status",
       header: "Status",
       cell: ({ row }) => {
-        const status = row.original.pingStatus;
+        const status = pingStatusMap ? pingStatusMap[row.original.ID] : undefined;
         if (status === undefined) {
           return (
             <div className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground">
