@@ -2,12 +2,18 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-/**
- * HostServerType represents a type/category of host server
- */
 export type HostServerType = {
-    id?: string;
-    last_modified?: string;
-    name?: string;
+    /**
+     * Unique identifier for the host server type
+     */
+    id: string;
+    /**
+     * Last modification timestamp
+     */
+    last_modified: string;
+    /**
+     * Name of the host server type
+     */
+    name: string;
 };
 

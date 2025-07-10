@@ -4,11 +4,28 @@
 /* eslint-disable */
 import type { CreateHostServerRequest } from '../models/CreateHostServerRequest';
 import type { HostServerResponse } from '../models/HostServerResponse';
+import type { HostServerType } from '../models/HostServerType';
+import type { PlatformType } from '../models/PlatformType';
 import type { UpdateHostServerRequest } from '../models/UpdateHostServerRequest';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class HostServersService {
+    /**
+     * Get all available host server types.
+     * @returns HostServerType (empty)
+     * @throws ApiError
+     */
+    public static getAllHostServerTypes(): CancelablePromise<Array<HostServerType>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/host-server-types',
+            errors: {
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
     /**
      * Get all host servers.
      * @returns HostServerResponse (empty)
@@ -106,6 +123,21 @@ export class HostServersService {
                 400: `Invalid request`,
                 401: `Unauthorized`,
                 404: `Not Found`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Get all available platform types.
+     * @returns PlatformType (empty)
+     * @throws ApiError
+     */
+    public static getAllPlatformTypes(): CancelablePromise<Array<PlatformType>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/platform-types',
+            errors: {
+                401: `Unauthorized`,
                 500: `Internal Server Error`,
             },
         });
