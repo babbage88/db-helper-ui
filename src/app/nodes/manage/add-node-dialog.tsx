@@ -42,18 +42,18 @@ import type { CreateSshKeyHostMappingRequestWithoutUserID } from "@/lib/api/mode
 import type { SshKeyListItem } from "@/lib/api/models/SshKeyListItem";
 import { TokenService } from "@/lib/tokenManager";
 import { AddSshKeyDialog } from "@/components/db-helper/add-ssh-key-dialog";
+import type { HostServerType } from "@/lib/api/models/HostServerType";
+import type { PlatformType } from "@/lib/api/models/PlatformType";
 
 const nodeFormSchema = z.object({
-    hostname: z.string().min(1, "Hostname is required"),
-    ipAddress: z.string().min(1, "IP Address is required"),
-    username: z.string().min(1, "Username is required"),
-    sudoPassword: z.string().optional(),
-    isContainerHost: z.boolean(),
-    isVirtualMachine: z.boolean(),
-    isVmHost: z.boolean(),
-    idDbHost: z.boolean(),
-    selectedSshKeyId: z.string().min(1, "Please select an SSH key"),
-  });
+  hostname: z.string().min(1, "Hostname is required"),
+  ipAddress: z.string().min(1, "IP Address is required"),
+  username: z.string().min(1, "Username is required"),
+  sudoPassword: z.string().optional(),
+  selectedSshKeyId: z.string().min(1, "Please select an SSH key"),
+  hostServerTypeIds: z.array(z.string()).min(1, "Select at least one host server type"),
+  platformTypeIds: z.array(z.string()).min(1, "Select at least one platform type"),
+});
 
 export type NodeFormValues = z.infer<typeof nodeFormSchema> & {
   ssh_key_id?: string;
@@ -75,6 +75,8 @@ export function AddNodeDialog({
   const [availableSshKeys, setAvailableSshKeys] = React.useState<SshKeyListItem[]>([]);
   const [isLoadingKeys, setIsLoadingKeys] = React.useState(false);
   const [showAddSshKeyDialog, setShowAddSshKeyDialog] = React.useState(false);
+  const [hostServerTypes, setHostServerTypes] = React.useState<HostServerType[]>([]);
+  const [platformTypes, setPlatformTypes] = React.useState<PlatformType[]>([]);
   const resolver: Resolver<NodeFormValues> = zodResolver(nodeFormSchema);
 
   const form = useForm<NodeFormValues>({
@@ -83,38 +85,54 @@ export function AddNodeDialog({
       hostname: "",
       ipAddress: "",
       username: "",
-      isContainerHost: false,
-      isVirtualMachine: false,
-      isVmHost: false,
-      idDbHost: false,
       sudoPassword: "",
+      selectedSshKeyId: "",
+      hostServerTypeIds: [],
+      platformTypeIds: [],
     },
   });
 
+  // Fetch SSH keys
   const fetchKeys = React.useCallback(async () => {
-        setIsLoadingKeys(true);
-        try {
+    setIsLoadingKeys(true);
+    try {
       const userInfo = TokenService.getUserInfo();
       if (!userInfo || !userInfo.userId) {
-            console.error("User ID not found. Cannot fetch SSH keys.");
-            setAvailableSshKeys([]);
-            return;
-          }
-
+        console.error("User ID not found. Cannot fetch SSH keys.");
+        setAvailableSshKeys([]);
+        return;
+      }
       const keys = await SshKeysService.getSshKeysByUserId(userInfo.userId);
-          setAvailableSshKeys(keys);
-        } catch (error) {
-          console.error("Failed to fetch SSH keys:", error);
-        } finally {
-          setIsLoadingKeys(false);
-        }
+      setAvailableSshKeys(keys);
+    } catch (error) {
+      console.error("Failed to fetch SSH keys:", error);
+    } finally {
+      setIsLoadingKeys(false);
+    }
+  }, []);
+
+  // Fetch host server types and platform types
+  const fetchTypes = React.useCallback(async () => {
+    try {
+      const [hostTypes, platTypes] = await Promise.all([
+        HostServersService.getAllHostServerTypes(),
+        HostServersService.getAllPlatformTypes(),
+      ]);
+      setHostServerTypes(hostTypes);
+      setPlatformTypes(platTypes);
+    } catch (error) {
+      console.error("Failed to fetch types:", error);
+      setHostServerTypes([]);
+      setPlatformTypes([]);
+    }
   }, []);
 
   React.useEffect(() => {
     if (open) {
       fetchKeys();
+      fetchTypes();
     }
-  }, [open, fetchKeys]);
+  }, [open, fetchKeys, fetchTypes]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, files } = e.target;
@@ -135,30 +153,22 @@ export function AddNodeDialog({
 
       if (data.sudoPassword) {
         let sudoAppId: string | undefined;
-        
         try {
-          // First, try to get the existing application ID
           const sudoAppResponse = await ExternalApplicationsService.getExternalApplicationIdByName("sudo_pwd");
           sudoAppId = sudoAppResponse.id;
         } catch (error) {
-          // If it fails (e.g., 404 Not Found), we ignore the error and proceed to create it
           console.log("sudo_pwd application not found, creating it.");
         }
-
         if (!sudoAppId) {
-          // If we still don't have an ID, create the application
           const createAppResponse = await ExternalApplicationsService.createExternalApplication({
             name: "sudo_pwd",
             appDescription: "Sudo passwords for managed nodes"
           });
           sudoAppId = createAppResponse.id;
         }
-        
         if (!sudoAppId) {
-          // If we *still* don't have an ID, something is wrong.
           throw new Error("Failed to get or create sudo_pwd application");
         }
-
         const secretRes = await SecretsService.createUserSecret({ 
           secret: data.sudoPassword,
           application_id: sudoAppId
@@ -168,27 +178,38 @@ export function AddNodeDialog({
 
       const allServers = await HostServersService.getAllHostServers();
       const existingHost = allServers.find(server => server.hostname === data.hostname);
-
       let hostServerId: string | undefined;
-
       if (existingHost) {
         hostServerId = existingHost.id;
       } else {
-      const createRequest: CreateHostServerRequest = {
-        hostname: data.hostname,
-        ip_address: data.ipAddress,
-        is_container_host: data.isContainerHost,
-        is_virtual_machine: data.isVirtualMachine,
-        is_vm_host: data.isVmHost,
-        is_db_host: data.idDbHost,
-        username: data.username,
-        ssh_key_id: sshKeyId,
-        sudo_password_token_id: sudoPasswordId,
-      };
-      const hostServerResponse = await HostServersService.createHostServer(createRequest);
+        const createRequest: CreateHostServerRequest = {
+          hostname: data.hostname,
+          ip_address: data.ipAddress,
+          host_server_type_ids: data.hostServerTypeIds,
+          platform_type_ids: data.platformTypeIds,
+          username: data.username,
+          ssh_key_id: sshKeyId,
+          sudo_password_token_id: sudoPasswordId,
+        };
+        const hostServerResponse = await HostServersService.createHostServer(createRequest);
         hostServerId = hostServerResponse.id;
       }
-
+      if (hostServerId) {
+        // Create host server type mappings
+        await Promise.all(
+          data.hostServerTypeIds.map(typeId =>
+            HostServersService.createHostServerTypeMapping({ hostServerId, hostServerTypeId: typeId })
+          )
+        );
+        // Create platform type mappings (cross-product)
+        await Promise.all(
+          data.hostServerTypeIds.flatMap(hostTypeId =>
+            data.platformTypeIds.map(platformTypeId =>
+              HostServersService.createPlatformTypeMapping({ hostServerId, hostServerTypeId: hostTypeId, platformTypeId })
+            )
+          )
+        );
+      }
       if (sshKeyId && hostServerId && data.username) {
         const mappingRequest: CreateSshKeyHostMappingRequestWithoutUserID = {
           hostServerId: hostServerId,
@@ -198,7 +219,6 @@ export function AddNodeDialog({
         };
         await SshKeyHostMappingsService.createSshKeyHostMapping(mappingRequest);
       }
-
       form.reset();
       onSuccess();
     } finally {
@@ -259,89 +279,90 @@ export function AddNodeDialog({
                 </FormItem>
               )}
             />
-            
             <FormField
               control={control}
               name="selectedSshKeyId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Select SSH Key</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an existing SSH key" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {isLoadingKeys ? (
-                          <SelectItem value="loading" disabled>Loading keys...</SelectItem>
-                        ) : (
-                          availableSshKeys.map((key) => (
-                            <SelectItem key={key.id} value={key.id!}>
-                              {key.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-            {!isLoadingKeys && availableSshKeys.length === 0 && (
-              <div className="text-center p-4 border rounded-md bg-muted/50">
-                <p className="text-sm text-muted-foreground mb-3">
-                  You don't have any SSH keys yet. Please add one to continue.
-                </p>
-                <Button type="button" onClick={() => setShowAddSshKeyDialog(true)}>
-                  Add SSH Key
-                </Button>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={control}
-                name="isContainerHost"
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
-                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                    <FormLabel>Container Host</FormLabel>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={control}
-                name="isVirtualMachine"
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
-                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                    <FormLabel>Virtual Machine</FormLabel>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={control}
-                name="isVmHost"
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
-                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                    <FormLabel>VM Host</FormLabel>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={control}
-                name="idDbHost"
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
-                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                    <FormLabel>DB Host</FormLabel>
-                  </FormItem>
-                )}
-              />
-            </div>
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Select SSH Key</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an existing SSH key" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {isLoadingKeys ? (
+                        <SelectItem value="loading" disabled>Loading keys...</SelectItem>
+                      ) : (
+                        availableSshKeys.map((key) => (
+                          <SelectItem key={key.id} value={key.id!}>
+                            {key.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {/* Host Server Types Multi-Select */}
+            <FormField
+              control={control}
+              name="hostServerTypeIds"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Host Server Types</FormLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {hostServerTypes.map(type => (
+                      <label key={type.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          checked={field.value.includes(type.id)}
+                          onCheckedChange={checked => {
+                            if (checked) {
+                              field.onChange([...field.value, type.id]);
+                            } else {
+                              field.onChange(field.value.filter((id: string) => id !== type.id));
+                            }
+                          }}
+                        />
+                        <span className="text-sm">{type.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {/* Platform Types Multi-Select */}
+            <FormField
+              control={control}
+              name="platformTypeIds"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Platform Types</FormLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {platformTypes.map(type => (
+                      <label key={type.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          checked={field.value.includes(type.id)}
+                          onCheckedChange={checked => {
+                            if (checked) {
+                              field.onChange([...field.value, type.id]);
+                            } else {
+                              field.onChange(field.value.filter((id: string) => id !== type.id));
+                            }
+                          }}
+                        />
+                        <span className="text-sm">{type.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             
             <div>
               <FormLabel>Sudo Password</FormLabel>

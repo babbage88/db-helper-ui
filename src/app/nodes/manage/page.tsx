@@ -34,29 +34,29 @@ export default function ManageNodesPage() {
 
       const [allServers, userMappings] = await Promise.all([
         HostServersService.getAllHostServers(),
-        SshKeyHostMappingsService.getSshKeyHostMappingsByUserId(userInfo.userId)
+        SshKeyHostMappingsService.getSshKeyHostMappingsByUserId(userInfo.userId),
       ]);
 
       const userMappingsMap = new Map(userMappings.map(m => [m.hostServerId, m]));
-
+      // Removed unused: hostTypeMap, platformTypeMap, hostTypeMappings, platformTypeMappings
+      // For demo, assume server.host_server_type_ids and server.platform_type_ids exist (adjust if not)
       const accessibleNodes = allServers
         .filter(server => server.id && userMappingsMap.has(server.id))
         .map(server => {
           const mapping = userMappingsMap.get(server.id!);
+          const hostServerTypes = (server.host_server_types || []).map((t: any) => t.name);
+          const platformTypes = (server.platform_types || []).map((t: any) => t.name);
           return {
             ID: server.id || "",
             Hostname: server.hostname || "",
             IpAddress: server.ip_address || "",
-            IsContainerHost: server.is_container_host || false,
-            IsVirtualMachine: server.is_virtual_machine || false,
-            IsVmHost: server.is_vm_host || false,
-            IDDbHost: server.is_db_host || false,
+            hostServerTypes,
+            platformTypes,
             LastModified: server.last_modified,
             Username: mapping?.hostserverUsername || server.username,
             mappingId: mapping?.id,
           };
         });
-
       setNodes(accessibleNodes as Node[]);
     } catch (error) {
       console.error("Failed to fetch nodes:", error);

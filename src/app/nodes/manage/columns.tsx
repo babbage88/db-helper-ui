@@ -16,10 +16,8 @@ export type Node = {
   ID: string;
   Hostname: string;
   IpAddress: string;
-  IsContainerHost: boolean;
-  IsVirtualMachine: boolean;
-  IsVmHost: boolean;
-  IDDbHost: boolean;
+  hostServerTypes: string[]; // names
+  platformTypes: string[]; // names
   LastModified?: string;
   Username?: string;
   PublicSshKeyname?: string;
@@ -68,16 +66,19 @@ export function getColumns({ onEdit, onDelete, onView, onConnect, pingStatusMap 
       header: "IP Address",
     },
     {
-      accessorKey: "IsContainerHost",
+      accessorKey: "hostServerTypes",
       header: "Type",
       cell: ({ row }) => {
-        const types = [];
-        if (row.original.IsContainerHost) types.push("Container Host");
-        if (row.original.IsVirtualMachine) types.push("Virtual Machine");
-        if (row.original.IsVmHost) types.push("VM Host");
-        if (row.original.IDDbHost) types.push("DB Host");
-        if (types.length === 0) types.push("Physical Server");
-        return types.join(", ");
+        const types = row.original.hostServerTypes || [];
+        return types.length ? types.join(", ") : "-";
+      },
+    },
+    {
+      accessorKey: "platformTypes",
+      header: "Platform",
+      cell: ({ row }) => {
+        const plats = row.original.platformTypes || [];
+        return plats.length ? plats.join(", ") : "-";
       },
     },
     {
