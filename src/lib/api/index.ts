@@ -17,7 +17,9 @@ export type { CreateAppPermissionRequest } from './models/CreateAppPermissionReq
 export type { CreateAppPermissionResult } from './models/CreateAppPermissionResult';
 export type { CreateExternalApplicationRequest } from './models/CreateExternalApplicationRequest';
 export type { CreateHostServerRequest } from './models/CreateHostServerRequest';
+export type { CreateHostServerTypeMappingRequest } from './models/CreateHostServerTypeMappingRequest';
 export type { CreateNewUserRequest } from './models/CreateNewUserRequest';
+export type { CreatePlatformTypeMappingRequest } from './models/CreatePlatformTypeMappingRequest';
 export type { CreateRolePermissionMappingRequest } from './models/CreateRolePermissionMappingRequest';
 export type { CreateRolePermissionMappingResponse } from './models/CreateRolePermissionMappingResponse';
 export type { CreateSecretRequest } from './models/CreateSecretRequest';

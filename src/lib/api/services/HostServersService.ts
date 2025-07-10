@@ -3,6 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { CreateHostServerRequest } from '../models/CreateHostServerRequest';
+import type { CreateHostServerTypeMappingRequest } from '../models/CreateHostServerTypeMappingRequest';
+import type { CreatePlatformTypeMappingRequest } from '../models/CreatePlatformTypeMappingRequest';
 import type { HostServerResponse } from '../models/HostServerResponse';
 import type { HostServerType } from '../models/HostServerType';
 import type { PlatformType } from '../models/PlatformType';
@@ -11,6 +13,28 @@ import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class HostServersService {
+    /**
+     * Create a mapping between a host server and a host server type.
+     * @param body
+     * @returns any (empty)
+     * @throws ApiError
+     */
+    public static createHostServerTypeMapping(
+        body?: CreateHostServerTypeMappingRequest,
+    ): CancelablePromise<{
+        success?: boolean;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/host-server-type-mappings',
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
     /**
      * Get all available host server types.
      * @returns HostServerType (empty)
@@ -123,6 +147,28 @@ export class HostServersService {
                 400: `Invalid request`,
                 401: `Unauthorized`,
                 404: `Not Found`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Create a mapping between a host server, platform type, and host server type.
+     * @param body
+     * @returns any (empty)
+     * @throws ApiError
+     */
+    public static createPlatformTypeMapping(
+        body?: CreatePlatformTypeMappingRequest,
+    ): CancelablePromise<{
+        success?: boolean;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/platform-type-mappings',
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
                 500: `Internal Server Error`,
             },
         });
