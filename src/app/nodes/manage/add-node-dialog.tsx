@@ -44,6 +44,8 @@ import { TokenService } from "@/lib/tokenManager";
 import { AddSshKeyDialog } from "@/components/db-helper/add-ssh-key-dialog";
 import type { HostServerType } from "@/lib/api/models/HostServerType";
 import type { PlatformType } from "@/lib/api/models/PlatformType";
+import ReactSelect from 'react-select';
+import type { MultiValue } from 'react-select';
 
 const nodeFormSchema = z.object({
   hostname: z.string().min(1, "Hostname is required"),
@@ -307,58 +309,134 @@ export function AddNodeDialog({
                 </FormItem>
               )}
             />
-            {/* Host Server Types Multi-Select */}
+            {/* Host Server Types Tag Input */}
             <FormField
               control={control}
               name="hostServerTypeIds"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Host Server Types</FormLabel>
-                  <div className="flex flex-wrap gap-2">
-                    {hostServerTypes.map(type => (
-                      <label key={type.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          checked={field.value.includes(type.id)}
-                          onCheckedChange={checked => {
-                            if (checked) {
-                              field.onChange([...field.value, type.id]);
-                            } else {
-                              field.onChange(field.value.filter((id: string) => id !== type.id));
-                            }
-                          }}
-                        />
-                        <span className="text-sm">{type.name}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <ReactSelect
+                    isMulti
+                    options={hostServerTypes.map(type => ({ value: type.id, label: type.name }))}
+                    value={hostServerTypes
+                      .filter(type => field.value.includes(type.id))
+                      .map(type => ({ value: type.id, label: type.name })) as any}
+                    onChange={(selected: MultiValue<{ value: string; label: string }>) =>
+                      field.onChange(selected.map(option => option.value))
+                    }
+                    classNamePrefix="react-select"
+                    placeholder="Select host server types..."
+                    theme={theme => ({
+                      ...theme,
+                      borderRadius: 6,
+                      colors: {
+                        ...theme.colors,
+                        primary25: '#22223b',
+                        primary: '#4f46e5',
+                        neutral0: '#18181b',
+                        neutral80: '#f4f4f5',
+                        neutral20: '#27272a',
+                        neutral30: '#4f46e5',
+                      },
+                    })}
+                    styles={{
+                      input: (base) => ({
+                        ...base,
+                        color: '#f4f4f5',
+                        fontFamily: 'inherit',
+                      }),
+                      singleValue: (base) => ({
+                        ...base,
+                        color: '#f4f4f5',
+                        fontFamily: 'inherit',
+                      }),
+                      multiValue: (base) => ({
+                        ...base,
+                        backgroundColor: '#27272a',
+                        color: '#f4f4f5',
+                        fontFamily: 'inherit',
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        backgroundColor: '#18181b',
+                        color: '#f4f4f5',
+                        fontFamily: 'inherit',
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        backgroundColor: state.isFocused ? '#22223b' : '#18181b',
+                        color: '#f4f4f5',
+                        fontFamily: 'inherit',
+                      }),
+                    }}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
             />
-            {/* Platform Types Multi-Select */}
+            {/* Platform Types Tag Input */}
             <FormField
               control={control}
               name="platformTypeIds"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Platform Types</FormLabel>
-                  <div className="flex flex-wrap gap-2">
-                    {platformTypes.map(type => (
-                      <label key={type.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          checked={field.value.includes(type.id)}
-                          onCheckedChange={checked => {
-                            if (checked) {
-                              field.onChange([...field.value, type.id]);
-                            } else {
-                              field.onChange(field.value.filter((id: string) => id !== type.id));
-                            }
-                          }}
-                        />
-                        <span className="text-sm">{type.name}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <ReactSelect
+                    isMulti
+                    options={platformTypes.map(type => ({ value: type.id, label: type.name }))}
+                    value={platformTypes
+                      .filter(type => field.value.includes(type.id))
+                      .map(type => ({ value: type.id, label: type.name })) as any}
+                    onChange={(selected: MultiValue<{ value: string; label: string }>) =>
+                      field.onChange(selected.map(option => option.value))
+                    }
+                    classNamePrefix="react-select"
+                    placeholder="Select platform types..."
+                    theme={theme => ({
+                      ...theme,
+                      borderRadius: 6,
+                      colors: {
+                        ...theme.colors,
+                        primary25: '#22223b',
+                        primary: '#4f46e5',
+                        neutral0: '#18181b',
+                        neutral80: '#f4f4f5',
+                        neutral20: '#27272a',
+                        neutral30: '#4f46e5',
+                      },
+                    })}
+                    styles={{
+                      input: (base) => ({
+                        ...base,
+                        color: '#f4f4f5',
+                        fontFamily: 'inherit',
+                      }),
+                      singleValue: (base) => ({
+                        ...base,
+                        color: '#f4f4f5',
+                        fontFamily: 'inherit',
+                      }),
+                      multiValue: (base) => ({
+                        ...base,
+                        backgroundColor: '#27272a',
+                        color: '#f4f4f5',
+                        fontFamily: 'inherit',
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        backgroundColor: '#18181b',
+                        color: '#f4f4f5',
+                        fontFamily: 'inherit',
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        backgroundColor: state.isFocused ? '#22223b' : '#18181b',
+                        color: '#f4f4f5',
+                        fontFamily: 'inherit',
+                      }),
+                    }}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
