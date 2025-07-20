@@ -10,10 +10,6 @@ export type HostServerResponse = {
     hostname?: string;
     id?: string;
     ip_address?: string;
-    is_container_host?: boolean;
-    is_db_host?: boolean;
-    is_virtual_machine?: boolean;
-    is_vm_host?: boolean;
     last_modified?: string;
     platform_types?: Array<PlatformType>;
     ssh_key_id?: string;
