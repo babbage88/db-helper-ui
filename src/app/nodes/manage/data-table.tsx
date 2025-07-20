@@ -18,11 +18,16 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, RefreshCw, Filter } from "lucide-react";
 import { getColumns, type Node } from "./columns";
 import { HostServersService } from "@/lib/api/services/HostServersService";
+import type { HostServerType } from "@/lib/api/models/HostServerType";
+import type { PlatformType } from "@/lib/api/models/PlatformType";
+import { Label } from "@/components/ui/label";
 import { SecretsService } from "@/lib/api/services/SecretsService";
 import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
 import type { CreateSshKeyHostMappingResponse } from "@/lib/api/models/CreateSshKeyHostMappingResponse";
 import { NetworkPingService } from "@/lib/api/services/NetworkPingService";
 import { TerminalComponent } from "@/app/nodes/manage/terminal/terminal";
+import ReactSelect from 'react-select';
+import type { MultiValue } from 'react-select';
 
 interface DataTableProps {
   data: Node[];
@@ -171,17 +176,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    globalFilterFn: (row, columnId, filterValue) => {
-      // For Type column, match any type string
-      if (columnId === "IsContainerHost") {
-        const types = [];
-        if (row.original.IsContainerHost) types.push("Container Host");
-        if (row.original.IsVirtualMachine) types.push("Virtual Machine");
-        if (row.original.IsVmHost) types.push("VM Host");
-        if (row.original.IDDbHost) types.push("DB Host");
-        if (types.length === 0) types.push("Physical Server");
-        return types.some(type => type.toLowerCase().includes(String(filterValue).toLowerCase()));
-      }
+    globalFilterFn: (row, _columnId, filterValue) => {
       return Object.values(row.original).some((value) =>
         String(value ?? "").toLowerCase().includes(String(filterValue).toLowerCase())
       );
@@ -454,22 +449,60 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
   const [form, setForm] = React.useState({
     Hostname: node.Hostname,
     IpAddress: node.IpAddress,
-    IsContainerHost: node.IsContainerHost,
-    IsVirtualMachine: node.IsVirtualMachine,
-    IsVmHost: node.IsVmHost,
-    IDDbHost: node.IDDbHost,
     Username: node.Username || "",
     SshPrivateKey: "",
     SudoPassword: "",
+    hostServerTypeIds: node.hostServerTypeIds || [],
+    platformTypeIds: node.platformTypeIds || [],
   });
   const [isSaving, setIsSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [hostServerTypes, setHostServerTypes] = React.useState<HostServerType[]>([]);
+  const [platformTypes, setPlatformTypes] = React.useState<PlatformType[]>([]);
+  const [isLoadingTypes, setIsLoadingTypes] = React.useState(true);
+
+  // Update form state if node changes (e.g., when opening modal for a different node)
+  React.useEffect(() => {
+    setForm({
+      Hostname: node.Hostname,
+      IpAddress: node.IpAddress,
+      Username: node.Username || "",
+      SshPrivateKey: "",
+      SudoPassword: "",
+      hostServerTypeIds: node.hostServerTypeIds || [],
+      platformTypeIds: node.platformTypeIds || [],
+    });
+  }, [node]);
+
+  React.useEffect(() => {
+    setIsLoadingTypes(true);
+    Promise.all([
+      HostServersService.getAllHostServerTypes(),
+      HostServersService.getAllPlatformTypes(),
+    ]).then(([hst, plt]) => {
+      setHostServerTypes(hst);
+      setPlatformTypes(plt);
+      setIsLoadingTypes(false);
+    }).catch(() => {
+      setHostServerTypes([]);
+      setPlatformTypes([]);
+      setIsLoadingTypes(false);
+    });
+  }, []);
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('DEBUG: form.hostServerTypeIds', form.hostServerTypeIds);
+    console.log('DEBUG: form.platformTypeIds', form.platformTypeIds);
+    console.log('DEBUG: hostServerTypes', hostServerTypes);
+    console.log('DEBUG: platformTypes', platformTypes);
+  }, [form, hostServerTypes, platformTypes]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: value,
     }));
   };
 
@@ -505,14 +538,26 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
       await HostServersService.updateHostServer(node.ID.toString(), {
         hostname: form.Hostname,
         ip_address: form.IpAddress,
-        is_container_host: form.IsContainerHost,
-        is_virtual_machine: form.IsVirtualMachine,
-        is_vm_host: form.IsVmHost,
-        is_db_host: form.IDDbHost,
         username: form.Username,
         ssh_key_id: sshKeyId,
         sudo_password_token_id: sudoPasswordId,
+        host_server_type_ids: form.hostServerTypeIds,
+        platform_type_ids: form.platformTypeIds,
       });
+      // Create host server type mappings
+      await Promise.all(
+        form.hostServerTypeIds.map(typeId =>
+          HostServersService.createHostServerTypeMapping({ hostServerId: node.ID, hostServerTypeId: typeId })
+        )
+      );
+      // Create platform type mappings (cross-product)
+      await Promise.all(
+        form.hostServerTypeIds.flatMap(hostTypeId =>
+          form.platformTypeIds.map(platformTypeId =>
+            HostServersService.createPlatformTypeMapping({ hostServerId: node.ID, hostServerTypeId: hostTypeId, platformTypeId })
+          )
+        )
+      );
       onSuccess();
     } catch (e: any) {
       setError(e?.message || "Failed to update node");
@@ -554,54 +599,130 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
           onChange={handleChange}
         />
       </div>
-      
-      {/* Responsive Checkbox Grid */}
       <div>
-        <label className="block text-sm font-medium mb-2">Node Types</label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="IsContainerHost"
-              checked={form.IsContainerHost}
-              onChange={handleChange}
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <span className="text-sm">Container Host</span>
-          </label>
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="IsVirtualMachine"
-              checked={form.IsVirtualMachine}
-              onChange={handleChange}
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <span className="text-sm">Virtual Machine</span>
-          </label>
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="IsVmHost"
-              checked={form.IsVmHost}
-              onChange={handleChange}
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <span className="text-sm">VM Host</span>
-          </label>
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="IDDbHost"
-              checked={form.IDDbHost}
-              onChange={handleChange}
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <span className="text-sm">DB Host</span>
-          </label>
-        </div>
+        <Label className="block text-sm font-medium mb-1">Host Server Types</Label>
+        {isLoadingTypes ? (
+          <div className="text-muted-foreground text-sm">Loading host server types...</div>
+        ) : (
+          <ReactSelect
+            isMulti
+            options={hostServerTypes.map(type => ({ value: type.id, label: type.name }))}
+            value={hostServerTypes
+              .filter(type => form.hostServerTypeIds.includes(type.id))
+              .map(type => ({ value: type.id, label: type.name })) as any}
+            onChange={(selected: MultiValue<{ value: string; label: string }>) =>
+              setForm(prev => ({ ...prev, hostServerTypeIds: selected.map(option => option.value) }))
+            }
+            classNamePrefix="react-select"
+            placeholder="Select host server types..."
+            theme={theme => ({
+              ...theme,
+              borderRadius: 6,
+              colors: {
+                ...theme.colors,
+                primary25: '#22223b',
+                primary: '#4f46e5',
+                neutral0: '#18181b',
+                neutral80: '#f4f4f5',
+                neutral20: '#27272a',
+                neutral30: '#4f46e5',
+              },
+            })}
+            styles={{
+              input: (base) => ({
+                ...base,
+                color: '#f4f4f5',
+                fontFamily: 'inherit',
+              }),
+              singleValue: (base) => ({
+                ...base,
+                color: '#f4f4f5',
+                fontFamily: 'inherit',
+              }),
+              multiValue: (base) => ({
+                ...base,
+                backgroundColor: '#27272a',
+                color: '#f4f4f5',
+                fontFamily: 'inherit',
+              }),
+              menu: (base) => ({
+                ...base,
+                backgroundColor: '#18181b',
+                color: '#f4f4f5',
+                fontFamily: 'inherit',
+              }),
+              option: (base, state) => ({
+                ...base,
+                backgroundColor: state.isFocused ? '#22223b' : '#18181b',
+                color: '#f4f4f5',
+                fontFamily: 'inherit',
+              }),
+            }}
+          />
+        )}
       </div>
-
+      <div>
+        <Label className="block text-sm font-medium mb-1">Platform Types</Label>
+        {isLoadingTypes ? (
+          <div className="text-muted-foreground text-sm">Loading platform types...</div>
+        ) : (
+          <ReactSelect
+            isMulti
+            options={platformTypes.map(type => ({ value: type.id, label: type.name }))}
+            value={platformTypes
+              .filter(type => form.platformTypeIds.includes(type.id))
+              .map(type => ({ value: type.id, label: type.name })) as any}
+            onChange={(selected: MultiValue<{ value: string; label: string }>) =>
+              setForm(prev => ({ ...prev, platformTypeIds: selected.map(option => option.value) }))
+            }
+            classNamePrefix="react-select"
+            placeholder="Select platform types..."
+            theme={theme => ({
+              ...theme,
+              borderRadius: 6,
+              colors: {
+                ...theme.colors,
+                primary25: '#22223b',
+                primary: '#4f46e5',
+                neutral0: '#18181b',
+                neutral80: '#f4f4f5',
+                neutral20: '#27272a',
+                neutral30: '#4f46e5',
+              },
+            })}
+            styles={{
+              input: (base) => ({
+                ...base,
+                color: '#f4f4f5',
+                fontFamily: 'inherit',
+              }),
+              singleValue: (base) => ({
+                ...base,
+                color: '#f4f4f5',
+                fontFamily: 'inherit',
+              }),
+              multiValue: (base) => ({
+                ...base,
+                backgroundColor: '#27272a',
+                color: '#f4f4f5',
+                fontFamily: 'inherit',
+              }),
+              menu: (base) => ({
+                ...base,
+                backgroundColor: '#18181b',
+                color: '#f4f4f5',
+                fontFamily: 'inherit',
+              }),
+              option: (base, state) => ({
+                ...base,
+                backgroundColor: state.isFocused ? '#22223b' : '#18181b',
+                color: '#f4f4f5',
+                fontFamily: 'inherit',
+              }),
+            }}
+          />
+        )}
+      </div>
       <div>
         <label className="block text-sm font-medium mb-1">SSH Private Key</label>
         <textarea
@@ -621,7 +742,6 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
           />
         </div>
       </div>
-      
       <div>
         <label className="block text-sm font-medium mb-1">Sudo Password</label>
         <input
@@ -642,9 +762,7 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
           />
         </div>
       </div>
-      
       {error && <div className="text-red-600 text-sm p-3 bg-red-50 rounded-md">{error}</div>}
-      
       <div className="flex flex-col sm:flex-row gap-2 justify-end pt-4">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving} className="w-full sm:w-auto">
           Cancel

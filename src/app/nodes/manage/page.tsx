@@ -44,14 +44,26 @@ export default function ManageNodesPage() {
         .filter(server => server.id && userMappingsMap.has(server.id))
         .map(server => {
           const mapping = userMappingsMap.get(server.id!);
-          const hostServerTypes = (server.host_server_types || []).map((t: any) => t.name);
-          const platformTypes = (server.platform_types || []).map((t: any) => t.name);
+          const hostServerTypeIds = Array.isArray(server.host_server_types)
+            ? server.host_server_types.map((t: any) => t.id)
+            : [];
+          const hostServerTypeNames = Array.isArray(server.host_server_types)
+            ? server.host_server_types.map((t: any) => t.name)
+            : [];
+          const platformTypeIds = Array.isArray(server.platform_types)
+            ? server.platform_types.map((t: any) => t.id)
+            : [];
+          const platformTypeNames = Array.isArray(server.platform_types)
+            ? server.platform_types.map((t: any) => t.name)
+            : [];
           return {
             ID: server.id || "",
             Hostname: server.hostname || "",
             IpAddress: server.ip_address || "",
-            hostServerTypes,
-            platformTypes,
+            hostServerTypeIds,
+            hostServerTypeNames,
+            platformTypeIds,
+            platformTypeNames,
             LastModified: server.last_modified,
             Username: mapping?.hostserverUsername || server.username,
             mappingId: mapping?.id,

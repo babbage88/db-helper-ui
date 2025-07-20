@@ -16,8 +16,10 @@ export type Node = {
   ID: string;
   Hostname: string;
   IpAddress: string;
-  hostServerTypes: string[]; // names
-  platformTypes: string[]; // names
+  hostServerTypeIds: string[]; // ids for editing
+  hostServerTypeNames: string[]; // names for display
+  platformTypeIds: string[]; // ids for editing
+  platformTypeNames: string[]; // names for display
   LastModified?: string;
   Username?: string;
   PublicSshKeyname?: string;
@@ -66,18 +68,18 @@ export function getColumns({ onEdit, onDelete, onView, onConnect, pingStatusMap 
       header: "IP Address",
     },
     {
-      accessorKey: "hostServerTypes",
+      accessorKey: "hostServerTypeNames",
       header: "Type",
       cell: ({ row }) => {
-        const types = row.original.hostServerTypes || [];
+        const types = row.original.hostServerTypeNames || [];
         return types.length ? types.join(", ") : "-";
       },
     },
     {
-      accessorKey: "platformTypes",
+      accessorKey: "platformTypeNames",
       header: "Platform",
       cell: ({ row }) => {
-        const plats = row.original.platformTypes || [];
+        const plats = row.original.platformTypeNames || [];
         return plats.length ? plats.join(", ") : "-";
       },
     },
