@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build-test": "tsc -b && vite build --mode test --outDir builds/test/",
     "lint": "eslint .",
     "ci": "npm ci",
     "gen-api": "npx openapi-typescript-codegen -i ../go-infra/swagger.json -o src/lib/api --client axios && git restore src/lib/api/core/request.ts && git restore src/lib/api/core/OpenAPI.ts",

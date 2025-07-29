@@ -80,7 +80,9 @@ export function getColumns({ onEdit, onDelete, onView, onConnect, pingStatusMap 
       header: "Platform",
       cell: ({ row }) => {
         const plats = row.original.platformTypeNames || [];
-        return plats.length ? plats.join(", ") : "-";
+        return (
+          <span className="max-w-xs truncate block" title={plats.join(", ")}>{plats.length ? plats.join(", ") : "-"}</span>
+        );
       },
     },
     {
