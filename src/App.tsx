@@ -29,6 +29,8 @@ import LogoutPage from "./components/ui/LogoutRoute";
 import { AuthContext } from "@/lib/auth-context";
 import ManageNodesPage from "@/app/nodes/manage/page";
 import ManageSshKeysPage from "@/app/keys/manage/page";
+import ManageUserSecretsPage from "@/app/user_secrets/manage/page";
+
 import clsx from "clsx";
 
 OpenAPI.TOKEN = localStorage.getItem("accessToken") || "";
@@ -111,6 +113,7 @@ export default function App() {
                 <Route path="/cert-renew" element={<CertificateRequestForm />} />
                 <Route path="/nodes/manage" element={<ManageNodesPage />} />
                 <Route path="/keys/manage" element={<ManageSshKeysPage />} />
+                <Route path="/secrets/manage" element={<ManageUserSecretsPage />} />
               </Route>
             </Routes>
           </SidebarProvider>

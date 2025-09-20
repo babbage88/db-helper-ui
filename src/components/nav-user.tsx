@@ -7,6 +7,7 @@ import {
   CreditCard,
   KeyRound,
   Sparkles,
+  Lock
 } from "lucide-react"
 
 import {
@@ -109,6 +110,14 @@ export function NavUser({
                 <DropdownMenuItem>
                   <KeyRound />
                   Manage SSH Keys
+                </DropdownMenuItem>
+              </Link>
+            </DropdownMenuGroup>
+            <DropdownMenuGroup>
+              <Link to="/secrets/manage">
+                <DropdownMenuItem>
+                  <Lock />
+                  Manage UserSecrets
                 </DropdownMenuItem>
               </Link>
             </DropdownMenuGroup>
