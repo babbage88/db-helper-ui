@@ -1,7 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Plus } from "lucide-react";
+import { Plus, Calendar as CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,6 +23,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 import { SecretsService } from "@/lib/api/services/SecretsService";
 import { useAuth } from "@/lib/auth-context";
@@ -28,6 +44,7 @@ import { TokenService } from "@/lib/tokenManager";
 import { DataTable } from "@/app/user_secrets/manage/data-table";
 import type { UserSecret } from "@/app/user_secrets/manage/columns";
 import { ExternalApplicationsService } from "@/lib/api/services/ExternalApplicationsService";
+import type { ExternalApplicationInfo } from "@/lib/api/models/ExternalApplicationInfo";
 
 export default function ManageSecretsPage() {
   const [secrets, setSecrets] = React.useState<UserSecret[]>([]);
@@ -47,7 +64,6 @@ export default function ManageSecretsPage() {
 
       const resp = await SecretsService.getUserSecretEntries(userInfo.userId);
 
-      // Map with app name lookup
       const mapped = await Promise.all(
         (resp || []).map(async (entry): Promise<UserSecret> => {
           const meta = entry.secretMetadata;
@@ -72,8 +88,8 @@ export default function ManageSecretsPage() {
 
           return {
             id: meta?.id || "",
-            external_application_id: appName, // <-- show name instead of UUID
-            secret: "", // do not expose actual secret here
+            external_application_id: appName,
+            secret: "",
             expiration: meta?.expiry,
             user_id: meta?.userId || userInfo.userId,
           };
@@ -150,8 +166,36 @@ function AddSecretDialog({
 }) {
   const [appId, setAppId] = React.useState("");
   const [secretVal, setSecretVal] = React.useState("");
-  const [expiration, setExpiration] = React.useState("");
+  const [expiration, setExpiration] = React.useState<Date | undefined>(
+    undefined
+  );
+  const [expirationInput, setExpirationInput] = React.useState("");
+  const [expirationMonth, setExpirationMonth] = React.useState<
+    Date | undefined
+  >(expiration);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [apps, setApps] = React.useState<ExternalApplicationInfo[]>([]);
+  const [isLoadingApps, setIsLoadingApps] = React.useState(true);
+  const [isCalendarOpen, setIsCalendarOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (open) {
+      const loadApps = async () => {
+        setIsLoadingApps(true);
+        try {
+          const resp =
+            await ExternalApplicationsService.getAllExternalApplications();
+          setApps(resp || []);
+        } catch (err) {
+          console.error("Failed to load external applications:", err);
+          setApps([]);
+        } finally {
+          setIsLoadingApps(false);
+        }
+      };
+      loadApps();
+    }
+  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,14 +209,13 @@ function AddSecretDialog({
       await SecretsService.createUserSecret({
         application_id: appId,
         secret: secretVal,
-        expiration: expiration || undefined,
+        expiration: expiration ? expiration.toISOString() : undefined,
       });
 
-      // reset fields
       setAppId("");
       setSecretVal("");
-      setExpiration("");
-
+      setExpiration(undefined);
+      setExpirationInput("");
       onSuccess();
     } catch (err) {
       console.error("Failed to create secret:", err);
@@ -181,9 +224,30 @@ function AddSecretDialog({
     }
   };
 
+  function formatDate(date: Date | undefined) {
+    if (!date) return "";
+    return date.toLocaleDateString("en-US", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  }
+
+  function isValidDate(date: Date | undefined) {
+    return date instanceof Date && !isNaN(date.getTime());
+  }
+
   return (
     <Dialog open={open} onOpenChange={(o) => onOpenChange(o)}>
-      <DialogContent>
+      <DialogContent
+        // ✅ prevent dialog from closing popover immediately
+        onPointerDownOutside={(e) => {
+          if (isCalendarOpen) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          if (isCalendarOpen) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Create Secret</DialogTitle>
           <DialogDescription>
@@ -192,34 +256,95 @@ function AddSecretDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Application selector */}
           <div className="space-y-2">
-            <Label htmlFor="app-id">Application ID or Name</Label>
-            <Input
-              id="app-id"
-              value={appId}
-              onChange={(e) => setAppId(e.target.value)}
-              placeholder="application id (or name)"
-            />
+            <Label htmlFor="app-id">Application</Label>
+            {isLoadingApps ? (
+              <div>Loading applications...</div>
+            ) : (
+              <Select value={appId} onValueChange={setAppId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an application" />
+                </SelectTrigger>
+                <SelectContent>
+                  {apps.map((app) => (
+                    <SelectItem key={app.id} value={app.id || ""}>
+                      {app.name || app.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
+          {/* Secret input */}
           <div className="space-y-2">
             <Label htmlFor="secret">Secret</Label>
             <Input
               id="secret"
               value={secretVal}
               onChange={(e) => setSecretVal(e.target.value)}
-              placeholder="paste the secret value"
+              placeholder="Paste the secret value"
             />
           </div>
 
+          {/* Expiration date picker */}
           <div className="space-y-2">
             <Label htmlFor="expiry">Expiration (optional)</Label>
-            <Input
-              id="expiry"
-              type="date"
-              value={expiration}
-              onChange={(e) => setExpiration(e.target.value)}
-            />
+            <div className="relative flex gap-2">
+              <Input
+                id="expiry"
+                value={expirationInput}
+                placeholder="Pick a date"
+                className="bg-background pr-10"
+                onChange={(e) => {
+                  setExpirationInput(e.target.value);
+                  const date = new Date(e.target.value);
+                  if (isValidDate(date)) {
+                    setExpiration(date);
+                    setExpirationMonth(date);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setIsCalendarOpen(true);
+                  }
+                }}
+              />
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen} modal={true}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date-picker"
+                    variant="ghost"
+                    className="absolute top-1/2 right-2 size-6 -translate-y-1/2"
+                  >
+                    <CalendarIcon className="size-3.5" />
+                    <span className="sr-only">Select date</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto overflow-hidden p-0"
+                  align="end"
+                  alignOffset={-8}
+                  sideOffset={10}
+                >
+                  <Calendar
+                    mode="single"
+                    selected={expiration}
+                    captionLayout="dropdown"
+                    month={expirationMonth}
+                    onMonthChange={setExpirationMonth}
+                    onSelect={(date) => {
+                      if (!date) return;
+                      setExpiration(date);
+                      setExpirationInput(formatDate(date));
+                      setIsCalendarOpen(false); // ✅ close popover only after selecting
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
 
           <DialogFooter>
@@ -230,7 +355,10 @@ function AddSecretDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !appId || !secretVal}>
+            <Button
+              type="submit"
+              disabled={isSubmitting || !appId || !secretVal}
+            >
               {isSubmitting ? "Creating..." : "Create Secret"}
             </Button>
           </DialogFooter>
