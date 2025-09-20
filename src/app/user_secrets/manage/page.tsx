@@ -10,7 +10,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -20,6 +27,7 @@ import { TokenService } from "@/lib/tokenManager";
 
 import { DataTable } from "@/app/user_secrets/manage/data-table";
 import type { UserSecret } from "@/app/user_secrets/manage/columns";
+import { ExternalApplicationsService } from "@/lib/api/services/ExternalApplicationsService";
 
 export default function ManageSecretsPage() {
   const [secrets, setSecrets] = React.useState<UserSecret[]>([]);
@@ -38,18 +46,39 @@ export default function ManageSecretsPage() {
       }
 
       const resp = await SecretsService.getUserSecretEntries(userInfo.userId);
-      // resp: Array<UserSecretEntry> where each has appInfo and secretMetadata
-      const mapped = (resp || []).map((entry): UserSecret => {
-        const meta = entry.secretMetadata;
-        const app = entry.appInfo;
-        return {
-          id: meta?.id || "",
-          external_application_id: app?.id || app?.name || "",
-          secret: "", // do not expose actual secret here; create dialog will set it when creating
-          expiration: meta?.expiry,
-          user_id: meta?.userId || userInfo.userId,
-        };
-      });
+
+      // Map with app name lookup
+      const mapped = await Promise.all(
+        (resp || []).map(async (entry): Promise<UserSecret> => {
+          const meta = entry.secretMetadata;
+          const app = entry.appInfo;
+
+          let appName = app?.name || "";
+          if (!appName && app?.id) {
+            try {
+              const appResp =
+                await ExternalApplicationsService.getExternalApplicationNameById(
+                  app.id
+                );
+              appName = appResp.name || app?.id || "";
+            } catch (err) {
+              console.warn(
+                `Failed to resolve application name for id=${app?.id}`,
+                err
+              );
+              appName = app?.id || "";
+            }
+          }
+
+          return {
+            id: meta?.id || "",
+            external_application_id: appName, // <-- show name instead of UUID
+            secret: "", // do not expose actual secret here
+            expiration: meta?.expiry,
+            user_id: meta?.userId || userInfo.userId,
+          };
+        })
+      );
 
       setSecrets(mapped);
     } catch (err) {
@@ -78,7 +107,9 @@ export default function ManageSecretsPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Secrets</CardTitle>
-              <CardDescription>Manage your application secrets.</CardDescription>
+              <CardDescription>
+                Manage your application secrets.
+              </CardDescription>
             </div>
             <Button onClick={() => setIsAddDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
@@ -90,7 +121,11 @@ export default function ManageSecretsPage() {
           {isLoading ? (
             <div>Loading...</div>
           ) : (
-            <DataTable data={secrets} onChange={fetchSecrets} userId={TokenService.getUserInfo()?.userId || ""} />
+            <DataTable
+              data={secrets}
+              onChange={fetchSecrets}
+              userId={TokenService.getUserInfo()?.userId || ""}
+            />
           )}
         </CardContent>
       </Card>
@@ -104,8 +139,6 @@ export default function ManageSecretsPage() {
   );
 }
 
-/* Inline AddSecretDialog so the page is self-contained.
-   You can move this to a shared component if you prefer (e.g. components/db-helper/add-secret-dialog). */
 function AddSecretDialog({
   open,
   onOpenChange,
@@ -132,7 +165,7 @@ function AddSecretDialog({
       await SecretsService.createUserSecret({
         application_id: appId,
         secret: secretVal,
-        expiration: expiration || undefined
+        expiration: expiration || undefined,
       });
 
       // reset fields
@@ -143,7 +176,6 @@ function AddSecretDialog({
       onSuccess();
     } catch (err) {
       console.error("Failed to create secret:", err);
-      // optionally show toast / error UI
     } finally {
       setIsSubmitting(false);
     }
@@ -154,7 +186,9 @@ function AddSecretDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create Secret</DialogTitle>
-          <DialogDescription>Add a new application secret for your account.</DialogDescription>
+          <DialogDescription>
+            Add a new application secret for your account.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -189,7 +223,11 @@ function AddSecretDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting || !appId || !secretVal}>
