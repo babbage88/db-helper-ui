@@ -15,7 +15,7 @@ import {
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, RefreshCw } from "lucide-react";
 import { getColumns, type UserSecret } from "./columns";
 import { SecretsService } from "@/lib/api/services/SecretsService";
 import {
@@ -43,6 +43,9 @@ export function DataTable({ data, userId, onChange }: DataTableProps) {
   const [deleteSecret, setDeleteSecret] = React.useState<UserSecret | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
+  const [retrieveSecret, setRetrieveSecret] = React.useState<UserSecret | null>(null);
+  const [isRetrieving, setIsRetrieving] = React.useState(false);
+
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = React.useState(false);
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
@@ -63,6 +66,21 @@ export function DataTable({ data, userId, onChange }: DataTableProps) {
     }
   };
 
+
+  const handleRetrieve = async (secret: UserSecret) => {
+    setIsRetrieving(true);
+    try {
+      const retrievedSecret = await SecretsService.getUserSecretById(secret.id!);
+      secret.secret = retrievedSecret.secret;
+      setRetrieveSecret(secret);
+    } catch (error) {
+      console.error("Failed retrieving secret content", error);
+      setRetrieveSecret(secret); // Show at least the existing secret metadata
+    } finally {
+      setIsRetrieving(false);
+    }
+  };
+
   const confirmBulkDelete = async () => {
     setIsDeleting(true);
     const selectedRows = table.getFilteredSelectedRowModel().rows;
@@ -79,7 +97,7 @@ export function DataTable({ data, userId, onChange }: DataTableProps) {
     }
   };
 
-  const columns = React.useMemo(() => getColumns({ onDelete: handleDelete }), [data]);
+  const columns = React.useMemo(() => getColumns({ onDelete: handleDelete, onRetrieveSecret: handleRetrieve }), [data]);
 
   const table = useReactTable({
     data,
@@ -208,6 +226,30 @@ export function DataTable({ data, userId, onChange }: DataTableProps) {
           </DialogContent>
         </Dialog>
       )}
+
+
+      {/* Responsive View Modal */}
+      {retrieveSecret && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 sm:p-4">
+          <div className="bg-card p-2 sm:p-6 rounded shadow-lg w-full sm:max-w-2xl sm:mx-auto max-h-[90vh] overflow-y-auto">
+            <h2 className="font-bold mb-2 text-lg">Secret Details</h2>
+            {isRetrieving ? (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+                Loading...
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <pre className="text-xs mb-4 whitespace-pre-wrap">{JSON.stringify(retrieveSecret, null, 2)}</pre>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button onClick={() => { setRetrieveSecret(null); setRetrieveSecret(null); }}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Create Secret Dialog */}
       {isCreateDialogOpen && (

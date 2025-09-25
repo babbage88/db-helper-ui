@@ -21,9 +21,10 @@ export type UserSecret = {
 
 type ActionHandlers = {
   onDelete: (secret: UserSecret) => void;
+  onRetrieveSecret: (secret: UserSecret) => void;
 };
 
-export function getColumns({ onDelete }: ActionHandlers): ColumnDef<UserSecret>[] {
+export function getColumns({ onDelete, onRetrieveSecret }: ActionHandlers): ColumnDef<UserSecret>[] {
   return [
     {
       id: "select",
@@ -73,6 +74,9 @@ export function getColumns({ onDelete }: ActionHandlers): ColumnDef<UserSecret>[
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => onDelete(secret)}>
                 Delete
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onRetrieveSecret(secret)}>
+                Retrieve Secret...
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </DropdownMenuContent>
