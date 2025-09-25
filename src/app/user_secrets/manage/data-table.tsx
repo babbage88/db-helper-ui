@@ -68,6 +68,8 @@ export function DataTable({ data, userId, onChange }: DataTableProps) {
 
 
   const handleRetrieve = async (secret: UserSecret) => {
+    // verify if initial set is actually needed, i dont think it is
+    //setRetrieveSecret(secret);
     setIsRetrieving(true);
     try {
       const retrievedSecret = await SecretsService.getUserSecretById(secret.id!);
