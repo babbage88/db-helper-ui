@@ -20,7 +20,7 @@ export class UserCrudService {
     /**
      * Create a new user.
      * @param body
-     * @returns UserDao
+     * @returns UserDao (empty)
      * @throws ApiError
      */
     public static createUser(
@@ -41,7 +41,7 @@ export class UserCrudService {
     /**
      * Update user password.
      * @param body
-     * @returns UserPasswordUpdateResponse
+     * @returns UserPasswordUpdateResponse (empty)
      * @throws ApiError
      */
     public static updateUserPw(
@@ -62,7 +62,7 @@ export class UserCrudService {
     /**
      * Soft Delete User by id.
      * @param body
-     * @returns SoftDeleteUserByIdResponse
+     * @returns SoftDeleteUserByIdResponse (empty)
      * @throws ApiError
      */
     public static softDeleteUserById(
@@ -83,7 +83,7 @@ export class UserCrudService {
     /**
      * Disable specified target User Id.
      * @param body
-     * @returns EnableDisableUserResponse
+     * @returns EnableDisableUserResponse (empty)
      * @throws ApiError
      */
     public static disableUser(
@@ -104,7 +104,7 @@ export class UserCrudService {
     /**
      * Enable specified target User Id.
      * @param body
-     * @returns EnableDisableUserResponse
+     * @returns EnableDisableUserResponse (empty)
      * @throws ApiError
      */
     public static enableUser(
@@ -125,7 +125,7 @@ export class UserCrudService {
     /**
      * Disable User Role Mapping
      * @param body
-     * @returns EnableDisableUserResponse
+     * @returns EnableDisableUserResponse (empty)
      * @throws ApiError
      */
     public static disableUserRoleMapping(
@@ -145,7 +145,7 @@ export class UserCrudService {
     }
     /**
      * Returns all active users.
-     * @returns string
+     * @returns string (empty)
      * @throws ApiError
      */
     public static getAllUsers(): CancelablePromise<string> {
@@ -164,7 +164,7 @@ export class UserCrudService {
     /**
      * Returns User Info for the user id specified in URL users.
      * @param id ID of user
-     * @returns GetUserByIdResponse
+     * @returns GetUserByIdResponse (empty)
      * @throws ApiError
      */
     public static getUserById(

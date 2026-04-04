@@ -12,7 +12,7 @@ export class NetworkProbeService {
     /**
      * Probe a TCP port on a managed host server by its ID.
      * @param body
-     * @returns NetworkProbeResponse
+     * @returns NetworkProbeResponse (empty)
      * @throws ApiError
      */
     public static probeTcpByHostId(
@@ -33,7 +33,7 @@ export class NetworkProbeService {
     /**
      * Probe a TCP port on a host by hostname.
      * @param body
-     * @returns NetworkProbeResponse
+     * @returns NetworkProbeResponse (empty)
      * @throws ApiError
      */
     public static probeTcpByHostname(
@@ -54,7 +54,7 @@ export class NetworkProbeService {
      * Probe a TCP port on a host using GET method.
      * @param target Target hostname to probe
      * @param port Port number to probe
-     * @returns NetworkProbeResponse
+     * @returns NetworkProbeResponse (empty)
      * @throws ApiError
      */
     public static probeTcpGet(
@@ -78,7 +78,7 @@ export class NetworkProbeService {
     /**
      * Probe a UDP port on a managed host server by its ID.
      * @param body
-     * @returns NetworkProbeResponse
+     * @returns NetworkProbeResponse (empty)
      * @throws ApiError
      */
     public static probeUdpByHostId(
@@ -99,7 +99,7 @@ export class NetworkProbeService {
     /**
      * Probe a UDP port on a host by hostname.
      * @param body
-     * @returns NetworkProbeResponse
+     * @returns NetworkProbeResponse (empty)
      * @throws ApiError
      */
     public static probeUdpByHostname(
@@ -120,7 +120,7 @@ export class NetworkProbeService {
      * Probe a UDP port on a host using GET method.
      * @param target Target hostname to probe
      * @param port Port number to probe
-     * @returns NetworkProbeResponse
+     * @returns NetworkProbeResponse (empty)
      * @throws ApiError
      */
     public static probeUdpGet(

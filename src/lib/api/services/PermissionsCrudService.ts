@@ -14,7 +14,7 @@ export class PermissionsCrudService {
     /**
      * Create New App Permission.
      * @param body
-     * @returns CreateAppPermissionResult
+     * @returns CreateAppPermissionResult (empty)
      * @throws ApiError
      */
     public static createAppPermission(
@@ -34,7 +34,7 @@ export class PermissionsCrudService {
     }
     /**
      * Returns all App Permissions
-     * @returns GetAllAppPermissionsResponse
+     * @returns GetAllAppPermissionsResponse (empty)
      * @throws ApiError
      */
     public static getAllAppPermissions(): CancelablePromise<GetAllAppPermissionsResponse> {
@@ -52,7 +52,7 @@ export class PermissionsCrudService {
     /**
      * Map App Permission to User Role.
      * @param body
-     * @returns CreateRolePermissionMappingResponse
+     * @returns CreateRolePermissionMappingResponse (empty)
      * @throws ApiError
      */
     public static createRolePermissionMapping(

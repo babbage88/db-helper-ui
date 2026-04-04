@@ -11,7 +11,7 @@ export class SecretsService {
     /**
      * Create a new external application secret.
      * @param body
-     * @returns any
+     * @returns any (empty)
      * @throws ApiError
      */
     public static createUserSecret(
@@ -54,7 +54,7 @@ export class SecretsService {
     /**
      * Retrieve a user secret by ID.
      * @param id ID of secret
-     * @returns any
+     * @returns any (empty)
      * @throws ApiError
      */
     public static getUserSecretById(
@@ -83,7 +83,7 @@ export class SecretsService {
      * Retrieve a user secret by USERID and application name.
      * @param userid
      * @param appname
-     * @returns UserSecretEntry
+     * @returns UserSecretEntry (empty)
      * @throws ApiError
      */
     public static getUserSecretEntriesByAppName(
@@ -109,7 +109,7 @@ export class SecretsService {
     /**
      * Retrieve a user secret by USERID.
      * @param userid
-     * @returns UserSecretEntry
+     * @returns UserSecretEntry (empty)
      * @throws ApiError
      */
     public static getUserSecretEntries(
@@ -132,7 +132,7 @@ export class SecretsService {
      * Retrieve a user secret by USERID.
      * @param userid
      * @param appid
-     * @returns UserSecretEntry
+     * @returns UserSecretEntry (empty)
      * @throws ApiError
      */
     public static getUserSecretEntriesByAppId(

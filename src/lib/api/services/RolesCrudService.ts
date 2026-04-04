@@ -14,7 +14,7 @@ export class RolesCrudService {
     /**
      * Create New User Role.
      * @param body
-     * @returns UserRoleDao
+     * @returns UserRoleDao (empty)
      * @throws ApiError
      */
     public static createUserRole(
@@ -34,7 +34,7 @@ export class RolesCrudService {
     }
     /**
      * Returns all active User Roles.
-     * @returns GetAllRolesResponse
+     * @returns GetAllRolesResponse (empty)
      * @throws ApiError
      */
     public static getAllUserRoles(): CancelablePromise<GetAllRolesResponse> {
@@ -52,7 +52,7 @@ export class RolesCrudService {
     /**
      * Update User Role Mapping
      * @param body
-     * @returns UpdateUserRoleMappingResponse
+     * @returns UpdateUserRoleMappingResponse (empty)
      * @throws ApiError
      */
     public static updateUserRole(

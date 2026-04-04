@@ -20,7 +20,7 @@ export class HostServersService {
     /**
      * Create a mapping between a host server and a host server type.
      * @param body
-     * @returns any
+     * @returns any (empty)
      * @throws ApiError
      */
     public static createHostServerTypeMapping(
@@ -41,7 +41,7 @@ export class HostServersService {
     }
     /**
      * Get all available host server types.
-     * @returns HostServerType
+     * @returns HostServerType (empty)
      * @throws ApiError
      */
     public static getAllHostServerTypes(): CancelablePromise<Array<HostServerType>> {
@@ -56,7 +56,7 @@ export class HostServersService {
     }
     /**
      * Create a new host server type (CRUD endpoint)
-     * @returns HostServerType
+     * @returns HostServerType (empty)
      * @throws ApiError
      */
     public static createHostServerTypeBody(): CancelablePromise<HostServerType> {
@@ -73,7 +73,7 @@ export class HostServersService {
     /**
      * Get a host server type by name
      * @param name
-     * @returns HostServerType
+     * @returns HostServerType (empty)
      * @throws ApiError
      */
     public static getHostServerTypeByName(
@@ -96,7 +96,7 @@ export class HostServersService {
     /**
      * Get a host server type by ID
      * @param id
-     * @returns HostServerType
+     * @returns HostServerType (empty)
      * @throws ApiError
      */
     public static getHostServerTypeById(
@@ -120,7 +120,7 @@ export class HostServersService {
      * Update a host server type
      * @param id
      * @param body
-     * @returns HostServerType
+     * @returns HostServerType (empty)
      * @throws ApiError
      */
     public static updateHostServerType(
@@ -167,7 +167,7 @@ export class HostServersService {
     }
     /**
      * Get all host servers.
-     * @returns HostServerResponse
+     * @returns HostServerResponse (empty)
      * @throws ApiError
      */
     public static getAllHostServers(): CancelablePromise<Array<HostServerResponse>> {
@@ -183,7 +183,7 @@ export class HostServersService {
     /**
      * Create a new host server.
      * @param body
-     * @returns HostServerResponse
+     * @returns HostServerResponse (empty)
      * @throws ApiError
      */
     public static createHostServer(
@@ -202,7 +202,7 @@ export class HostServersService {
     }
     /**
      * Get a host server by ID.
-     * @returns HostServerResponse
+     * @returns HostServerResponse (empty)
      * @throws ApiError
      */
     public static getHostServer(): CancelablePromise<HostServerResponse> {
@@ -221,7 +221,7 @@ export class HostServersService {
      * Update a host server.
      * @param id
      * @param body
-     * @returns HostServerResponse
+     * @returns HostServerResponse (empty)
      * @throws ApiError
      */
     public static updateHostServer(
@@ -269,7 +269,7 @@ export class HostServersService {
     /**
      * Create a new HostServerType with the specified NAME
      * @param body
-     * @returns any
+     * @returns any (empty)
      * @throws ApiError
      */
     public static createHostServerType(
@@ -293,7 +293,7 @@ export class HostServersService {
     /**
      * Create a mapping between a host server, platform type, and host server type.
      * @param body
-     * @returns any
+     * @returns any (empty)
      * @throws ApiError
      */
     public static createPlatformTypeMapping(
@@ -314,7 +314,7 @@ export class HostServersService {
     }
     /**
      * Get all available platform types.
-     * @returns PlatformType
+     * @returns PlatformType (empty)
      * @throws ApiError
      */
     public static getAllPlatformTypes(): CancelablePromise<Array<PlatformType>> {
@@ -330,7 +330,7 @@ export class HostServersService {
     /**
      * Create a new platform type (CRUD endpoint)
      * @param body
-     * @returns PlatformType
+     * @returns PlatformType (empty)
      * @throws ApiError
      */
     public static createPlatformTypeBody(
@@ -350,7 +350,7 @@ export class HostServersService {
     /**
      * Get a platform type by name
      * @param name
-     * @returns PlatformType
+     * @returns PlatformType (empty)
      * @throws ApiError
      */
     public static getPlatformTypeByName(
@@ -373,7 +373,7 @@ export class HostServersService {
     /**
      * Get a platform type by ID
      * @param id
-     * @returns PlatformType
+     * @returns PlatformType (empty)
      * @throws ApiError
      */
     public static getPlatformTypeById(
@@ -397,7 +397,7 @@ export class HostServersService {
      * Update a platform type
      * @param id
      * @param body
-     * @returns PlatformType
+     * @returns PlatformType (empty)
      * @throws ApiError
      */
     public static updatePlatformType(

@@ -13,7 +13,7 @@ export class AuthenticationService {
     /**
      * Local Auth login with username and password
      * @param body
-     * @returns LoginResponseInfo
+     * @returns LoginResponseInfo (empty)
      * @throws ApiError
      */
     public static localLogin(
@@ -33,7 +33,7 @@ export class AuthenticationService {
     /**
      * Refresh accessTokens and return to client.
      * @param body
-     * @returns AccessTokens
+     * @returns AccessTokens (empty)
      * @throws ApiError
      */
     public static refreshAccessToken(
