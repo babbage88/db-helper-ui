@@ -6,15 +6,19 @@ import type { FormEvent } from "react";
 import mascot from "@/assets/DbBobMaskot.sky.svg";
 import { TokenService } from "@/lib/tokenManager";
 import { ModeToggle } from "@/components/ui/mode-toggle";
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { AuthContext } from "@/lib/auth-context";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { setIsAuthenticated } = useContext(AuthContext);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setIsSubmitting(true);
+    setErrorMessage(null);
 
     const formData = new FormData(event.currentTarget);
     const email = formData.get("email")?.toString() || "";
@@ -40,7 +44,22 @@ export default function LoginPage() {
       navigate("/dashboard");
     } catch (err: any) {
       console.error("Login error:", err.message);
+      setErrorMessage("We couldn't sign you in with that email and password.");
+    } finally {
+      setIsSubmitting(false);
     }
+  }
+
+  function handleGitHubLogin() {
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    const apiBaseUrl = import.meta.env.VITE_API_WEB_INFRA_URL;
+    const callbackUrl = `${window.location.origin}/login/github/callback`;
+    const startUrl = new URL("/auth/github/start", apiBaseUrl);
+    startUrl.searchParams.set("redirect_uri", callbackUrl);
+
+    window.location.assign(startUrl.toString());
   }
 
   return (
@@ -60,7 +79,12 @@ export default function LoginPage() {
 
           <div className="flex flex-1 items-center justify-center">
             <div className="w-full max-w-xs">
-              <LoginForm onSubmit={handleLoginSubmit} />
+              <LoginForm
+                onSubmit={handleLoginSubmit}
+                onGitHubLogin={handleGitHubLogin}
+                isSubmitting={isSubmitting}
+                errorMessage={errorMessage}
+              />
             </div>
           </div>
         </div>

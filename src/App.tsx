@@ -21,6 +21,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { CertificateRequestForm } from "@/components/web-infra/CfCerts";
 import { Dashboard } from "@/components/ui/BobDashboard";
 import LoginPage from "@/app/LoginPage";
+import LoginGithubCallbackPage from "@/app/LoginGithubCallbackPage";
 import { AuthenticationService } from "@/lib/api";
 import { OpenAPI } from "@/lib/api";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -94,6 +95,7 @@ export default function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/login/github/callback" element={<LoginGithubCallbackPage />} />
               <Route path="/logout" element={<LogoutPage />} />
 
               {/* Protected layout route */}
