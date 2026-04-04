@@ -18,8 +18,17 @@ const parseRoleResponse = (response: any): RoleRow[] => {
       data = JSON.parse(response);
     }
 
+    console.log("Raw role response:", data);
+
     // Map UserRoleDao to RoleRow
-    const roleList = data.userRoles || (Array.isArray(data) ? data : []);
+    // Handle response structure - roles might be in body.userRoles or just userRoles
+    const roleList = 
+      (data as any).body?.userRoles || 
+      data.userRoles || 
+      (Array.isArray(data) ? data : []);
+
+    console.log("Extracted role list:", roleList);
+
     return roleList.map((role: UserRoleDao) => ({
       id: role.id || "",
       roleName: role.roleName || "",
@@ -30,6 +39,7 @@ const parseRoleResponse = (response: any): RoleRow[] => {
     }));
   } catch (error) {
     console.warn("Could not parse role response:", error);
+    console.log("Full response object:", response);
     return [];
   }
 };

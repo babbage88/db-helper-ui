@@ -38,6 +38,9 @@ import { PermissionProtectedRoute } from "@/components/permission-protected-rout
 
 import clsx from "clsx";
 
+// Import permission debug utility
+import "@/lib/permission-debug";
+
 OpenAPI.TOKEN = localStorage.getItem("accessToken") || "";
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {

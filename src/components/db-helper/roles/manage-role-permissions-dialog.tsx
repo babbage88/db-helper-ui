@@ -48,7 +48,12 @@ export function ManageRolePermissionsDialog({
         setIsLoading(true);
         setError(null);
         const response = await PermissionsCrudService.getAllAppPermissions();
-        const permList = response.appPermissions || (Array.isArray(response) ? response : []);
+        // Handle response structure - permissions might be in body.appPermissions or just appPermissions
+        const permList = 
+          (response as any).body?.appPermissions || 
+          response.appPermissions || 
+          (Array.isArray(response) ? response : []);
+        console.log("Loaded permissions:", permList);
         setPermissions(permList);
       } catch (err: any) {
         console.error("Failed to load permissions:", err);

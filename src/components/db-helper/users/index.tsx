@@ -19,8 +19,19 @@ const parseUserResponse = (response: any): UserRow[] => {
       data = JSON.parse(response);
     }
 
+    console.log("Raw user response:", data);
+
+    // Handle response wrapping - users might be in body or directly in response
+    // getAllUsers returns a string via responseHeader, so it might come back as array or wrapped
+    const userList = 
+      (data as any).body?.users ||
+      data.users ||
+      (Array.isArray(data) ? data : [data]);
+
+    console.log("Extracted user list:", userList);
+
     // Map UserDao to UserRow
-    const users = Array.isArray(data) ? data : [data];
+    const users = Array.isArray(userList) ? userList : [userList];
     return users.map((user: UserDao) => ({
       userId: user.id || "",
       username: user.username || "",
