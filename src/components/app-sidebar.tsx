@@ -16,6 +16,7 @@ import {
   FolderSync,
   Lock,
   HardDrive,
+  Users,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -92,6 +93,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           {
             title: "Manage",
             url: "/nodes/manage",
+          },
+        ],
+      },
+      {
+        title: "Users",
+        url: "/users/manage",
+        icon: Users,
+        items: [
+          {
+            title: "Manage",
+            url: "/users/manage",
           },
         ],
       },
