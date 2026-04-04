@@ -31,6 +31,7 @@ import { AuthContext } from "@/lib/auth-context";
 import ManageNodesPage from "@/app/nodes/manage/page";
 import ManageSshKeysPage from "@/app/keys/manage/page";
 import ManageUserSecretsPage from "@/app/user_secrets/manage/page";
+import ManageStoragePage from "@/app/storage/manage/page";
 
 import clsx from "clsx";
 
@@ -117,6 +118,7 @@ export default function App() {
                 <Route path="/nodes/manage" element={<ManageNodesPage />} />
                 <Route path="/keys/manage" element={<ManageSshKeysPage />} />
                 <Route path="/secrets/manage" element={<ManageUserSecretsPage />} />
+                <Route path="/storage/manage" element={<ManageStoragePage />} />
               </Route>
             </Routes>
           </SidebarProvider>

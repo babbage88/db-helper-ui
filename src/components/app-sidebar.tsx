@@ -15,6 +15,7 @@ import {
   Database,
   FolderSync,
   Lock,
+  HardDrive,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -119,6 +120,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 icon: Server,
               },
             ],
+          },
+        ],
+      },
+      {
+        title: "Object Storage",
+        url: "/storage/manage",
+        icon: HardDrive,
+        items: [
+          {
+            title: "Manage Buckets",
+            url: "/storage/manage",
           },
         ],
       },

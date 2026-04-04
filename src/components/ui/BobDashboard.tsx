@@ -20,6 +20,11 @@ const components = [
     href: "/cert-renew",
     description: "Generate or renew LE certificates.",
   },
+  {
+    title: "Object Storage",
+    href: "/storage/manage",
+    description: "Browse S3-compatible buckets, upload files, and manage objects.",
+  },
 ];
 
 export function Dashboard() {
