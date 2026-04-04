@@ -152,6 +152,26 @@ export class HostServersService {
         });
     }
     /**
+     * Create a new HostServerType with the specified NAME
+     * @returns any (empty)
+     * @throws ApiError
+     */
+    public static createHostServerType(): CancelablePromise<{
+        hostServerId?: string;
+        name?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/host-servers/{NAME}',
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
      * Create a mapping between a host server, platform type, and host server type.
      * @param body
      * @returns any (empty)

@@ -4,11 +4,23 @@
 /* eslint-disable */
 export type PingResponse = {
     /**
+     * Total number of recieved packets
+     */
+    PacketsRecv?: number;
+    /**
+     * Total number of packets sent
+     */
+    PacketsSent?: number;
+    /**
      * Error message if the operation failed
      */
     error?: string;
     /**
-     * Latency of the ping operation
+     * resolved ip address from hostname
+     */
+    ipAddr?: string;
+    /**
+     * Average Latency of the ping operation
      */
     latency: string;
     /**
