@@ -13,7 +13,7 @@ export class SshKeyHostMappingsService {
     /**
      * Create a new SSH key host mapping.
      * @param body
-     * @returns CreateSshKeyHostMappingResponse (empty)
+     * @returns CreateSshKeyHostMappingResponse
      * @throws ApiError
      */
     public static createSshKeyHostMapping(
@@ -33,7 +33,7 @@ export class SshKeyHostMappingsService {
     /**
      * Get all SSH key host mappings for a host server.
      * @param hostId ID of the host server to get mappings for
-     * @returns CreateSshKeyHostMappingResponse (empty)
+     * @returns CreateSshKeyHostMappingResponse
      * @throws ApiError
      */
     public static getSshKeyHostMappingsByHostId(
@@ -55,7 +55,7 @@ export class SshKeyHostMappingsService {
     /**
      * Get all SSH key host mappings for an SSH key.
      * @param keyId ID of the SSH key to get mappings for
-     * @returns CreateSshKeyHostMappingResponse (empty)
+     * @returns CreateSshKeyHostMappingResponse
      * @throws ApiError
      */
     public static getSshKeyHostMappingsByKeyId(
@@ -77,7 +77,7 @@ export class SshKeyHostMappingsService {
     /**
      * Get all SSH key host mappings for a user.
      * @param userId ID of the user to get mappings for
-     * @returns CreateSshKeyHostMappingResponse (empty)
+     * @returns CreateSshKeyHostMappingResponse
      * @throws ApiError
      */
     public static getSshKeyHostMappingsByUserId(
@@ -99,7 +99,7 @@ export class SshKeyHostMappingsService {
     /**
      * Get an SSH key host mapping by ID.
      * @param id ID of the SSH key host mapping to retrieve
-     * @returns CreateSshKeyHostMappingResponse (empty)
+     * @returns CreateSshKeyHostMappingResponse
      * @throws ApiError
      */
     public static getSshKeyHostMappingById(
@@ -123,7 +123,7 @@ export class SshKeyHostMappingsService {
      * Update an SSH key host mapping.
      * @param id ID of the SSH key host mapping to update
      * @param body
-     * @returns CreateSshKeyHostMappingResponse (empty)
+     * @returns CreateSshKeyHostMappingResponse
      * @throws ApiError
      */
     public static updateSshKeyHostMapping(
@@ -148,7 +148,7 @@ export class SshKeyHostMappingsService {
     /**
      * Delete an SSH key host mapping.
      * @param id ID of the SSH key host mapping to delete
-     * @returns DeleteSshKeyHostMappingResponse (empty)
+     * @returns DeleteSshKeyHostMappingResponse
      * @throws ApiError
      */
     public static deleteSshKeyHostMapping(

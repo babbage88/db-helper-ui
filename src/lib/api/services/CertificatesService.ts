@@ -11,7 +11,7 @@ export class CertificatesService {
     /**
      * Request/Renew ssl certificate via cloudflare letsencrypt. Uses DNS Challenge
      * @param body
-     * @returns CertificateData (empty)
+     * @returns CertificateData
      * @throws ApiError
      */
     public static renew(

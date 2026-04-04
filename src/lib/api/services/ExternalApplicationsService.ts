@@ -11,7 +11,7 @@ import { request as __request } from '../core/request';
 export class ExternalApplicationsService {
     /**
      * Get all external applications.
-     * @returns ExternalApplicationDao (empty)
+     * @returns ExternalApplicationDao
      * @throws ApiError
      */
     public static getAllExternalApplications(): CancelablePromise<Array<ExternalApplicationDao>> {
@@ -26,7 +26,7 @@ export class ExternalApplicationsService {
     /**
      * Create a new external application.
      * @param body
-     * @returns ExternalApplicationDao (empty)
+     * @returns ExternalApplicationDao
      * @throws ApiError
      */
     public static createExternalApplication(
@@ -46,7 +46,7 @@ export class ExternalApplicationsService {
     /**
      * Get an external application by name.
      * @param name Name of the external application
-     * @returns ExternalApplicationDao (empty)
+     * @returns ExternalApplicationDao
      * @throws ApiError
      */
     public static getExternalApplicationByName(
@@ -88,7 +88,7 @@ export class ExternalApplicationsService {
     /**
      * Get an external application ID by name.
      * @param name Name of the external application
-     * @returns any (empty)
+     * @returns any
      * @throws ApiError
      */
     public static getExternalApplicationIdByName(
@@ -111,7 +111,7 @@ export class ExternalApplicationsService {
     /**
      * Get an external application name by ID.
      * @param id ID of the external application
-     * @returns any (empty)
+     * @returns any
      * @throws ApiError
      */
     public static getExternalApplicationNameById(
@@ -135,7 +135,7 @@ export class ExternalApplicationsService {
     /**
      * Get an external application by ID.
      * @param id ID of the external application
-     * @returns ExternalApplicationDao (empty)
+     * @returns ExternalApplicationDao
      * @throws ApiError
      */
     public static getExternalApplicationById(
@@ -158,7 +158,7 @@ export class ExternalApplicationsService {
      * Update an external application.
      * @param id ID of the external application
      * @param body
-     * @returns ExternalApplicationDao (empty)
+     * @returns ExternalApplicationDao
      * @throws ApiError
      */
     public static updateExternalApplication(

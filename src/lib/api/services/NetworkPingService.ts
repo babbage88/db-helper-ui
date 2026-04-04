@@ -12,7 +12,7 @@ export class NetworkPingService {
     /**
      * Ping an arbitrary hostname or IP address.
      * @param body
-     * @returns PingResponse (empty)
+     * @returns PingResponse
      * @throws ApiError
      */
     public static pingHost(
@@ -32,7 +32,7 @@ export class NetworkPingService {
     /**
      * Ping a managed host server by its ID.
      * @param body
-     * @returns PingResponse (empty)
+     * @returns PingResponse
      * @throws ApiError
      */
     public static pingHostServer(
@@ -53,7 +53,7 @@ export class NetworkPingService {
     /**
      * Ping an arbitrary hostname or IP address using GET method.
      * @param target Target hostname or IP address to ping
-     * @returns PingResponse (empty)
+     * @returns PingResponse
      * @throws ApiError
      */
     public static pingHostGet(

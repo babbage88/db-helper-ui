@@ -12,7 +12,7 @@ export class SshKeysService {
     /**
      * Create a new SSH key.
      * @param body
-     * @returns CreateSshKeyResponse (empty)
+     * @returns CreateSshKeyResponse
      * @throws ApiError
      */
     public static createSshKey(
@@ -32,7 +32,7 @@ export class SshKeysService {
     /**
      * Get all SSH keys owned by a user.
      * @param userId ID of the user to get SSH keys for
-     * @returns SshKeyListItem (empty)
+     * @returns SshKeyListItem
      * @throws ApiError
      */
     public static getSshKeysByUserId(
@@ -54,7 +54,7 @@ export class SshKeysService {
     /**
      * Delete an SSH key and its associated secret.
      * @param id ID of the SSH key to delete
-     * @returns any (empty)
+     * @returns any
      * @throws ApiError
      */
     public static deleteSshKey(
