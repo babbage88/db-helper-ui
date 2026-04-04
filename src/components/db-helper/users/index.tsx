@@ -8,6 +8,7 @@ import type { UserDao } from "@/lib/api/models/UserDao";
 import { UserDataTable } from "./user-data-table";
 import { CreateUserDialog } from "./create-user-dialog";
 import { ResetPasswordDialog } from "./reset-password-dialog";
+import { EditUserRoleDialog } from "./edit-user-role-dialog";
 import type { UserRow } from "./user-columns";
 
 const parseUserResponse = (response: any): UserRow[] => {
@@ -41,6 +42,8 @@ export function UserManagement() {
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [resetPasswordUser, setResetPasswordUser] = React.useState<UserRow | null>(null);
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = React.useState(false);
+  const [editRoleUser, setEditRoleUser] = React.useState<UserRow | null>(null);
+  const [editRoleDialogOpen, setEditRoleDialogOpen] = React.useState(false);
 
   const loadUsers = React.useCallback(async () => {
     try {
@@ -64,6 +67,11 @@ export function UserManagement() {
   const handleResetPasswordClick = (user: UserRow) => {
     setResetPasswordUser(user);
     setResetPasswordDialogOpen(true);
+  };
+
+  const handleEditRoleClick = (user: UserRow) => {
+    setEditRoleUser(user);
+    setEditRoleDialogOpen(true);
   };
 
   if (isLoading) {
@@ -102,6 +110,7 @@ export function UserManagement() {
         data={users} 
         onChange={loadUsers}
         onResetPassword={handleResetPasswordClick}
+        onEditRole={handleEditRoleClick}
       />
 
       <CreateUserDialog
@@ -114,6 +123,13 @@ export function UserManagement() {
         open={resetPasswordDialogOpen}
         user={resetPasswordUser}
         onOpenChange={setResetPasswordDialogOpen}
+        onSuccess={loadUsers}
+      />
+
+      <EditUserRoleDialog
+        open={editRoleDialogOpen}
+        user={editRoleUser}
+        onOpenChange={setEditRoleDialogOpen}
         onSuccess={loadUsers}
       />
     </div>

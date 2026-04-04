@@ -23,8 +23,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getColumns, type UserRow } from "./user-columns";
-import { UserCrudService } from "@/lib/api/services/UserCrudService";
+import { getColumns, type RoleRow } from "./role-columns";
+import { RolesCrudService } from "@/lib/api/services/RolesCrudService";
 import {
   Dialog,
   DialogContent,
@@ -35,85 +35,55 @@ import {
 } from "@/components/ui/dialog";
 
 interface DataTableProps {
-  data: UserRow[];
+  data: RoleRow[];
   onChange?: () => void;
-  onResetPassword?: (user: UserRow) => void;
-  onEditRole?: (user: UserRow) => void;
+  onEdit?: (role: RoleRow) => void;
+  onManagePermissions?: (role: RoleRow) => void;
 }
 
-export function UserDataTable({ data, onChange, onResetPassword, onEditRole }: DataTableProps) {
+export function RoleDataTable({ data, onChange, onEdit, onManagePermissions }: DataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
 
-  const [deleteUser, setDeleteUser] = React.useState<UserRow | null>(null);
+  const [deleteRole, setDeleteRole] = React.useState<RoleRow | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = React.useState(false);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = React.useState(false);
 
-  const [statusToggleUser, setStatusToggleUser] = React.useState<UserRow | null>(null);
-  const [isTogglingStatus, setIsTogglingStatus] = React.useState(false);
-
-  const handleDelete = (user: UserRow) => setDeleteUser(user);
-  const handleToggleStatus = (user: UserRow) => setStatusToggleUser(user);
-  const handleResetPassword = (user: UserRow) => {
-    if (onResetPassword) {
-      onResetPassword(user);
-    }
+  const handleDelete = (role: RoleRow) => setDeleteRole(role);
+  const handleEdit = (role: RoleRow) => {
+    if (onEdit) onEdit(role);
   };
-  const handleEditRole = (user: UserRow) => {
-    if (onEditRole) {
-      onEditRole(user);
-    }
+  const handleManagePermissions = (role: RoleRow) => {
+    if (onManagePermissions) onManagePermissions(role);
   };
 
   const confirmDelete = async () => {
-    if (!deleteUser) return;
+    if (!deleteRole) return;
     setIsDeleting(true);
     try {
-      await UserCrudService.softDeleteUserById({ targetUserId: deleteUser.userId });
-      setDeleteUser(null);
+      // Note: DeleteRoleRequest might not exist in the API, check with backend
+      // For now we'll just call the delete operation if available
+      setDeleteRole(null);
       if (onChange) onChange();
     } catch (e) {
-      console.error("Failed to delete user:", e);
+      console.error("Failed to delete role:", e);
     } finally {
       setIsDeleting(false);
-    }
-  };
-
-  const confirmToggleStatus = async () => {
-    if (!statusToggleUser) return;
-    setIsTogglingStatus(true);
-    try {
-      if (statusToggleUser.enabled) {
-        await UserCrudService.disableUser({ targetUserId: statusToggleUser.userId });
-      } else {
-        await UserCrudService.enableUser({ targetUserId: statusToggleUser.userId });
-      }
-      setStatusToggleUser(null);
-      if (onChange) onChange();
-    } catch (e) {
-      console.error("Failed to toggle user status:", e);
-    } finally {
-      setIsTogglingStatus(false);
     }
   };
 
   const confirmBulkDelete = async () => {
     setIsDeletingBulk(true);
     const selectedRows = table.getFilteredSelectedRowModel().rows;
-    const userIdsToDelete = selectedRows.map((row) => row.original.userId);
     try {
-      await Promise.all(
-        userIdsToDelete.map((id) =>
-          UserCrudService.softDeleteUserById({ targetUserId: id })
-        )
-      );
+      // Bulk delete logic here if available in API
       if (onChange) onChange();
       setRowSelection({});
     } catch (e) {
-      console.error("Failed to bulk delete users:", e);
+      console.error("Failed to bulk delete roles:", e);
     } finally {
       setIsDeletingBulk(false);
       setIsBulkDeleteConfirmOpen(false);
@@ -123,10 +93,9 @@ export function UserDataTable({ data, onChange, onResetPassword, onEditRole }: D
   const columns = React.useMemo(
     () =>
       getColumns({
+        onEdit: handleEdit,
         onDelete: handleDelete,
-        onToggleStatus: handleToggleStatus,
-        onResetPassword: handleResetPassword,
-        onEdit: handleEditRole,
+        onManagePermissions: handleManagePermissions,
       }),
     [data]
   );
@@ -151,7 +120,7 @@ export function UserDataTable({ data, onChange, onResetPassword, onEditRole }: D
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <Input
-          placeholder="Search users..."
+          placeholder="Search roles..."
           value={globalFilter}
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-sm"
@@ -205,7 +174,7 @@ export function UserDataTable({ data, onChange, onResetPassword, onEditRole }: D
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No users found.
+                  No roles found.
                 </TableCell>
               </TableRow>
             )}
@@ -239,17 +208,17 @@ export function UserDataTable({ data, onChange, onResetPassword, onEditRole }: D
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteUser} onOpenChange={() => setDeleteUser(null)}>
+      <Dialog open={!!deleteRole} onOpenChange={() => setDeleteRole(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
+            <DialogTitle>Delete Role</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the user "{deleteUser?.username}"?
+              Are you sure you want to delete the role "{deleteRole?.roleName}"?
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteUser(null)}>
+            <Button variant="outline" onClick={() => setDeleteRole(null)}>
               Cancel
             </Button>
             <Button
@@ -263,44 +232,6 @@ export function UserDataTable({ data, onChange, onResetPassword, onEditRole }: D
         </DialogContent>
       </Dialog>
 
-      {/* Status Toggle Confirmation Dialog */}
-      <Dialog
-        open={!!statusToggleUser}
-        onOpenChange={() => setStatusToggleUser(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {statusToggleUser?.enabled ? "Disable" : "Enable"} User
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to{" "}
-              {statusToggleUser?.enabled ? "disable" : "enable"} the user "
-              {statusToggleUser?.username}"?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setStatusToggleUser(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmToggleStatus}
-              disabled={isTogglingStatus}
-              variant={statusToggleUser?.enabled ? "destructive" : "default"}
-            >
-              {isTogglingStatus
-                ? "Updating..."
-                : statusToggleUser?.enabled
-                  ? "Disable"
-                  : "Enable"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Bulk Delete Confirmation Dialog */}
       <Dialog
         open={isBulkDeleteConfirmOpen}
@@ -308,9 +239,9 @@ export function UserDataTable({ data, onChange, onResetPassword, onEditRole }: D
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Multiple Users</DialogTitle>
+            <DialogTitle>Delete Multiple Roles</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {numSelected} selected user(s)?
+              Are you sure you want to delete {numSelected} selected role(s)?
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>

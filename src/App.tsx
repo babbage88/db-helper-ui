@@ -33,6 +33,8 @@ import ManageSshKeysPage from "@/app/keys/manage/page";
 import ManageUserSecretsPage from "@/app/user_secrets/manage/page";
 import ManageStoragePage from "@/app/storage/manage/page";
 import ManageUsersPage from "@/app/users/manage/page";
+import ManageRolesPage from "@/app/roles/manage/page";
+import { PermissionProtectedRoute } from "@/components/permission-protected-route";
 
 import clsx from "clsx";
 
@@ -120,7 +122,22 @@ export default function App() {
                 <Route path="/keys/manage" element={<ManageSshKeysPage />} />
                 <Route path="/secrets/manage" element={<ManageUserSecretsPage />} />
                 <Route path="/storage/manage" element={<ManageStoragePage />} />
-                <Route path="/users/manage" element={<ManageUsersPage />} />
+                <Route
+                  path="/users/manage"
+                  element={
+                    <PermissionProtectedRoute permission="Alter Users">
+                      <ManageUsersPage />
+                    </PermissionProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/roles/manage"
+                  element={
+                    <PermissionProtectedRoute permission="Alter Users">
+                      <ManageRolesPage />
+                    </PermissionProtectedRoute>
+                  }
+                />
               </Route>
             </Routes>
           </SidebarProvider>

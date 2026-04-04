@@ -12,28 +12,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 
-export type UserRow = {
-  userId: string;
-  username: string;
-  email?: string;
+export type RoleRow = {
+  id: string;
+  roleName: string;
+  roleDesc?: string;
   enabled?: boolean;
   createdAt?: string;
-  roles?: string[];
+  permissionCount?: number;
 };
 
 type ActionHandlers = {
-  onEdit: (user: UserRow) => void;
-  onDelete: (user: UserRow) => void;
-  onToggleStatus: (user: UserRow) => void;
-  onResetPassword: (user: UserRow) => void;
+  onEdit: (role: RoleRow) => void;
+  onDelete: (role: RoleRow) => void;
+  onManagePermissions: (role: RoleRow) => void;
 };
 
 export function getColumns({
   onEdit,
   onDelete,
-  onToggleStatus,
-  onResetPassword,
-}: ActionHandlers): ColumnDef<UserRow>[] {
+  onManagePermissions,
+}: ActionHandlers): ColumnDef<RoleRow>[] {
   return [
     {
       id: "select",
@@ -58,13 +56,21 @@ export function getColumns({
       enableHiding: false,
     },
     {
-      accessorKey: "username",
-      header: "Username",
+      accessorKey: "roleName",
+      header: "Name",
     },
     {
-      accessorKey: "email",
-      header: "Email",
-      cell: ({ row }) => row.original.email || "—",
+      accessorKey: "roleDesc",
+      header: "Description",
+      cell: ({ row }) => row.original.roleDesc || "—",
+    },
+    {
+      accessorKey: "permissionCount",
+      header: "Permissions",
+      cell: ({ row }) => {
+        const count = row.original.permissionCount || 0;
+        return <Badge variant="outline">{count}</Badge>;
+      },
     },
     {
       accessorKey: "enabled",
@@ -74,25 +80,6 @@ export function getColumns({
           {row.original.enabled ? "Enabled" : "Disabled"}
         </Badge>
       ),
-    },
-    {
-      accessorKey: "roles",
-      header: "Roles",
-      cell: ({ row }) => {
-        const roles = row.original.roles;
-        if (!roles || roles.length === 0) {
-          return "—";
-        }
-        return (
-          <div className="flex flex-wrap gap-1">
-            {roles.map((role) => (
-              <Badge key={role} variant="outline">
-                {role}
-              </Badge>
-            ))}
-          </div>
-        );
-      },
     },
     {
       accessorKey: "createdAt",
@@ -105,7 +92,7 @@ export function getColumns({
     {
       id: "actions",
       cell: ({ row }) => {
-        const user = row.original;
+        const role = row.original;
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -116,21 +103,18 @@ export function getColumns({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => onEdit(user)}>
-                Assign Role
+              <DropdownMenuItem onClick={() => onEdit(role)}>
+                Edit Role
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onResetPassword(user)}>
-                Reset Password
+              <DropdownMenuItem onClick={() => onManagePermissions(role)}>
+                Manage Permissions
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onToggleStatus(user)}>
-                {user.enabled ? "Disable User" : "Enable User"}
-              </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => onDelete(user)}
+                onClick={() => onDelete(role)}
                 className="text-red-600"
               >
-                Delete User
+                Delete Role
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

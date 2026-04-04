@@ -17,6 +17,7 @@ import {
   Lock,
   HardDrive,
   Users,
+  Shield,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -104,6 +105,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           {
             title: "Manage",
             url: "/users/manage",
+          },
+        ],
+      },
+      {
+        title: "Roles & Permissions",
+        url: "/roles/manage",
+        icon: Shield,
+        items: [
+          {
+            title: "Manage Roles",
+            url: "/roles/manage",
           },
         ],
       },
