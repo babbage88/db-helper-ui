@@ -96,6 +96,7 @@ export default function App() {
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/login/github/callback" element={<LoginGithubCallbackPage />} />
+              <Route path="/auth/github/callback" element={<LoginGithubCallbackPage />} />
               <Route path="/logout" element={<LogoutPage />} />
 
               {/* Protected layout route */}

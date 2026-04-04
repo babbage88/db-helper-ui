@@ -24,6 +24,21 @@ export default function LoginGithubCallbackPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const code = searchParams.get("code");
+    const state = searchParams.get("state");
+
+    if (code && state) {
+      const apiBaseUrl = import.meta.env.VITE_API_WEB_INFRA_URL;
+      const backendCallbackUrl = new URL("/auth/github/callback", apiBaseUrl);
+      backendCallbackUrl.searchParams.set("code", code);
+      backendCallbackUrl.searchParams.set("state", state);
+      backendCallbackUrl.searchParams.set("redirect_uri", `${window.location.origin}/login/github/callback`);
+
+      window.location.replace(backendCallbackUrl.toString());
+      return;
+    }
+
     const result = readGitHubAuthFragment(window.location.hash);
 
     if (result.error) {
