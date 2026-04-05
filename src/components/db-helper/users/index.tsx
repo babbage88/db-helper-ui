@@ -9,6 +9,8 @@ import { UserDataTable } from "./user-data-table";
 import { CreateUserDialog } from "./create-user-dialog";
 import { ResetPasswordDialog } from "./reset-password-dialog";
 import { EditUserRoleDialog } from "./edit-user-role-dialog";
+import { EmptyState, ErrorState } from "@/components/db-helper/empty-state";
+import { TableSkeleton, HeaderSkeleton } from "@/components/db-helper/skeleton-loaders";
 import type { UserRow } from "./user-columns";
 
 const parseUserResponse = (response: any): UserRow[] => {
@@ -87,42 +89,61 @@ export function UserManagement() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <p className="text-muted-foreground">Loading users...</p>
+      <div className="space-y-6">
+        <HeaderSkeleton />
+        <TableSkeleton rows={5} columns={6} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">User Management</h2>
+          <p className="text-muted-foreground text-sm mt-1">
+            Manage user accounts, permissions, and security.
+          </p>
         </div>
+        <ErrorState
+          title="Failed to Load Users"
+          description={error}
+          onRetry={loadUsers}
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pt-2">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">User Management</h2>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm mt-1">
             Manage user accounts, permissions, and security.
           </p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
+        <Button onClick={() => setCreateDialogOpen(true)} size="lg" className="gap-2">
+          <Plus className="h-4 w-4" />
           Create User
         </Button>
       </div>
 
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-medium">Error loading users</p>
-          <p>{error}</p>
-        </div>
+      {users.length === 0 ? (
+        <EmptyState
+          title="No Users Yet"
+          description="Create your first user account to get started with user management."
+          actionLabel="Create User"
+          onAction={() => setCreateDialogOpen(true)}
+        />
+      ) : (
+        <UserDataTable 
+          data={users} 
+          onChange={loadUsers}
+          onResetPassword={handleResetPasswordClick}
+          onEditRole={handleEditRoleClick}
+        />
       )}
-
-      <UserDataTable 
-        data={users} 
-        onChange={loadUsers}
-        onResetPassword={handleResetPasswordClick}
-        onEditRole={handleEditRoleClick}
-      />
 
       <CreateUserDialog
         open={createDialogOpen}

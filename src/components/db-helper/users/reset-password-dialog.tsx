@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { UserCrudService } from "@/lib/api/services/UserCrudService";
 import type { UpdateUserPasswordRequest } from "@/lib/api/models/UpdateUserPasswordRequest";
 import type { UserRow } from "./user-columns";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 
 const resetPasswordFormSchema = z
   .object({
@@ -86,10 +87,16 @@ export function ResetPasswordDialog({
       await UserCrudService.updateUserPw(updatePasswordRequest);
       form.reset();
       onOpenChange(false);
+      showSuccessToast(
+        "Password updated successfully",
+        `Password for ${user.username} has been reset.`
+      );
       onSuccess();
     } catch (error: any) {
       console.error("Failed to update password:", error);
-      setError(error?.message || "Failed to update password. Please try again.");
+      const errorMessage = error?.message || "Failed to update password. Please try again.";
+      setError(errorMessage);
+      showErrorToast("Failed to update password", errorMessage);
     } finally {
       setIsSubmitting(false);
     }

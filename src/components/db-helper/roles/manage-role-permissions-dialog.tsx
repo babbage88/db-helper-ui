@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PermissionsCrudService } from "@/lib/api/services/PermissionsCrudService";
 import type { AppPermissionDao } from "@/lib/api/models/AppPermissionDao";
 import type { RoleRow } from "./role-columns";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 
 interface ManageRolePermissionsDialogProps {
   open: boolean;
@@ -96,10 +97,16 @@ export function ManageRolePermissionsDialog({
       );
 
       onOpenChange(false);
+      showSuccessToast(
+        "Permissions updated",
+        `${permissionIds.length} permission(s) assigned to the "${role.roleName}" role.`
+      );
       onSuccess();
     } catch (err: any) {
       console.error("Failed to update role permissions:", err);
-      setError(err?.message || "Failed to update permissions. Please try again.");
+      const errorMessage = err?.message || "Failed to update permissions. Please try again.";
+      setError(errorMessage);
+      showErrorToast("Failed to update permissions", errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -107,50 +114,59 @@ export function ManageRolePermissionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Manage Role Permissions</DialogTitle>
           <DialogDescription>
             Select which permissions to assign to the "{role?.roleName}" role.
+            {selectedPermissions.size > 0 && (
+              <span className="ml-2 font-semibold text-foreground">
+                ({selectedPermissions.size} selected)
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
         {error && (
           <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-            {error}
+            <p className="font-medium">Error</p>
+            <p>{error}</p>
           </div>
         )}
 
         {isLoading ? (
-          <div className="text-center py-8">
+          <div className="text-center py-12">
             <p className="text-muted-foreground">Loading permissions...</p>
           </div>
         ) : (
-          <ScrollArea className="h-[300px] border rounded-md p-4">
-            <div className="space-y-3">
+          <ScrollArea className="h-[400px] border rounded-md p-4">
+            <div className="space-y-3 pr-4">
               {permissions.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
+                <p className="text-sm text-muted-foreground text-center py-8">
                   No permissions available
                 </p>
               ) : (
                 permissions.map((permission) => (
-                  <div key={permission.id} className="flex items-start space-x-2">
+                  <div
+                    key={permission.id}
+                    className="flex items-start space-x-3 rounded-lg border p-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => handlePermissionToggle(permission.id || "")}
+                  >
                     <Checkbox
                       id={permission.id}
                       checked={selectedPermissions.has(permission.id || "")}
                       onCheckedChange={() =>
                         handlePermissionToggle(permission.id || "")
                       }
+                      className="mt-1"
                     />
                     <Label
                       htmlFor={permission.id}
-                      className="flex flex-col cursor-pointer pt-1"
+                      className="flex flex-col cursor-pointer flex-1"
                     >
-                      <span className="font-medium text-sm">
-                        {permission.permissionName}
-                      </span>
+                      <span className="font-medium text-sm">{permission.permissionName}</span>
                       {permission.permissionDescription && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground mt-1">
                           {permission.permissionDescription}
                         </span>
                       )}
@@ -175,7 +191,7 @@ export function ManageRolePermissionsDialog({
             onClick={handleSubmit}
             disabled={isSubmitting || isLoading || selectedPermissions.size === 0}
           >
-            {isSubmitting ? "Updating..." : "Update Permissions"}
+            {isSubmitting ? "Updating..." : `Update Permissions (${selectedPermissions.size})`}
           </Button>
         </DialogFooter>
       </DialogContent>

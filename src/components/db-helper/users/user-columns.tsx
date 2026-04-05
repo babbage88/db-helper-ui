@@ -1,4 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table";
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,6 +28,71 @@ type ActionHandlers = {
   onToggleStatus: (user: UserRow) => void;
   onResetPassword: (user: UserRow) => void;
 };
+
+// Action cell component with state management for dropdown
+function ActionCell({
+  user,
+  onEdit,
+  onDelete,
+  onToggleStatus,
+  onResetPassword,
+}: {
+  user: UserRow;
+  onEdit: (user: UserRow) => void;
+  onDelete: (user: UserRow) => void;
+  onToggleStatus: (user: UserRow) => void;
+  onResetPassword: (user: UserRow) => void;
+}) {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  const handleEdit = () => {
+    onEdit(user);
+    setIsOpen(false);
+  };
+
+  const handleResetPassword = () => {
+    onResetPassword(user);
+    setIsOpen(false);
+  };
+
+  const handleToggleStatus = () => {
+    onToggleStatus(user);
+    setIsOpen(false);
+  };
+
+  const handleDelete = () => {
+    onDelete(user);
+    setIsOpen(false);
+  };
+
+  return (
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Open menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuItem onClick={handleEdit}>Assign Role</DropdownMenuItem>
+        <DropdownMenuItem onClick={handleResetPassword}>
+          Reset Password
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleToggleStatus}>
+          {user.enabled ? "Disable User" : "Enable User"}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={handleDelete}
+          className="text-red-600"
+        >
+          Delete User
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export function getColumns({
   onEdit,
@@ -107,33 +173,13 @@ export function getColumns({
       cell: ({ row }) => {
         const user = row.original;
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => onEdit(user)}>
-                Assign Role
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onResetPassword(user)}>
-                Reset Password
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onToggleStatus(user)}>
-                {user.enabled ? "Disable User" : "Enable User"}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onDelete(user)}
-                className="text-red-600"
-              >
-                Delete User
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ActionCell
+            user={user}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onToggleStatus={onToggleStatus}
+            onResetPassword={onResetPassword}
+          />
         );
       },
     },

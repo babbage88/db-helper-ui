@@ -1,4 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table";
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -26,6 +27,58 @@ type ActionHandlers = {
   onDelete: (role: RoleRow) => void;
   onManagePermissions: (role: RoleRow) => void;
 };
+
+// Action cell component with state management for dropdown
+function ActionCell({
+  role,
+  onEdit,
+  onDelete,
+  onManagePermissions,
+}: {
+  role: RoleRow;
+  onEdit: (role: RoleRow) => void;
+  onDelete: (role: RoleRow) => void;
+  onManagePermissions: (role: RoleRow) => void;
+}) {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  const handleEdit = () => {
+    onEdit(role);
+    setIsOpen(false);
+  };
+
+  const handleManagePermissions = () => {
+    onManagePermissions(role);
+    setIsOpen(false);
+  };
+
+  const handleDelete = () => {
+    onDelete(role);
+    setIsOpen(false);
+  };
+
+  return (
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Open menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuItem onClick={handleEdit}>Edit Role</DropdownMenuItem>
+        <DropdownMenuItem onClick={handleManagePermissions}>
+          Manage Permissions
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleDelete} className="text-red-600">
+          Delete Role
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export function getColumns({
   onEdit,
@@ -94,30 +147,12 @@ export function getColumns({
       cell: ({ row }) => {
         const role = row.original;
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => onEdit(role)}>
-                Edit Role
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onManagePermissions(role)}>
-                Manage Permissions
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => onDelete(role)}
-                className="text-red-600"
-              >
-                Delete Role
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ActionCell
+            role={role}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onManagePermissions={onManagePermissions}
+          />
         );
       },
     },

@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getColumns, type UserRow } from "./user-columns";
 import { UserCrudService } from "@/lib/api/services/UserCrudService";
+import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,7 @@ export function UserDataTable({ data, onChange, onResetPassword, onEditRole }: D
 
   const [statusToggleUser, setStatusToggleUser] = React.useState<UserRow | null>(null);
   const [isTogglingStatus, setIsTogglingStatus] = React.useState(false);
+  const [toggleStatusError, setToggleStatusError] = React.useState<string | null>(null);
 
   const handleDelete = (user: UserRow) => setDeleteUser(user);
   const handleToggleStatus = (user: UserRow) => setStatusToggleUser(user);
@@ -85,16 +87,31 @@ export function UserDataTable({ data, onChange, onResetPassword, onEditRole }: D
   const confirmToggleStatus = async () => {
     if (!statusToggleUser) return;
     setIsTogglingStatus(true);
+    setToggleStatusError(null);
     try {
       if (statusToggleUser.enabled) {
         await UserCrudService.disableUser({ targetUserId: statusToggleUser.userId });
+        showSuccessToast(
+          "User disabled successfully",
+          `${statusToggleUser.username} has been disabled.`
+        );
       } else {
         await UserCrudService.enableUser({ targetUserId: statusToggleUser.userId });
+        showSuccessToast(
+          "User enabled successfully",
+          `${statusToggleUser.username} has been enabled.`
+        );
       }
       setStatusToggleUser(null);
       if (onChange) onChange();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to toggle user status:", e);
+      const errorMessage = e?.message || "Failed to update user status. Please try again.";
+      setToggleStatusError(errorMessage);
+      showErrorToast(
+        "Failed to update user status",
+        errorMessage
+      );
     } finally {
       setIsTogglingStatus(false);
     }
@@ -266,7 +283,10 @@ export function UserDataTable({ data, onChange, onResetPassword, onEditRole }: D
       {/* Status Toggle Confirmation Dialog */}
       <Dialog
         open={!!statusToggleUser}
-        onOpenChange={() => setStatusToggleUser(null)}
+        onOpenChange={() => {
+          setStatusToggleUser(null);
+          setToggleStatusError(null);
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -279,10 +299,19 @@ export function UserDataTable({ data, onChange, onResetPassword, onEditRole }: D
               {statusToggleUser?.username}"?
             </DialogDescription>
           </DialogHeader>
+          {toggleStatusError && (
+            <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
+              <p className="font-medium">Error</p>
+              <p>{toggleStatusError}</p>
+            </div>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setStatusToggleUser(null)}
+              onClick={() => {
+                setStatusToggleUser(null);
+                setToggleStatusError(null);
+              }}
             >
               Cancel
             </Button>

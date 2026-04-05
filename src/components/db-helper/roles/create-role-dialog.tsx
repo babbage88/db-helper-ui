@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RolesCrudService } from "@/lib/api/services/RolesCrudService";
 import type { CreateUserRoleRequest } from "@/lib/api/models/CreateUserRoleRequest";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 
 const createRoleFormSchema = z.object({
   roleName: z.string().min(1, "Role name is required"),
@@ -70,10 +71,16 @@ export function CreateRoleDialog({
       await RolesCrudService.createUserRole(createRoleRequest);
       form.reset();
       onOpenChange(false);
+      showSuccessToast(
+        "Role created successfully",
+        `The "${data.roleName}" role has been created.`
+      );
       onSuccess();
     } catch (error: any) {
       console.error("Failed to create role:", error);
-      setError(error?.message || "Failed to create role. Please try again.");
+      const errorMessage = error?.message || "Failed to create role. Please try again.";
+      setError(errorMessage);
+      showErrorToast("Failed to create role", errorMessage);
     } finally {
       setIsSubmitting(false);
     }

@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { UserCrudService } from "@/lib/api/services/UserCrudService";
 import type { CreateNewUserRequest } from "@/lib/api/models/CreateNewUserRequest";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 
 const createUserFormSchema = z.object({
   newUsername: z.string().min(1, "Username is required"),
@@ -80,10 +81,16 @@ export function CreateUserDialog({
       await UserCrudService.createUser(createUserRequest);
       form.reset();
       onOpenChange(false);
+      showSuccessToast(
+        "User created successfully",
+        `${data.newUsername} has been added to the system.`
+      );
       onSuccess();
     } catch (error: any) {
       console.error("Failed to create user:", error);
-      setError(error?.message || "Failed to create user. Please try again.");
+      const errorMessage = error?.message || "Failed to create user. Please try again.";
+      setError(errorMessage);
+      showErrorToast("Failed to create user", errorMessage);
     } finally {
       setIsSubmitting(false);
     }

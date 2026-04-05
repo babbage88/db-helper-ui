@@ -9,6 +9,8 @@ import { RoleDataTable } from "./role-data-table";
 import { CreateRoleDialog } from "./create-role-dialog";
 import { ManageRolePermissionsDialog } from "./manage-role-permissions-dialog";
 import type { RoleRow } from "./role-columns";
+import { EmptyState, ErrorState } from "@/components/db-helper/empty-state";
+import { HeaderSkeleton, TableSkeleton } from "@/components/db-helper/skeleton-loaders";
 
 const parseRoleResponse = (response: any): RoleRow[] => {
   try {
@@ -78,11 +80,31 @@ export function RoleManagement() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <p className="text-muted-foreground">Loading roles...</p>
-        </div>
+      <div className="space-y-6">
+        <HeaderSkeleton />
+        <TableSkeleton rows={5} columns={5} />
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <ErrorState
+        title="Failed to Load Roles"
+        description={error}
+        onRetry={loadRoles}
+      />
+    );
+  }
+
+  if (roles.length === 0) {
+    return (
+      <EmptyState
+        title="No Roles Yet"
+        description="Create your first role to organize permissions and user groups."
+        actionLabel="Create Role"
+        onAction={() => setCreateDialogOpen(true)}
+      />
     );
   }
 
@@ -100,13 +122,6 @@ export function RoleManagement() {
           Create Role
         </Button>
       </div>
-
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-medium">Error loading roles</p>
-          <p>{error}</p>
-        </div>
-      )}
 
       <RoleDataTable
         data={roles}

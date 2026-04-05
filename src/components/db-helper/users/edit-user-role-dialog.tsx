@@ -32,6 +32,7 @@ import { RolesCrudService } from "@/lib/api/services/RolesCrudService";
 import type { UpdateUserRoleMappingRequest } from "@/lib/api/models/UpdateUserRoleMappingRequest";
 import type { UserRow } from "./user-columns";
 import type { UserRoleDao } from "@/lib/api/models/UserRoleDao";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 
 const editUserRoleFormSchema = z.object({
   roleId: z.string().min(1, "Role is required"),
@@ -104,12 +105,22 @@ export function EditUserRoleDialog({
       console.log("Updating user role:", updateRequest);
 
       await RolesCrudService.updateUserRole(updateRequest);
+      
+      // Find the role name for the toast message
+      const assignedRole = roles.find((r) => r.id === data.roleId);
+      
       form.reset();
       onOpenChange(false);
+      showSuccessToast(
+        "Role assigned successfully",
+        `${user.username} has been assigned the ${assignedRole?.roleName || "selected"} role.`
+      );
       onSuccess();
     } catch (error: any) {
       console.error("Failed to update user role:", error);
-      setError(error?.message || "Failed to update user role. Please try again.");
+      const errorMessage = error?.message || "Failed to update user role. Please try again.";
+      setError(errorMessage);
+      showErrorToast("Failed to assign role", errorMessage);
     } finally {
       setIsSubmitting(false);
     }

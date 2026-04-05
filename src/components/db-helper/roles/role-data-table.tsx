@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getColumns, type RoleRow } from "./role-columns";
+import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
 import { RolesCrudService } from "@/lib/api/services/RolesCrudService";
 import {
   Dialog,
@@ -51,6 +52,7 @@ export function RoleDataTable({ data, onChange, onEdit, onManagePermissions }: D
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isDeletingBulk, setIsDeletingBulk] = React.useState(false);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = React.useState(false);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
   const handleDelete = (role: RoleRow) => setDeleteRole(role);
   const handleEdit = (role: RoleRow) => {
@@ -63,13 +65,23 @@ export function RoleDataTable({ data, onChange, onEdit, onManagePermissions }: D
   const confirmDelete = async () => {
     if (!deleteRole) return;
     setIsDeleting(true);
+    setDeleteError(null);
     try {
-      // Note: DeleteRoleRequest might not exist in the API, check with backend
-      // For now we'll just call the delete operation if available
+      await (RolesCrudService as any).softDeleteRoleById({ targetRoleId: deleteRole.id });
+      showSuccessToast(
+        "Role deleted successfully",
+        `The "${deleteRole.roleName}" role has been deleted.`
+      );
       setDeleteRole(null);
       if (onChange) onChange();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to delete role:", e);
+      const errorMessage = e?.message || "Failed to delete role. Please try again.";
+      setDeleteError(errorMessage);
+      showErrorToast(
+        "Failed to delete role",
+        errorMessage
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -77,7 +89,6 @@ export function RoleDataTable({ data, onChange, onEdit, onManagePermissions }: D
 
   const confirmBulkDelete = async () => {
     setIsDeletingBulk(true);
-    const selectedRows = table.getFilteredSelectedRowModel().rows;
     try {
       // Bulk delete logic here if available in API
       if (onChange) onChange();
@@ -208,7 +219,10 @@ export function RoleDataTable({ data, onChange, onEdit, onManagePermissions }: D
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteRole} onOpenChange={() => setDeleteRole(null)}>
+      <Dialog open={!!deleteRole} onOpenChange={() => {
+        setDeleteRole(null);
+        setDeleteError(null);
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Role</DialogTitle>
@@ -217,8 +231,17 @@ export function RoleDataTable({ data, onChange, onEdit, onManagePermissions }: D
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
+          {deleteError && (
+            <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
+              <p className="font-medium">Error</p>
+              <p>{deleteError}</p>
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteRole(null)}>
+            <Button variant="outline" onClick={() => {
+              setDeleteRole(null);
+              setDeleteError(null);
+            }}>
               Cancel
             </Button>
             <Button
