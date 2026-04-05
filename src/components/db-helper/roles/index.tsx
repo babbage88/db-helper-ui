@@ -37,12 +37,45 @@ const parseRoleResponse = (response: any): RoleRow[] => {
       roleDesc: role.roleDesc,
       enabled: role.enabled,
       createdAt: role.createdAt,
-      permissionCount: 0, // This would need to be populated from role-permission mappings
+      permissionCount: 0, // This will be updated by fetchPermissionCounts
     }));
   } catch (error) {
     console.warn("Could not parse role response:", error);
     console.log("Full response object:", response);
     return [];
+  }
+};
+
+const fetchPermissionCounts = async (): Promise<Map<string, number>> => {
+  try {
+    const response = await fetch("/api/roles/permission-counts", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch permission counts: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("Permission counts response:", data);
+
+    // Create a map of roleId -> permissionCount
+    const countsMap = new Map<string, number>();
+    
+    if (data.body?.rolePermissionCounts) {
+      data.body.rolePermissionCounts.forEach((item: any) => {
+        countsMap.set(item.roleId, item.permissionCount);
+      });
+    }
+
+    return countsMap;
+  } catch (error) {
+    console.error("Failed to fetch permission counts:", error);
+    return new Map();
   }
 };
 
@@ -60,7 +93,17 @@ export function RoleManagement() {
       setError(null);
       const response = await RolesCrudService.getAllUserRoles();
       const parsedRoles = parseRoleResponse(response);
-      setRoles(parsedRoles);
+      
+      // Fetch permission counts for all roles
+      const permissionCounts = await fetchPermissionCounts();
+      
+      // Update roles with permission counts
+      const rolesWithCounts = parsedRoles.map(role => ({
+        ...role,
+        permissionCount: permissionCounts.get(role.id) || 0,
+      }));
+      
+      setRoles(rolesWithCounts);
     } catch (err: any) {
       console.error("Failed to load roles:", err);
       setError(err?.message || "Failed to load roles");

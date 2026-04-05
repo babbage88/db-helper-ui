@@ -139,43 +139,57 @@ export function ManageRolePermissionsDialog({
             <p className="text-muted-foreground">Loading permissions...</p>
           </div>
         ) : (
-          <ScrollArea className="h-[400px] border rounded-md p-4">
-            <div className="space-y-3 pr-4">
-              {permissions.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No permissions available
-                </p>
-              ) : (
-                permissions.map((permission) => (
-                  <div
-                    key={permission.id}
-                    className="flex items-start space-x-3 rounded-lg border p-3 hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => handlePermissionToggle(permission.id || "")}
-                  >
-                    <Checkbox
-                      id={permission.id}
-                      checked={selectedPermissions.has(permission.id || "")}
-                      onCheckedChange={() =>
-                        handlePermissionToggle(permission.id || "")
-                      }
-                      className="mt-1"
-                    />
-                    <Label
-                      htmlFor={permission.id}
-                      className="flex flex-col cursor-pointer flex-1"
-                    >
-                      <span className="font-medium text-sm">{permission.permissionName}</span>
-                      {permission.permissionDescription && (
-                        <span className="text-xs text-muted-foreground mt-1">
-                          {permission.permissionDescription}
-                        </span>
-                      )}
-                    </Label>
-                  </div>
-                ))
-              )}
+          <div className="space-y-3">
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const allIds = new Set(permissions.map(p => p.id || ""));
+                  setSelectedPermissions(allIds);
+                }}
+              >
+                Select All
+              </Button>
             </div>
-          </ScrollArea>
+            <ScrollArea className="h-[400px] border rounded-md p-4">
+              <div className="space-y-3 pr-4">
+                {permissions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No permissions available
+                  </p>
+                ) : (
+                  permissions.map((permission) => (
+                    <div
+                      key={permission.id}
+                      className="flex items-start space-x-3 rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <Checkbox
+                        id={permission.id}
+                        checked={selectedPermissions.has(permission.id || "")}
+                        onCheckedChange={() =>
+                          handlePermissionToggle(permission.id || "")
+                        }
+                        className="mt-1"
+                      />
+                      <Label
+                        htmlFor={permission.id}
+                        className="flex flex-col cursor-pointer flex-1"
+                      >
+                        <span className="font-medium text-sm">{permission.permissionName}</span>
+                        {permission.permissionDescription && (
+                          <span className="text-xs text-muted-foreground mt-1">
+                            {permission.permissionDescription}
+                          </span>
+                        )}
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </div>
         )}
 
         <DialogFooter>
