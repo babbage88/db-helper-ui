@@ -31,6 +31,7 @@ export type { CreateSshKeyHostMappingResponse } from './models/CreateSshKeyHostM
 export type { CreateSshKeyRequest } from './models/CreateSshKeyRequest';
 export type { CreateSshKeyResponse } from './models/CreateSshKeyResponse';
 export type { CreateUserRoleRequest } from './models/CreateUserRoleRequest';
+export type { CreateUserRoleResponse } from './models/CreateUserRoleResponse';
 export type { DeleteSshKeyHostMappingResponse } from './models/DeleteSshKeyHostMappingResponse';
 export type { DisableUserRequest } from './models/DisableUserRequest';
 export type { Duration } from './models/Duration';

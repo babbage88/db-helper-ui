@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -12,11 +11,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { PermissionsCrudService } from "@/lib/api/services/PermissionsCrudService";
 import type { AppPermissionDao } from "@/lib/api/models/AppPermissionDao";
 import type { RoleRow } from "./role-columns";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
+import { MultiSelectCombobox } from "@/components/ui/multi-select-combobox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import type { GetAllAppPermissionsResponse } from "@/lib/api";
 
 interface ManageRolePermissionsDialogProps {
   open: boolean;
@@ -48,11 +50,11 @@ export function ManageRolePermissionsDialog({
       try {
         setIsLoading(true);
         setError(null);
-        const response = await PermissionsCrudService.getAllAppPermissions();
+        const response: GetAllAppPermissionsResponse | GetAllAppPermissionsResponse[] = await PermissionsCrudService.getAllAppPermissions();
         // Handle response structure - permissions might be in body.appPermissions or just appPermissions
-        const permList = 
-          (response as any).body?.appPermissions || 
-          response.appPermissions || 
+        const permList =
+          (response as any).body?.appPermissions ||
+          response.appPermissions ||
           (Array.isArray(response) ? response : []);
         console.log("Loaded permissions:", permList);
         setPermissions(permList);
@@ -76,7 +78,7 @@ export function ManageRolePermissionsDialog({
     }
     setSelectedPermissions(newSelected);
   };
-
+   
   const handleSubmit = async () => {
     if (!role) return;
 
@@ -86,7 +88,7 @@ export function ManageRolePermissionsDialog({
 
       // Map selected permissions to role
       const permissionIds = Array.from(selectedPermissions);
-      
+
       await Promise.all(
         permissionIds.map((permId) =>
           PermissionsCrudService.createRolePermissionMapping({
@@ -139,56 +141,55 @@ export function ManageRolePermissionsDialog({
             <p className="text-muted-foreground">Loading permissions...</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const allIds = new Set(permissions.map(p => p.id || ""));
-                  setSelectedPermissions(allIds);
-                }}
-              >
-                Select All
-              </Button>
-            </div>
-            <ScrollArea className="h-[400px] border rounded-md p-4">
-              <div className="space-y-3 pr-4">
-                {permissions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No permissions available
-                  </p>
-                ) : (
-                  permissions.map((permission) => (
-                    <div
-                      key={permission.id}
-                      className="flex items-start space-x-3 rounded-lg border p-3 hover:bg-muted/50 transition-colors"
-                    >
-                      <Checkbox
-                        id={permission.id}
-                        checked={selectedPermissions.has(permission.id || "")}
-                        onCheckedChange={() =>
-                          handlePermissionToggle(permission.id || "")
-                        }
-                        className="mt-1"
-                      />
-                      <Label
-                        htmlFor={permission.id}
-                        className="flex flex-col cursor-pointer flex-1"
-                      >
-                        <span className="font-medium text-sm">{permission.permissionName}</span>
-                        {permission.permissionDescription && (
-                          <span className="text-xs text-muted-foreground mt-1">
-                            {permission.permissionDescription}
-                          </span>
-                        )}
-                      </Label>
-                    </div>
-                  ))
-                )}
+          <div className="space-y-6">
+            {/* Current Permissions Section */}
+            {permissions.length > 0 && (
+              <div className="space-y-2">
+                <Label className="font-semibold">Currently Assigned Permissions</Label>
+                <div className="flex flex-wrap gap-2">
+                  {permissions.map((perm) => (
+                    <Badge key={perm.id} variant="default" className="flex items-center gap-2">
+                      {perm.permissionName}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </ScrollArea>
+            )}
+
+            {permissions.length === 0 && (
+              <Alert>
+                <AlertDescription>
+                  No permissions currently assigned
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Role Selector */}
+            <div className="space-y-3">
+              <Label className="font-semibold">Assign Permissions</Label>
+
+              {permissions.length === 0 ? (
+                <Alert>
+                  <AlertDescription className="text-yellow-900 text-sm">
+                    No permissions available on the server
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <MultiSelectCombobox
+                  options={permissions
+                    .filter((r) => r.id)
+                    .map((r) => ({
+                      value: r.id!,
+                      label: r.permissionName || "Unnamed Permission",
+                      description: r.permissionDescription,
+                    }))}
+                  value={Array.from(selectedPermissions)}
+                  onChange={(values) => setSelectedPermissions(new Set(values))}
+                  placeholder="Select permissions..."
+                  disabled={isSubmitting}
+                />
+              )}
+            </div>
           </div>
         )}
 

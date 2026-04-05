@@ -141,16 +141,6 @@ export function EditUserRoleDialog({
     onOpenChange(newOpen);
   };
 
-  const toggleRoleSelection = (roleId: string) => {
-    const newSelected = new Set(selectedRoleIds);
-    if (newSelected.has(roleId)) {
-      newSelected.delete(roleId);
-    } else {
-      newSelected.add(roleId);
-    }
-    setSelectedRoleIds(newSelected);
-  };
-
   const handleApplyChanges = async () => {
     if (!user) return;
 
