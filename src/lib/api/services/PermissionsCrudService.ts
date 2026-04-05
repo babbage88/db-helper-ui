@@ -7,6 +7,7 @@ import type { CreateAppPermissionResult } from '../models/CreateAppPermissionRes
 import type { CreateRolePermissionMappingRequest } from '../models/CreateRolePermissionMappingRequest';
 import type { CreateRolePermissionMappingResponse } from '../models/CreateRolePermissionMappingResponse';
 import type { GetAllAppPermissionsResponse } from '../models/GetAllAppPermissionsResponse';
+import type { GetRolePermissionMappingsResponse } from '../models/GetRolePermissionMappingsResponse';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -62,6 +63,23 @@ export class PermissionsCrudService {
             method: 'POST',
             url: '/roles/permission',
             body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Returns all App Permission Mappings (which roles have which permissions).
+     * @returns GetRolePermissionMappingsResponse (empty)
+     * @throws ApiError
+     */
+    public static getAllAppPermissionMappings(): CancelablePromise<Array<GetRolePermissionMappingsResponse>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/roles/permission-mappings',
             errors: {
                 401: `Unauthorized`,
                 403: `Forbidden`,

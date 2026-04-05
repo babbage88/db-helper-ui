@@ -42,6 +42,7 @@ export type { ExternalApplicationInfo } from './models/ExternalApplicationInfo';
 export type { ExternalAppSecretMetadata } from './models/ExternalAppSecretMetadata';
 export type { GetAllAppPermissionsResponse } from './models/GetAllAppPermissionsResponse';
 export type { GetAllRolesResponse } from './models/GetAllRolesResponse';
+export type { GetRolePermissionMappingsResponse } from './models/GetRolePermissionMappingsResponse';
 export type { GetRolesPermissionCountResponse } from './models/GetRolesPermissionCountResponse';
 export type { GetUserByIdResponse } from './models/GetUserByIdResponse';
 export type { HostedDbPlatform } from './models/HostedDbPlatform';
@@ -85,6 +86,7 @@ export type { UserRoleDao } from './models/UserRoleDao';
 export type { UserSecretEntry } from './models/UserSecretEntry';
 export type { UUIDs } from './models/UUIDs';
 
+export { Service } from './services/Service';
 export { AuthenticationService } from './services/AuthenticationService';
 export { CertificatesService } from './services/CertificatesService';
 export { ExternalApplicationsService } from './services/ExternalApplicationsService';

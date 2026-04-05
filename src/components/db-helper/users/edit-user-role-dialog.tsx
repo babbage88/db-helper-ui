@@ -20,7 +20,6 @@ import type { UpdateUserRoleMappingRequest } from "@/lib/api/models/UpdateUserRo
 import type { UserRow } from "./user-columns";
 import type { UserRoleDao } from "@/lib/api/models/UserRoleDao";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
-import { X } from "lucide-react";
 
 interface EditUserRoleDialogProps {
   open: boolean;
