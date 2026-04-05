@@ -22,8 +22,18 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { UserCrudService } from "@/lib/api/services/UserCrudService";
+import { RolesCrudService } from "@/lib/api/services/RolesCrudService";
 import type { CreateNewUserRequest } from "@/lib/api/models/CreateNewUserRequest";
+import type { UserRoleDao } from "@/lib/api/models/UserRoleDao";
+import type { UpdateUserRoleMappingRequest } from "@/lib/api/models/UpdateUserRoleMappingRequest";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 
 const createUserFormSchema = z.object({
@@ -31,6 +41,7 @@ const createUserFormSchema = z.object({
   newEmail: z.string().email("Invalid email address"),
   newPassword: z.string().min(8, "Password must be at least 8 characters"),
   passwordConfirm: z.string(),
+  roleId: z.string().optional(),
 }).refine((data) => data.newPassword === data.passwordConfirm, {
   message: "Passwords don't match",
   path: ["passwordConfirm"],
@@ -51,6 +62,8 @@ export function CreateUserDialog({
 }: CreateUserDialogProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [roles, setRoles] = React.useState<UserRoleDao[]>([]);
+  const [isLoadingRoles, setIsLoadingRoles] = React.useState(false);
 
   const form = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserFormSchema),
@@ -59,8 +72,33 @@ export function CreateUserDialog({
       newEmail: "",
       newPassword: "",
       passwordConfirm: "",
+      roleId: "",
     },
   });
+
+  React.useEffect(() => {
+    if (!open) {
+      setError(null);
+      return;
+    }
+
+    const loadRoles = async () => {
+      try {
+        setIsLoadingRoles(true);
+        const response = await RolesCrudService.getAllUserRoles();
+        // Handle response wrapping - roles come as body.userRoles
+        const roleList = (response as any).body?.userRoles || (response as any).userRoles || (Array.isArray(response) ? response : []);
+        setRoles(roleList);
+      } catch (err) {
+        console.error("Failed to load roles:", err);
+        setError("Failed to load available roles");
+      } finally {
+        setIsLoadingRoles(false);
+      }
+    };
+
+    loadRoles();
+  }, [open]);
 
   const handleSubmit = async (data: CreateUserFormValues) => {
     try {
@@ -78,13 +116,38 @@ export function CreateUserDialog({
         newPassword: "[REDACTED]",
       });
 
-      await UserCrudService.createUser(createUserRequest);
+      const userResponse = await UserCrudService.createUser(createUserRequest);
+      const userId = (userResponse as any).body?.id || (userResponse as any).id;
+
+      // If a role was selected, assign it to the new user
+      if (data.roleId && userId) {
+        try {
+          const updateRequest: UpdateUserRoleMappingRequest = {
+            targetUserId: userId,
+            roleId: data.roleId,
+          };
+          await RolesCrudService.updateUserRole(updateRequest);
+          const assignedRole = roles.find((r) => r.id === data.roleId);
+          showSuccessToast(
+            "User created successfully",
+            `${data.newUsername} has been added and assigned the ${assignedRole?.roleName || "selected"} role.`
+          );
+        } catch (roleError: any) {
+          console.error("Failed to assign role:", roleError);
+          showErrorToast(
+            "User created but role assignment failed",
+            "The user was created but the role assignment failed. You can assign the role later."
+          );
+        }
+      } else {
+        showSuccessToast(
+          "User created successfully",
+          `${data.newUsername} has been added to the system.`
+        );
+      }
+
       form.reset();
       onOpenChange(false);
-      showSuccessToast(
-        "User created successfully",
-        `${data.newUsername} has been added to the system.`
-      );
       onSuccess();
     } catch (error: any) {
       console.error("Failed to create user:", error);
@@ -164,6 +227,35 @@ export function CreateUserDialog({
                   <FormControl>
                     <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="roleId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Assign Role (Optional)</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={isLoadingRoles}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a role (optional)" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={role.id || ""}>
+                          {role.roleName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

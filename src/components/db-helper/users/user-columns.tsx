@@ -75,7 +75,7 @@ function ActionCell({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem onClick={handleEdit}>Assign Role</DropdownMenuItem>
+        <DropdownMenuItem onClick={handleEdit}>Manage Roles</DropdownMenuItem>
         <DropdownMenuItem onClick={handleResetPassword}>
           Reset Password
         </DropdownMenuItem>

@@ -48,29 +48,18 @@ const parseRoleResponse = (response: any): RoleRow[] => {
 
 const fetchPermissionCounts = async (): Promise<Map<string, number>> => {
   try {
-    const response = await fetch("/api/roles/permission-counts", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch permission counts: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log("Permission counts response:", data);
+    const response = await RolesCrudService.getRolesPermissionCounts();
+    console.log("Permission counts response:", response);
 
     // Create a map of roleId -> permissionCount
     const countsMap = new Map<string, number>();
     
-    if (data.body?.rolePermissionCounts) {
-      data.body.rolePermissionCounts.forEach((item: any) => {
-        countsMap.set(item.roleId, item.permissionCount);
-      });
-    }
+    // The response is wrapped in a body object like all other API responses
+    const rolePermissionCounts = (response as any).body?.rolePermissionCounts || (response as any).rolePermissionCounts || [];
+    
+    rolePermissionCounts.forEach((item: any) => {
+      countsMap.set(item.roleId, item.permissionCount);
+    });
 
     return countsMap;
   } catch (error) {
