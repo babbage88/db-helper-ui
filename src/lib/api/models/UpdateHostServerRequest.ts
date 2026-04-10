@@ -2,31 +2,24 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { Addr } from './Addr';
+import type { UUID } from './UUID';
 export type UpdateHostServerRequest = {
     /**
      * Host server type IDs that this server supports
      */
-    host_server_type_ids?: Array<string>;
+    host_server_type_ids?: Array<UUID>;
     /**
      * Hostname of the server
      */
     hostname?: string;
-    /**
-     * IP address of the server
-     */
-    ip_address?: string;
+    ip_address?: Addr;
     /**
      * Platform type IDs that this server supports
      */
-    platform_type_ids?: Array<string>;
-    /**
-     * SSH key ID for authentication
-     */
-    ssh_key_id?: string;
-    /**
-     * Optional sudo password token ID
-     */
-    sudo_password_token_id?: string;
+    platform_type_ids?: Array<UUID>;
+    ssh_key_id?: UUID;
+    sudo_password_token_id?: UUID;
     /**
      * Username for SSH connection
      */

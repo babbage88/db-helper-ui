@@ -2,9 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type RolePermissionCount = {
     permissionCount?: number;
-    roleId?: string;
+    roleId?: UUID;
     roleName?: string;
 };
 

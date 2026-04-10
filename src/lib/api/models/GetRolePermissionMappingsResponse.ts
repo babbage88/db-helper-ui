@@ -2,11 +2,14 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type GetRolePermissionMappingsResponse = {
     createdAt?: string;
-    id?: string;
+    id?: UUID;
     lastModified?: string;
-    permissionId?: string;
-    roleId?: string;
+    permission?: string;
+    permissionId?: UUID;
+    roleId?: UUID;
+    roleName?: string;
 };
 

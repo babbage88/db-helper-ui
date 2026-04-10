@@ -2,14 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type ProbeByHostIdRequest = {
     /**
      * Port number to probe
      */
     port: number;
-    /**
-     * ID of the target host server
-     */
-    targetHostId: string;
+    targetHostId: UUID;
 };
 

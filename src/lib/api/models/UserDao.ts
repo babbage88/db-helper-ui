@@ -2,12 +2,13 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 import type { UUIDs } from './UUIDs';
 export type UserDao = {
     createdAt?: string;
     email?: string;
     enabled?: boolean;
-    id?: string;
+    id?: UUID;
     isDeleted?: boolean;
     lastModified?: string;
     role_ids?: UUIDs;

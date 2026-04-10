@@ -2,10 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type PingHostServerRequest = {
-    /**
-     * ID of the host server to ping
-     */
-    hostServerId: string;
+    hostServerId: UUID;
 };
 

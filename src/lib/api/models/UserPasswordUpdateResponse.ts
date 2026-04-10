@@ -2,9 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type UserPasswordUpdateResponse = {
     error?: string;
     success?: boolean;
-    targetUserId?: string;
+    targetUserId?: UUID;
 };
 

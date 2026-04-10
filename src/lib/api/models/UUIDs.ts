@@ -2,4 +2,5 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type UUIDs = Array<string>;
+import type { UUID } from './UUID';
+export type UUIDs = Array<UUID>;

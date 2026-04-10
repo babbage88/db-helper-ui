@@ -2,14 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 /**
  * SSH Connection Response
  */
 export type SshConnectionResponse = {
-    /**
-     * Unique connection identifier
-     */
-    connectionId?: string;
+    connectionId?: UUID;
     /**
      * Error message if connection failed
      */

@@ -2,8 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type ExternalApplicationInfo = {
-    id?: string;
+    id?: UUID;
     name?: string;
     url?: string;
 };

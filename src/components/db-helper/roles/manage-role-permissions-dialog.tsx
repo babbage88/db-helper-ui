@@ -18,7 +18,7 @@ import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { MultiSelectCombobox } from "@/components/ui/multi-select-combobox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import type { GetAllAppPermissionsResponse } from "@/lib/api";
+import type { GetRolePermissionMappingsResponse } from "@/lib/api/models/GetRolePermissionMappingsResponse";
 
 interface ManageRolePermissionsDialogProps {
   open: boolean;
@@ -37,30 +37,80 @@ export function ManageRolePermissionsDialog({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [permissions, setPermissions] = React.useState<AppPermissionDao[]>([]);
+  const [assignedPermissions, setAssignedPermissions] = React.useState<AppPermissionDao[]>([]);
   const [selectedPermissions, setSelectedPermissions] = React.useState<Set<string>>(new Set());
+  const assignedPermissionIds = React.useMemo(
+    () =>
+      new Set(
+        assignedPermissions
+          .map((permission) => permission.id)
+          .filter((permissionId): permissionId is string => Boolean(permissionId))
+      ),
+    [assignedPermissions]
+  );
+  const pendingAdds = React.useMemo(
+    () => Array.from(selectedPermissions).filter((permissionId) => !assignedPermissionIds.has(permissionId)),
+    [assignedPermissionIds, selectedPermissions]
+  );
+  const pendingRemovals = React.useMemo(
+    () => Array.from(assignedPermissionIds).filter((permissionId) => !selectedPermissions.has(permissionId)),
+    [assignedPermissionIds, selectedPermissions]
+  );
+  const pendingChangeCount = pendingAdds.length + pendingRemovals.length;
 
   React.useEffect(() => {
     if (!open) {
       setError(null);
+      setPermissions([]);
+      setAssignedPermissions([]);
       setSelectedPermissions(new Set());
       return;
     }
 
     const loadPermissions = async () => {
+      if (!role?.id) {
+        setPermissions([]);
+        setAssignedPermissions([]);
+        setSelectedPermissions(new Set());
+        return;
+      }
+
       try {
         setIsLoading(true);
         setError(null);
-        const response: GetAllAppPermissionsResponse | GetAllAppPermissionsResponse[] = await PermissionsCrudService.getAllAppPermissions();
-        // Handle response structure - permissions might be in body.appPermissions or just appPermissions
-        const permList =
-          (response as any).body?.appPermissions ||
-          response.appPermissions ||
-          (Array.isArray(response) ? response : []);
-        console.log("Loaded permissions:", permList);
+
+        const [allPermissionsResponse, assignedMappingsResponse] = await Promise.all([
+          PermissionsCrudService.getAllAppPermissions(),
+          PermissionsCrudService.getAllAppPermissionMappings(role.id, role.roleName),
+        ]);
+
+        const permList: AppPermissionDao[] =
+          (allPermissionsResponse as any).body?.appPermissions ||
+          allPermissionsResponse.appPermissions ||
+          (Array.isArray(allPermissionsResponse) ? allPermissionsResponse : []);
+
+        const assignedMappings: GetRolePermissionMappingsResponse[] = Array.isArray(assignedMappingsResponse)
+          ? assignedMappingsResponse
+          : [];
+
+        const loadedAssignedPermissionIds = new Set(
+          assignedMappings
+            .map((mapping) => mapping.permissionId)
+            .filter((permissionId): permissionId is string => Boolean(permissionId))
+        );
+
+        const assignedPermissionList = permList.filter(
+          (permission) => permission.id && loadedAssignedPermissionIds.has(permission.id)
+        );
+
         setPermissions(permList);
+        setAssignedPermissions(assignedPermissionList);
+        setSelectedPermissions(loadedAssignedPermissionIds);
       } catch (err: any) {
         console.error("Failed to load permissions:", err);
-        setError("Failed to load available permissions");
+        setAssignedPermissions([]);
+        setSelectedPermissions(new Set());
+        setError("Failed to load role permissions");
       } finally {
         setIsLoading(false);
       }
@@ -69,16 +119,17 @@ export function ManageRolePermissionsDialog({
     loadPermissions();
   }, [open, role]);
 
-  const handlePermissionToggle = (permissionId: string) => {
-    const newSelected = new Set(selectedPermissions);
-    if (newSelected.has(permissionId)) {
-      newSelected.delete(permissionId);
-    } else {
-      newSelected.add(permissionId);
-    }
-    setSelectedPermissions(newSelected);
-  };
-   
+  /*  const handlePermissionToggle = (permissionId: string) => {
+      const newSelected = new Set(selectedPermissions);
+      if (newSelected.has(permissionId)) {
+        newSelected.delete(permissionId);
+      } else {
+        newSelected.add(permissionId);
+      }
+      setSelectedPermissions(newSelected);
+    };
+  */
+
   const handleSubmit = async () => {
     if (!role) return;
 
@@ -86,12 +137,22 @@ export function ManageRolePermissionsDialog({
       setIsSubmitting(true);
       setError(null);
 
-      // Map selected permissions to role
-      const permissionIds = Array.from(selectedPermissions);
+      if (pendingChangeCount === 0) {
+        onOpenChange(false);
+        return;
+      }
 
       await Promise.all(
-        permissionIds.map((permId) =>
+        pendingAdds.map((permId) =>
           PermissionsCrudService.createRolePermissionMapping({
+            roleId: role.id,
+            permId: permId,
+          })
+        )
+      );
+      await Promise.all(
+        pendingRemovals.map((permId) =>
+          PermissionsCrudService.deleteRolePermissionMapping({
             roleId: role.id,
             permId: permId,
           })
@@ -101,7 +162,7 @@ export function ManageRolePermissionsDialog({
       onOpenChange(false);
       showSuccessToast(
         "Permissions updated",
-        `${permissionIds.length} permission(s) assigned to the "${role.roleName}" role.`
+        `Added ${pendingAdds.length} and removed ${pendingRemovals.length} permission(s) for "${role.roleName}".`
       );
       onSuccess();
     } catch (err: any) {
@@ -120,7 +181,7 @@ export function ManageRolePermissionsDialog({
         <DialogHeader>
           <DialogTitle>Manage Role Permissions</DialogTitle>
           <DialogDescription>
-            Select which permissions to assign to the "{role?.roleName}" role.
+            Select which permissions to assign to the "{role?.roleName}" role. Existing assignments are preselected.
             {selectedPermissions.size > 0 && (
               <span className="ml-2 font-semibold text-foreground">
                 ({selectedPermissions.size} selected)
@@ -143,11 +204,11 @@ export function ManageRolePermissionsDialog({
         ) : (
           <div className="space-y-6">
             {/* Current Permissions Section */}
-            {permissions.length > 0 && (
+            {assignedPermissions.length > 0 && (
               <div className="space-y-2">
                 <Label className="font-semibold">Currently Assigned Permissions</Label>
                 <div className="flex flex-wrap gap-2">
-                  {permissions.map((perm) => (
+                  {assignedPermissions.map((perm) => (
                     <Badge key={perm.id} variant="default" className="flex items-center gap-2">
                       {perm.permissionName}
                     </Badge>
@@ -156,7 +217,7 @@ export function ManageRolePermissionsDialog({
               </div>
             )}
 
-            {permissions.length === 0 && (
+            {assignedPermissions.length === 0 && (
               <Alert>
                 <AlertDescription>
                   No permissions currently assigned
@@ -204,9 +265,9 @@ export function ManageRolePermissionsDialog({
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={isSubmitting || isLoading || selectedPermissions.size === 0}
+            disabled={isSubmitting || isLoading || pendingChangeCount === 0}
           >
-            {isSubmitting ? "Updating..." : `Update Permissions (${selectedPermissions.size})`}
+            {isSubmitting ? "Updating..." : `Update Permissions (${pendingChangeCount})`}
           </Button>
         </DialogFooter>
       </DialogContent>

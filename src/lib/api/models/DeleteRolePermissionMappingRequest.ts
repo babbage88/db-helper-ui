@@ -3,8 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { UUID } from './UUID';
-export type CreateHostServerTypeMappingRequest = {
-    hostServerId: UUID;
-    hostServerTypeId: UUID;
+export type DeleteRolePermissionMappingRequest = {
+    permId?: UUID;
+    roleId?: UUID;
 };
 

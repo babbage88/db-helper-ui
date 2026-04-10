@@ -2,14 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type UpdateSshKeyHostMappingRequest = {
     /**
      * Username to use on the host server
      */
     hostserverUsername: string;
-    /**
-     * ID of the SSH key host mapping to update
-     */
-    id: string;
+    id: UUID;
 };
 

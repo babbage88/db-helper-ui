@@ -5,6 +5,7 @@
 import type { CreateExternalApplicationRequest } from '../models/CreateExternalApplicationRequest';
 import type { ExternalApplicationDao } from '../models/ExternalApplicationDao';
 import type { UpdateExternalApplicationRequest } from '../models/UpdateExternalApplicationRequest';
+import type { UUID } from '../models/UUID';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -94,7 +95,7 @@ export class ExternalApplicationsService {
     public static getExternalApplicationIdByName(
         name: string,
     ): CancelablePromise<{
-        id?: string;
+        id?: UUID;
     }> {
         return __request(OpenAPI, {
             method: 'GET',

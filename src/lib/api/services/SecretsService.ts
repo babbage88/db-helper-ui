@@ -4,6 +4,7 @@
 /* eslint-disable */
 import type { CreateSecretRequest } from '../models/CreateSecretRequest';
 import type { UserSecretEntry } from '../models/UserSecretEntry';
+import type { UUID } from '../models/UUID';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -17,7 +18,7 @@ export class SecretsService {
     public static createUserSecret(
         body?: CreateSecretRequest,
     ): CancelablePromise<{
-        id?: string;
+        id?: UUID;
     }> {
         return __request(OpenAPI, {
             method: 'POST',
@@ -61,10 +62,10 @@ export class SecretsService {
         id: string,
     ): CancelablePromise<{
         expiration?: string;
-        external_application_id?: string;
-        id?: string;
+        external_application_id?: UUID;
+        id?: UUID;
         secret?: string;
-        user_id?: string;
+        user_id?: UUID;
     }> {
         return __request(OpenAPI, {
             method: 'GET',

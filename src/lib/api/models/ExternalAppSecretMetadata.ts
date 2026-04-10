@@ -2,10 +2,11 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type ExternalAppSecretMetadata = {
     createdAt?: string;
     expiry?: string;
-    id?: string;
-    userId?: string;
+    id?: UUID;
+    userId?: UUID;
 };
 

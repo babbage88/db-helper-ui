@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { Addr } from './Addr';
 export type UserHostedDb = {
     CreatedAt?: string;
     CurrentHostServerID?: number;
@@ -12,8 +13,8 @@ export type UserHostedDb = {
     LastModified?: string;
     ListenPort?: number;
     PriceTierCodeID?: number;
-    PrivateIpAddress?: string;
-    PubIpAddress?: string;
+    PrivateIpAddress?: Addr;
+    PubIpAddress?: Addr;
     UserApplicationIds?: Array<number>;
     UserID?: number;
 };

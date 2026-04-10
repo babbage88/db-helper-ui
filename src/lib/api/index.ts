@@ -8,6 +8,7 @@ export { OpenAPI } from './core/OpenAPI';
 export type { OpenAPIConfig } from './core/OpenAPI';
 
 export type { AccessTokens } from './models/AccessTokens';
+export type { Addr } from './models/Addr';
 export type { AppPermissionDao } from './models/AppPermissionDao';
 export type { AuthToken } from './models/AuthToken';
 export type { AuthTokenDao } from './models/AuthTokenDao';
@@ -32,6 +33,8 @@ export type { CreateSshKeyRequest } from './models/CreateSshKeyRequest';
 export type { CreateSshKeyResponse } from './models/CreateSshKeyResponse';
 export type { CreateUserRoleRequest } from './models/CreateUserRoleRequest';
 export type { CreateUserRoleResponse } from './models/CreateUserRoleResponse';
+export type { DeleteRolePermissionMappingRequest } from './models/DeleteRolePermissionMappingRequest';
+export type { DeleteRolePermissionMappingResponse } from './models/DeleteRolePermissionMappingResponse';
 export type { DeleteSshKeyHostMappingResponse } from './models/DeleteSshKeyHostMappingResponse';
 export type { DisableUserRequest } from './models/DisableUserRequest';
 export type { Duration } from './models/Duration';
@@ -84,6 +87,7 @@ export type { UserLoginRequest } from './models/UserLoginRequest';
 export type { UserPasswordUpdateResponse } from './models/UserPasswordUpdateResponse';
 export type { UserRoleDao } from './models/UserRoleDao';
 export type { UserSecretEntry } from './models/UserSecretEntry';
+export type { UUID } from './models/UUID';
 export type { UUIDs } from './models/UUIDs';
 
 export { Service } from './services/Service';

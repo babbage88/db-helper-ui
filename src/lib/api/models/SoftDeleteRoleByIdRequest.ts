@@ -2,7 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type SoftDeleteRoleByIdRequest = {
-    targetRoleId?: string;
+    targetRoleId?: UUID;
 };
 

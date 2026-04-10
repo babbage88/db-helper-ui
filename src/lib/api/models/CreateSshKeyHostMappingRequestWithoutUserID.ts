@@ -2,22 +2,14 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type CreateSshKeyHostMappingRequestWithoutUserID = {
-    /**
-     * ID of the host server to map to
-     */
-    hostServerId: string;
+    hostServerId: UUID;
     /**
      * Username to use on the host server
      */
     hostserverUsername: string;
-    /**
-     * ID of the SSH key to map
-     */
-    sshKeyId: string;
-    /**
-     * ID of the sudo password token
-     */
-    sudoPasswordTokenId?: string;
+    sshKeyId: UUID;
+    sudoPasswordTokenId?: UUID;
 };
 

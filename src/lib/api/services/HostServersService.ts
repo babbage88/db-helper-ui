@@ -13,6 +13,7 @@ import type { PlatformType } from '../models/PlatformType';
 import type { UpdateHostServerRequest } from '../models/UpdateHostServerRequest';
 import type { UpdateHostServerTypeBody } from '../models/UpdateHostServerTypeBody';
 import type { UpdatePlatformTypeBody } from '../models/UpdatePlatformTypeBody';
+import type { UUID } from '../models/UUID';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -95,7 +96,7 @@ export class HostServersService {
     }
     /**
      * Get a host server type by ID
-     * @param id
+     * @param id Host server type ID
      * @returns HostServerType (empty)
      * @throws ApiError
      */
@@ -118,7 +119,7 @@ export class HostServersService {
     }
     /**
      * Update a host server type
-     * @param id
+     * @param id Host server type ID
      * @param body
      * @returns HostServerType (empty)
      * @throws ApiError
@@ -144,7 +145,7 @@ export class HostServersService {
     }
     /**
      * Delete a host server type
-     * @param id
+     * @param id Host server type ID
      * @returns any Host server type deleted successfully
      * @throws ApiError
      */
@@ -202,13 +203,19 @@ export class HostServersService {
     }
     /**
      * Get a host server by ID.
+     * @param id Host server ID
      * @returns HostServerResponse (empty)
      * @throws ApiError
      */
-    public static getHostServer(): CancelablePromise<HostServerResponse> {
+    public static getHostServer(
+        id: string,
+    ): CancelablePromise<HostServerResponse> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/host-servers/{ID}',
+            path: {
+                'ID': id,
+            },
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,
@@ -219,7 +226,7 @@ export class HostServersService {
     }
     /**
      * Update a host server.
-     * @param id
+     * @param id Host server ID
      * @param body
      * @returns HostServerResponse (empty)
      * @throws ApiError
@@ -245,7 +252,7 @@ export class HostServersService {
     }
     /**
      * Delete a host server.
-     * @param id
+     * @param id Host server ID
      * @returns any Host server deleted successfully
      * @throws ApiError
      */
@@ -275,7 +282,7 @@ export class HostServersService {
     public static createHostServerType(
         body?: CreateHostServerTypeBodyRequest,
     ): CancelablePromise<{
-        hostServerId?: string;
+        hostServerId?: UUID;
         name?: string;
     }> {
         return __request(OpenAPI, {
@@ -372,7 +379,7 @@ export class HostServersService {
     }
     /**
      * Get a platform type by ID
-     * @param id
+     * @param id Platform type ID
      * @returns PlatformType (empty)
      * @throws ApiError
      */
@@ -395,7 +402,7 @@ export class HostServersService {
     }
     /**
      * Update a platform type
-     * @param id
+     * @param id Platform type ID
      * @param body
      * @returns PlatformType (empty)
      * @throws ApiError
@@ -421,7 +428,7 @@ export class HostServersService {
     }
     /**
      * Delete a platform type
-     * @param id
+     * @param id Platform type ID
      * @returns any Platform type deleted successfully
      * @throws ApiError
      */

@@ -2,11 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type AccessTokens = {
     accessToken?: string;
     email?: string;
     refreshToken?: string;
     userName?: string;
-    user_id?: string;
+    user_id?: UUID;
 };
 

@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 /**
  * SSH Connection Request
  */
@@ -10,10 +11,7 @@ export type SshConnectionRequestDetails = {
      * Terminal column width
      */
     columns?: number;
-    /**
-     * Host server ID to connect to
-     */
-    hostServerId: string;
+    hostServerId: UUID;
     /**
      * Terminal row height
      */

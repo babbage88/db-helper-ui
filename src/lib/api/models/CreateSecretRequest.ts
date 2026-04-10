@@ -2,8 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type CreateSecretRequest = {
-    application_id?: string;
+    application_id?: UUID;
     expiration?: string;
     secret?: string;
 };

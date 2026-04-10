@@ -2,13 +2,14 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { Addr } from './Addr';
 export type HostServer = {
     CreatedAt?: string;
     HostedDomains?: Array<string>;
     Hostname?: string;
     ID?: number;
     IDDbHost?: boolean;
-    IpAddress?: string;
+    IpAddress?: Addr;
     IsContainerHost?: boolean;
     IsVirtualMachine?: boolean;
     IsVmHost?: boolean;

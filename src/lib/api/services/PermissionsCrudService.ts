@@ -6,6 +6,8 @@ import type { CreateAppPermissionRequest } from '../models/CreateAppPermissionRe
 import type { CreateAppPermissionResult } from '../models/CreateAppPermissionResult';
 import type { CreateRolePermissionMappingRequest } from '../models/CreateRolePermissionMappingRequest';
 import type { CreateRolePermissionMappingResponse } from '../models/CreateRolePermissionMappingResponse';
+import type { DeleteRolePermissionMappingRequest } from '../models/DeleteRolePermissionMappingRequest';
+import type { DeleteRolePermissionMappingResponse } from '../models/DeleteRolePermissionMappingResponse';
 import type { GetAllAppPermissionsResponse } from '../models/GetAllAppPermissionsResponse';
 import type { GetRolePermissionMappingsResponse } from '../models/GetRolePermissionMappingsResponse';
 import type { CancelablePromise } from '../core/CancelablePromise';
@@ -72,14 +74,44 @@ export class PermissionsCrudService {
         });
     }
     /**
+     * Remove App Permission from User Role.
+     * @param body
+     * @returns DeleteRolePermissionMappingResponse (empty)
+     * @throws ApiError
+     */
+    public static deleteRolePermissionMapping(
+        body?: DeleteRolePermissionMappingRequest,
+    ): CancelablePromise<DeleteRolePermissionMappingResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/roles/permission',
+            body: body,
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Not Found`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
      * Returns all App Permission Mappings (which roles have which permissions).
+     * @param roleId Optional role ID filter.
+     * @param roleName Optional role name filter.
      * @returns GetRolePermissionMappingsResponse (empty)
      * @throws ApiError
      */
-    public static getAllAppPermissionMappings(): CancelablePromise<Array<GetRolePermissionMappingsResponse>> {
+    public static getAllAppPermissionMappings(
+        roleId?: string,
+        roleName?: string,
+    ): CancelablePromise<Array<GetRolePermissionMappingsResponse>> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/roles/permission-mappings',
+            query: {
+                'roleId': roleId,
+                'roleName': roleName,
+            },
             errors: {
                 401: `Unauthorized`,
                 403: `Forbidden`,

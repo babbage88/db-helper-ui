@@ -2,16 +2,17 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type SshKeyListItem = {
     createdAt?: string;
     description?: string;
-    id?: string;
+    id?: UUID;
     keyType?: string;
     lastModified?: string;
     name?: string;
-    ownerUserId?: string;
-    passphraseId?: string;
-    privateKeyId?: string;
+    ownerUserId?: UUID;
+    passphraseId?: UUID;
+    privateKeyId?: UUID;
     publicKey?: string;
 };
 

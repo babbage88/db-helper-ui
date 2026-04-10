@@ -2,8 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type UpdateUserRoleMappingRequest = {
-    roleId?: string;
-    targetUserId?: string;
+    roleId?: UUID;
+    targetUserId?: UUID;
 };
 

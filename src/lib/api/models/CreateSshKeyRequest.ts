@@ -2,15 +2,13 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type CreateSshKeyRequest = {
     /**
      * Description of the SSH key
      */
     description?: string;
-    /**
-     * Optional host server ID to associate the key with
-     */
-    hostServerId?: string;
+    hostServerId?: UUID;
     /**
      * Type of the SSH key (e.g., rsa, ed25519)
      */

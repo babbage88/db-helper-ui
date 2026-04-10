@@ -2,11 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type PlatformType = {
-    /**
-     * Unique identifier for the platform type
-     */
-    id: string;
+    id: UUID;
     /**
      * Last modification timestamp
      */

@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type PingResponse = {
     /**
      * Total number of recieved packets
@@ -27,10 +28,7 @@ export type PingResponse = {
      * Whether the ping was successful
      */
     success: boolean;
-    /**
-     * ID of the target host server (if applicable)
-     */
-    targetHostId?: string;
+    targetHostId?: UUID;
     /**
      * Name of the target host
      */

@@ -2,9 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { UUID } from './UUID';
-export type CreateRolePermissionMappingRequest = {
-    permId?: UUID;
-    roleId?: UUID;
-};
-
+/**
+ * A UUID is a 128 bit (16 byte) Universal Unique IDentifier as defined in RFC
+ * 4122.
+ */
+export type UUID = string;

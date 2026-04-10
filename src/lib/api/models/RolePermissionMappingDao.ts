@@ -2,12 +2,13 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type RolePermissionMappingDao = {
     createdAt?: string;
     enabled?: boolean;
-    id?: string;
+    id?: UUID;
     lastModified?: string;
-    permissionId?: string;
-    roleId?: string;
+    permissionId?: UUID;
+    roleId?: UUID;
 };
 

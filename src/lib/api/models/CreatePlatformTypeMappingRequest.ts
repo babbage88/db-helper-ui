@@ -2,18 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type CreatePlatformTypeMappingRequest = {
-    /**
-     * Host server ID
-     */
-    hostServerId: string;
-    /**
-     * Host server type ID
-     */
-    hostServerTypeId: string;
-    /**
-     * Platform type ID
-     */
-    platformTypeId: string;
+    hostServerId: UUID;
+    hostServerTypeId: UUID;
+    platformTypeId: UUID;
 };
 

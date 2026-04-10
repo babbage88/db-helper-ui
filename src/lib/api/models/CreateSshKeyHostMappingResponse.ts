@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { UUID } from './UUID';
 export type CreateSshKeyHostMappingResponse = {
     /**
      * Creation timestamp
@@ -11,29 +12,17 @@ export type CreateSshKeyHostMappingResponse = {
      * Error message if the operation failed
      */
     error?: string;
-    /**
-     * ID of the host server
-     */
-    hostServerId: string;
+    hostServerId: UUID;
     /**
      * Username on the host server
      */
     hostserverUsername: string;
-    /**
-     * ID of the created mapping
-     */
-    id: string;
+    id: UUID;
     /**
      * Last modification timestamp
      */
     lastModified: string;
-    /**
-     * ID of the SSH key
-     */
-    sshKeyId: string;
-    /**
-     * ID of the user
-     */
-    userId: string;
+    sshKeyId: UUID;
+    userId: UUID;
 };
 
