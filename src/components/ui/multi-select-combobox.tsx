@@ -52,6 +52,13 @@ export function MultiSelectCombobox({
   const selectedLabels = options
     .filter((o) => value.includes(o.value))
     .map((o) => o.label);
+  const previewLabels = selectedLabels.slice(0, 3);
+  const additionalCount = Math.max(0, selectedLabels.length - previewLabels.length);
+  const triggerLabel = selectedLabels.length === 0
+    ? placeholder
+    : additionalCount > 0
+      ? `${previewLabels.join(", ")} +${additionalCount} more`
+      : selectedLabels.join(", ");
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -60,18 +67,18 @@ export function MultiSelectCombobox({
           variant="outline"
           role="combobox"
           disabled={disabled}
-          className="w-full justify-between"
+          className="w-full justify-between gap-2 overflow-hidden"
         >
-          {selectedLabels.length > 0
-            ? selectedLabels.join(", ")
-            : placeholder}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <span className="min-w-0 flex-1 truncate text-left">
+            {triggerLabel}
+          </span>
+          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-full p-0">
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
         <Command>
-          <CommandInput placeholder="Search roles..." />
+          <CommandInput placeholder="Search options..." />
           <CommandEmpty>No results found.</CommandEmpty>
 
           <CommandGroup className="max-h-64 overflow-y-auto">
