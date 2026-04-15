@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build-dev": "tsc -b && vite build --mode dev --outDir builds/dev/",
     "build-test": "tsc -b && vite build --mode test --outDir builds/test/",
     "lint": "eslint .",
     "ci": "npm ci",
