@@ -56,7 +56,7 @@ export default function LoginPage() {
 
     const apiBaseUrl = import.meta.env.VITE_API_WEB_INFRA_URL;
     const callbackUrl = `${window.location.origin}/login/github/callback`;
-    const startUrl = new URL("/auth/github/start", apiBaseUrl);
+    const startUrl = new URL("auth/github/start", `${apiBaseUrl.replace(/\/+$/, "")}/`);
     startUrl.searchParams.set("redirect_uri", callbackUrl);
 
     window.location.assign(startUrl.toString());

@@ -30,7 +30,7 @@ export default function LoginGithubCallbackPage() {
 
     if (code && state) {
       const apiBaseUrl = import.meta.env.VITE_API_WEB_INFRA_URL;
-      const backendCallbackUrl = new URL("/auth/github/callback", apiBaseUrl);
+      const backendCallbackUrl = new URL("auth/github/callback", `${apiBaseUrl.replace(/\/+$/, "")}/`);
       backendCallbackUrl.searchParams.set("code", code);
       backendCallbackUrl.searchParams.set("state", state);
       backendCallbackUrl.searchParams.set("redirect_uri", `${window.location.origin}/login/github/callback`);
