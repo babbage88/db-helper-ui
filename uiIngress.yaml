@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: db-helper-ui-ingress
+  name: infractl-ui-ingress
   namespace: default
 spec:
   ingressClassName: nginx
@@ -13,7 +13,7 @@ spec:
             path: /assets/
             backend:
               service:
-                name: db-helper-ui-csvc
+                name: infractl-ui-csvc
                 port:
                   number: 8080
 
@@ -21,7 +21,7 @@ spec:
             path: /favicon.ico
             backend:
               service:
-                name: db-helper-ui-csvc
+                name: infractl-ui-csvc
                 port:
                   number: 8080
 
@@ -29,7 +29,7 @@ spec:
             path: /manifest.json
             backend:
               service:
-                name: db-helper-ui-csvc
+                name: infractl-ui-csvc
                 port:
                   number: 8080
 
@@ -37,6 +37,6 @@ spec:
             path: /
             backend:
               service:
-                name: db-helper-ui-csvc
+                name: infractl-ui-csvc
                 port:
                   number: 8080

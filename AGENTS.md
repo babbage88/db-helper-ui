@@ -1,10 +1,10 @@
-# db-helper-ui Agent Guide
+# infractl-ui Agent Guide
 
 Keep this file short on purpose. It is here to help agents work safely in this package, not to restate full product docs.
 
 ## What This App Is
 
-`db-helper-ui` is the React/Vite frontend for the infrastructure dashboard. It talks to `go-infra` through the generated client in `src/lib/api`.
+`infractl-ui` is the React/Vite frontend for the infrastructure dashboard. It talks to `go-infra` through the generated client in `src/lib/api`.
 
 ## Stack
 

@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: db-helper-ui-csvc
+  name: infractl-ui-csvc
 spec:
   selector:
-    app: db-helper-ui
+    app: infractl-ui
   ports:
     - protocol: TCP
       port: 8080

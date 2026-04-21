@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: db-helper-ui
+  name: infractl-ui
   labels:
-    app: db-helper-ui
+    app: infractl-ui
 spec:
   replicas: 2 # Initial number of replicas
   selector:
     matchLabels:
-      app: db-helper-ui
+      app: infractl-ui
   template:
     metadata:
       labels:
-        app: db-helper-ui
+        app: infractl-ui
     spec:
       containers:
-        - name: db-helper-ui
+        - name: infractl-ui
           image: ghcr.io/babbage88/dbhelperui:v0.0.3
           imagePullPolicy: Always
           ports:
@@ -31,7 +31,7 @@ spec:
               value: "https://dbhelperui.trahan.dev/api"
               #value: "https://infra.trahan.dev"
             - name: VITE_DOCS_README_URL
-              value: "https://raw.githubusercontent.com/babbage88/db-helper-ui/refs/heads/master/README.md"
+              value: "https://raw.githubusercontent.com/babbage88/infractl-ui/refs/heads/master/README.md"
             - name: VITE_CF_APP_ID
               value: "ab6e0326-1688-46a5-b656-f43440980699"
             - name: NODE_ENV
@@ -46,12 +46,12 @@ spec:
 #apiVersion: autoscaling/v2
 #kind: HorizontalPodAutoscaler
 #metadata:
-#  name: db-helper-ui-hpa
+#  name: infractl-ui-hpa
 #spec:
 #  scaleTargetRef:
 #    apiVersion: apps/v1
 #    kind: Deployment
-#    name: db-helper-ui
+#    name: infractl-ui
 #  minReplicas: 2
 #  maxReplicas: 10
 #  metrics:
@@ -65,16 +65,16 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: db-helper-ui-service
+  name: infractl-ui-service
 spec:
   type: LoadBalancer
   allocateLoadBalancerNodePorts: false
   externalTrafficPolicy: Cluster
   #loadBalancerIP: 10.0.0.73
   selector:
-    app: db-helper-ui
+    app: infractl-ui
   ports:
-    - name: db-helper-ui
+    - name: infractl-ui
       port: 8080
       targetPort: 80
       protocol: TCP
