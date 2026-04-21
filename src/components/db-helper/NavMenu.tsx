@@ -47,10 +47,10 @@ export function NavMenu() {
                     href="/docs"
                   >
                     <div className="mb-2 mt-4 text-lg font-medium">
-                      DbBob
+                      infractl
                     </div>
                     <p className="text-sm leading-tight text-muted-foreground">
-                      Useful utilities for setting up and managing dev databases.
+                      Tools for managing databases, certificates, nodes, users, and infrastructure access.
                     </p>
                   </a>
                 </NavigationMenuLink>
@@ -107,4 +107,3 @@ const ListItem = React.forwardRef<
   )
 })
 ListItem.displayName = "ListItem"
-

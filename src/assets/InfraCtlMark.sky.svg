@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="874" height="874" viewBox="0 0 874 874" role="img" aria-labelledby="title desc">
+  <title id="title">infractl-ui mark</title>
+  <desc id="desc">Minimal infrastructure control plane logo with connected nodes and command prompt motif.</desc>
+  <defs>
+    <linearGradient id="panel" x1="157" y1="154" x2="717" y2="736" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B1324"/>
+      <stop offset="1" stop-color="#172033"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="229" y1="219" x2="652" y2="638" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#46D5FF"/>
+      <stop offset="0.52" stop-color="#2FB6F3"/>
+      <stop offset="1" stop-color="#41E0A4"/>
+    </linearGradient>
+    <filter id="softShadow" x="88" y="90" width="700" height="720" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#07101F" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect width="874" height="874" fill="none"/>
+
+  <g filter="url(#softShadow)">
+    <path
+      d="M437 96 704 250v309L437 713 170 559V250L437 96Z"
+      fill="url(#panel)"
+      stroke="#2D405E"
+      stroke-width="18"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M437 142 664 273v263L437 667 210 536V273L437 142Z"
+      fill="none"
+      stroke="#223A59"
+      stroke-width="4"
+      stroke-linejoin="round"
+    />
+  </g>
+
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M437 245v128" stroke="#5AE7FF" stroke-width="22"/>
+    <path d="M330 430 437 373l107 57" stroke="#5AE7FF" stroke-width="22"/>
+    <path d="M330 430v126" stroke="#41E0A4" stroke-width="22"/>
+    <path d="M544 430v126" stroke="#41E0A4" stroke-width="22"/>
+    <path d="M330 556h214" stroke="url(#accent)" stroke-width="22"/>
+  </g>
+
+  <g>
+    <circle cx="437" cy="245" r="48" fill="#07111F" stroke="#46D5FF" stroke-width="18"/>
+    <circle cx="330" cy="430" r="48" fill="#07111F" stroke="#46D5FF" stroke-width="18"/>
+    <circle cx="544" cy="430" r="48" fill="#07111F" stroke="#46D5FF" stroke-width="18"/>
+    <circle cx="330" cy="556" r="48" fill="#07111F" stroke="#41E0A4" stroke-width="18"/>
+    <circle cx="544" cy="556" r="48" fill="#07111F" stroke="#41E0A4" stroke-width="18"/>
+    <circle cx="437" cy="245" r="15" fill="#E9FBFF"/>
+    <circle cx="330" cy="430" r="15" fill="#E9FBFF"/>
+    <circle cx="544" cy="430" r="15" fill="#E9FBFF"/>
+    <circle cx="330" cy="556" r="15" fill="#E9FBFF"/>
+    <circle cx="544" cy="556" r="15" fill="#E9FBFF"/>
+  </g>
+
+  <g transform="translate(262 618)">
+    <rect width="350" height="88" rx="18" fill="#07111F" stroke="#2D405E" stroke-width="5"/>
+    <path d="m40 32 28 12-28 12" fill="none" stroke="#41E0A4" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M92 59h44" stroke="#46D5FF" stroke-width="10" stroke-linecap="round"/>
+    <text
+      x="166"
+      y="45"
+      fill="#E9FBFF"
+      font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+      font-size="28"
+      font-weight="700"
+      letter-spacing="0"
+    >infractl</text>
+    <text
+      x="168"
+      y="67"
+      fill="#8DA3BE"
+      font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+      font-size="13"
+      font-weight="600"
+      letter-spacing="0"
+    >control plane</text>
+  </g>
+</svg>

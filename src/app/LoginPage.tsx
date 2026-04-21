@@ -1,9 +1,9 @@
-import { GalleryVerticalEnd } from "lucide-react";
+import { Network } from "lucide-react";
 import { LoginForm } from "@/components/login-form";
 import { useNavigate } from "react-router-dom";
 import { AuthenticationService } from "@/lib/api";
 import type { FormEvent } from "react";
-import mascot from "@/assets/DbBobMaskot.sky.svg";
+import mascot from "@/assets/InfraCtlMark.sky.svg";
 import { TokenService } from "@/lib/tokenManager";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { useContext, useState } from "react";
@@ -63,40 +63,46 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-svh">
+    <div className="relative min-h-svh overflow-hidden bg-background">
       <div className="fixed top-4 right-4 z-50">
         <ModeToggle />
       </div>
 
-      <div className="grid min-h-svh lg:grid-cols-2">
-        <div className="flex flex-col gap-4 p-6 md:p-10">
-          <div className="flex items-center gap-2 font-medium p-4">
-            <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-              <GalleryVerticalEnd className="size-4" />
-            </div>
-            DbBob
-          </div>
-
-          <div className="flex flex-1 items-center justify-center">
-            <div className="w-full max-w-xs">
-              <LoginForm
-                onSubmit={handleLoginSubmit}
-                onGitHubLogin={handleGitHubLogin}
-                isSubmitting={isSubmitting}
-                errorMessage={errorMessage}
-              />
-            </div>
-          </div>
+      <div className="absolute left-6 top-6 z-10 flex items-center gap-2 font-medium md:left-10 md:top-10">
+        <div className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-md">
+          <Network className="size-4" />
         </div>
+        infractl
+      </div>
 
-        <div className="relative hidden lg:flex items-center justify-center p-8">
+      <main className="grid min-h-svh md:grid-cols-[minmax(340px,40vw)_1fr]">
+        <section className="flex items-center justify-center px-6 py-24 md:px-10">
+          <div className="w-full max-w-sm">
+            <LoginForm
+              onSubmit={handleLoginSubmit}
+              onGitHubLogin={handleGitHubLogin}
+              isSubmitting={isSubmitting}
+              errorMessage={errorMessage}
+            />
+          </div>
+        </section>
+
+        <section className="relative hidden min-h-svh overflow-hidden border-l bg-muted/20 md:flex md:items-center md:justify-center">
+          <div className="absolute inset-0 opacity-70">
+            <div className="absolute left-[18%] top-0 h-full w-px bg-border" />
+            <div className="absolute left-[48%] top-0 h-full w-px bg-border" />
+            <div className="absolute left-[78%] top-0 h-full w-px bg-border" />
+            <div className="absolute left-0 top-[24%] h-px w-full bg-border" />
+            <div className="absolute left-0 top-[52%] h-px w-full bg-border" />
+            <div className="absolute left-0 top-[80%] h-px w-full bg-border" />
+          </div>
           <img
             src={mascot}
-            alt="DbBob mascot"
-            className="h-full w-full max-h-[500px] object-contain dark:brightness-[0.7]"
+            alt="infractl infrastructure control plane mark"
+            className="relative h-auto w-[min(70vh,620px)] max-w-[82%] object-contain dark:brightness-[0.78]"
           />
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }

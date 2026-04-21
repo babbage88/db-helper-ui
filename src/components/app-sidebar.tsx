@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  AudioWaveform,
   BookOpen,
   Bot,
   Server,
@@ -58,9 +57,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         plan: "Enterprise",
       },
       {
-        name: "DbBob",
-        logo: AudioWaveform,
-        plan: "Startup",
+        name: "infractl",
+        logo: Split,
+        plan: "Control Plane",
       },
       {
         name: "Evil Corp.",
