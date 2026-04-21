@@ -165,7 +165,8 @@ export function Dashboard() {
     [state.buckets]
   );
   const availableStorageBytes = useMemo(
-    () => sumOptional(state.endpoints.map((endpoint) => endpoint.availableStorageBytes)),
+    () =>
+      sumOptional(state.endpoints.map((endpoint) => endpoint.availableStorageBytes)),
     [state.endpoints]
   );
   const totalObjects = useMemo(
@@ -241,13 +242,13 @@ export function Dashboard() {
             icon={Cpu}
           />
           <MetricCard
-            title="S3 Storage"
-            value={formatBytes(usedStorageBytes)}
-            detail={
+            title="Available S3 Storage"
+            value={
               availableStorageBytes === null
-                ? `${state.buckets.length} buckets, ${totalObjects} objects`
-                : `${formatBytes(availableStorageBytes)} available`
+                ? "Not reported"
+                : formatBytes(availableStorageBytes)
             }
+            detail={`${formatBytes(usedStorageBytes)} used in ${state.buckets.length} buckets, ${totalObjects} objects`}
             icon={HardDrive}
           />
         </div>
