@@ -48,7 +48,7 @@ import type { MultiValue } from 'react-select';
 
 const nodeFormSchema = z.object({
   hostname: z.string().min(1, "Hostname is required"),
-  ipAddress: z.string().min(1, "IP Address is required"),
+  ipAddress: z.string().optional(),
   username: z.string().min(1, "Username is required"),
   sudoPassword: z.string().optional(),
   selectedSshKeyId: z.string().min(1, "Please select an SSH key"),
@@ -185,13 +185,15 @@ export function AddNodeDialog({
       } else {
         const createRequest: CreateHostServerRequest = {
           hostname: data.hostname,
-          ip_address: data.ipAddress,
           host_server_type_ids: data.hostServerTypeIds,
           platform_type_ids: data.platformTypeIds,
           username: data.username,
           ssh_key_id: sshKeyId,
           sudo_password_token_id: sudoPasswordId,
         };
+        if (data.ipAddress?.trim()) {
+          createRequest.ip_address = data.ipAddress.trim();
+        }
         const hostServerResponse = await HostServersService.createHostServer(createRequest);
         hostServerId = hostServerResponse.id;
       }
@@ -261,7 +263,7 @@ export function AddNodeDialog({
                 <FormItem>
                   <FormLabel>IP Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="192.168.1.1" {...field} />
+                    <Input placeholder="Optional" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

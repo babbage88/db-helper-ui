@@ -13,7 +13,7 @@ export type CreateHostServerRequest = {
      * Hostname of the server
      */
     hostname: string;
-    ip_address: Addr;
+    ip_address?: Addr;
     /**
      * Platform type IDs that this server supports
      */

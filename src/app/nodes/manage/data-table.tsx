@@ -22,6 +22,7 @@ import { getColumns, type Node } from "./columns";
 import { HostServersService } from "@/lib/api/services/HostServersService";
 import type { HostServerType } from "@/lib/api/models/HostServerType";
 import type { PlatformType } from "@/lib/api/models/PlatformType";
+import type { UpdateHostServerRequest } from "@/lib/api/models/UpdateHostServerRequest";
 import { Label } from "@/components/ui/label";
 import { SecretsService } from "@/lib/api/services/SecretsService";
 import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
@@ -265,7 +266,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
       {/* Responsive Table Container */}
       <div className="rounded-md border overflow-hidden w-full">
         <div className="overflow-x-auto w-full">
-          <Table className="min-w-full w-full">
+          <Table className="w-full min-w-[1100px] table-fixed">
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
@@ -274,6 +275,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
                       key={header.id} 
                       colSpan={header.colSpan}
                       className="whitespace-nowrap"
+                      style={{ width: header.getSize() }}
                     >
                       {header.isPlaceholder
                         ? null
@@ -293,7 +295,8 @@ export function DataTable({ data, onChange }: DataTableProps) {
                     {row.getVisibleCells().map((cell) => (
                       <TableCell 
                         key={cell.id}
-                        className="whitespace-nowrap"
+                        className="whitespace-nowrap align-middle"
+                        style={{ width: cell.column.getSize() }}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
@@ -446,6 +449,254 @@ export function DataTable({ data, onChange }: DataTableProps) {
   );
 }
 
+function NodeDetailsPanel({
+  node,
+  pingStatus,
+}: {
+  node: NodeDetails;
+  pingStatus?: { success: boolean; latency: string; error?: string };
+}) {
+  const stats = node.stats;
+  const usedMemory =
+    stats?.memoryTotalBytes !== undefined && stats?.memoryAvailableBytes !== undefined
+      ? Math.max(stats.memoryTotalBytes - stats.memoryAvailableBytes, 0)
+      : undefined;
+  const usedStorage =
+    stats?.storageTotalBytes !== undefined && stats?.storageAvailableBytes !== undefined
+      ? Math.max(stats.storageTotalBytes - stats.storageAvailableBytes, 0)
+      : undefined;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="truncate text-2xl font-semibold tracking-tight">
+              {node.Hostname || "Unnamed node"}
+            </h2>
+            <StatusBadge status={pingStatus} />
+          </div>
+          <p className="mt-1 font-mono text-sm text-muted-foreground">
+            {node.IpAddress || "No IP address"}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="rounded-md">
+            {stats?.capacityRole ? formatCapacityRole(stats.capacityRole) : "No capacity role"}
+          </Badge>
+          <Badge variant="secondary" className="rounded-md">
+            {node.Username || "No username"}
+          </Badge>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ResourceStat
+          icon={Cpu}
+          label="CPU"
+          value={stats?.cpuCores !== undefined ? `${stats.cpuCores.toLocaleString()} cores` : "Unavailable"}
+        />
+        <ResourceStat
+          icon={MemoryStick}
+          label="Memory"
+          value={stats?.memoryTotalBytes !== undefined ? formatBytes(stats.memoryTotalBytes) : "Unavailable"}
+          detail={
+            usedMemory !== undefined && stats?.memoryAvailableBytes !== undefined
+              ? `${formatBytes(usedMemory)} used, ${formatBytes(stats.memoryAvailableBytes)} available`
+              : undefined
+          }
+        />
+        <ResourceStat
+          icon={HardDrive}
+          label="Storage"
+          value={stats?.storageTotalBytes !== undefined ? formatBytes(stats.storageTotalBytes) : "Unavailable"}
+          detail={
+            usedStorage !== undefined && stats?.storageAvailableBytes !== undefined
+              ? `${formatBytes(usedStorage)} used, ${formatBytes(stats.storageAvailableBytes)} available`
+              : undefined
+          }
+        />
+        <ResourceStat
+          icon={Server}
+          label="Telemetry"
+          value={stats?.status === "ok" ? "Collected" : stats?.status === "error" ? "Error" : "Unavailable"}
+          detail={stats?.collectedAt ? new Date(stats.collectedAt).toLocaleString() : stats?.error}
+        />
+      </div>
+
+      <Separator />
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+        <section className="space-y-4">
+          <h3 className="text-sm font-semibold">Identity</h3>
+          <div className="grid gap-3 rounded-md border p-4">
+            <DetailItem label="Node ID" value={shortId(node.ID)} title={node.ID} />
+            <DetailItem label="Hostname" value={node.Hostname || "-"} />
+            <DetailItem label="IP Address" value={node.IpAddress || "-"} />
+            <DetailItem label="Username" value={node.Username || "-"} />
+            <DetailItem
+              label="Last Modified"
+              value={node.LastModified ? new Date(node.LastModified).toLocaleString() : "N/A"}
+            />
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <h3 className="text-sm font-semibold">Classifications</h3>
+          <div className="space-y-4 rounded-md border p-4">
+            <BadgeGroup title="Host types" items={node.hostServerTypeNames} empty="No host types assigned" />
+            <BadgeGroup title="Platforms" items={node.platformTypeNames} empty="No platforms assigned" />
+          </div>
+        </section>
+      </div>
+
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold">SSH Access Mappings</h3>
+        </div>
+        {node.sshKeyHostMappings?.length ? (
+          <div className="overflow-hidden rounded-md border">
+            <div className="grid grid-cols-[1fr_1fr_1fr] gap-3 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground">
+              <span>User</span>
+              <span>SSH Key</span>
+              <span>Last Modified</span>
+            </div>
+            {node.sshKeyHostMappings.map((mapping) => (
+              <div
+                key={mapping.id}
+                className="grid grid-cols-[1fr_1fr_1fr] gap-3 border-b px-4 py-3 text-sm last:border-b-0"
+              >
+                <span className="min-w-0 truncate">
+                  <UserRound className="mr-2 inline h-3.5 w-3.5 text-muted-foreground" />
+                  {mapping.hostserverUsername || "-"}
+                </span>
+                <span className="min-w-0 truncate font-mono text-xs" title={mapping.sshKeyId}>
+                  {shortId(mapping.sshKeyId)}
+                </span>
+                <span className="min-w-0 truncate text-muted-foreground">
+                  {mapping.lastModified ? new Date(mapping.lastModified).toLocaleString() : "N/A"}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed p-5 text-sm text-muted-foreground">
+            No SSH mappings were returned for this node.
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function ResourceStat({
+  icon: Icon,
+  label,
+  value,
+  detail,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  detail?: string;
+}) {
+  return (
+    <div className="rounded-md border p-4">
+      <div className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
+        <Icon className="h-4 w-4" />
+        {label}
+      </div>
+      <div className="mt-2 text-lg font-semibold">{value}</div>
+      {detail && <div className="mt-1 text-xs text-muted-foreground">{detail}</div>}
+    </div>
+  );
+}
+
+function DetailItem({
+  label,
+  value,
+  title,
+}: {
+  label: string;
+  value: string;
+  title?: string;
+}) {
+  return (
+    <div className="grid grid-cols-[120px_1fr] gap-3 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate font-medium" title={title || value}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function BadgeGroup({
+  title,
+  items,
+  empty,
+}: {
+  title: string;
+  items: string[];
+  empty: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-medium uppercase text-muted-foreground">{title}</div>
+      {items.length ? (
+        <div className="flex flex-wrap gap-2">
+          {items.map((item) => (
+            <Badge key={item} variant="secondary" className="rounded-md">
+              {item}
+            </Badge>
+          ))}
+        </div>
+      ) : (
+        <div className="text-sm text-muted-foreground">{empty}</div>
+      )}
+    </div>
+  );
+}
+
+function StatusBadge({
+  status,
+}: {
+  status?: { success: boolean; latency: string; error?: string };
+}) {
+  if (!status) {
+    return <Badge variant="secondary" className="rounded-md">Checking</Badge>;
+  }
+
+  if (status.success) {
+    return <Badge className="rounded-md bg-green-500 text-white hover:bg-green-500">Online</Badge>;
+  }
+
+  return (
+    <Badge variant="destructive" className="rounded-md" title={status.error}>
+      Offline
+    </Badge>
+  );
+}
+
+function shortId(value?: string) {
+  if (!value) return "-";
+  return value.length > 12 ? `${value.slice(0, 8)}...${value.slice(-4)}` : value;
+}
+
+function formatCapacityRole(role: string) {
+  switch (role) {
+    case "physical":
+      return "Physical capacity";
+    case "hypervisor":
+      return "Hypervisor capacity";
+    case "guest":
+      return "VM/LXC guest";
+    default:
+      return "Unclassified";
+  }
+}
+
 function EditNodeForm({ node, onCancel, onSuccess }: {
   node: Node;
   onCancel: () => void;
@@ -540,15 +791,22 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
         const secretRes = await SecretsService.createUserSecret({ secret: form.SudoPassword });
         sudoPasswordId = secretRes.id;
       }
-      await HostServersService.updateHostServer(node.ID.toString(), {
+      const updateRequest: UpdateHostServerRequest = {
         hostname: form.Hostname,
-        ip_address: form.IpAddress,
         username: form.Username,
         ssh_key_id: sshKeyId,
         sudo_password_token_id: sudoPasswordId,
         host_server_type_ids: form.hostServerTypeIds,
         platform_type_ids: form.platformTypeIds,
-      });
+      };
+
+      if (form.IpAddress.trim()) {
+        updateRequest.ip_address = form.IpAddress.trim();
+      } else {
+        updateRequest.clear_ip_address = true;
+      }
+
+      await HostServersService.updateHostServer(node.ID.toString(), updateRequest);
       // Create host server type mappings
       await Promise.all(
         form.hostServerTypeIds.map(typeId =>
@@ -591,7 +849,7 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
             name="IpAddress"
             value={form.IpAddress}
             onChange={handleChange}
-            required
+            placeholder="Optional"
           />
         </div>
       </div>

@@ -6,6 +6,10 @@ import type { Addr } from './Addr';
 import type { UUID } from './UUID';
 export type UpdateHostServerRequest = {
     /**
+     * Clear IP address from the server
+     */
+    clear_ip_address?: boolean;
+    /**
      * Host server type IDs that this server supports
      */
     host_server_type_ids?: Array<UUID>;
