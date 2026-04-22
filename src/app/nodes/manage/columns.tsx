@@ -10,7 +10,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { EthernetPort, WifiOff } from "lucide-react";
+import type { HostResourceStats } from "@/lib/host-stats-api";
 
 export type Node = {
   ID: string;
@@ -25,6 +27,7 @@ export type Node = {
   PublicSshKeyname?: string;
   mappingId?: string;
   pingStatus?: { success: boolean };
+  stats?: HostResourceStats;
 };
 
 type ActionHandlers = {
@@ -39,6 +42,7 @@ export function getColumns({ onEdit, onDelete, onView, onConnect, pingStatusMap 
   return [
     {
       id: "select",
+      size: 44,
       header: ({ table }) => (
         <Checkbox
           checked={
@@ -62,36 +66,55 @@ export function getColumns({ onEdit, onDelete, onView, onConnect, pingStatusMap 
     {
       accessorKey: "Hostname",
       header: "Hostname",
+      size: 180,
+      cell: ({ row }) => (
+        <div className="max-w-[180px] truncate font-medium" title={row.original.Hostname}>
+          {row.original.Hostname || "-"}
+        </div>
+      ),
     },
     {
       accessorKey: "IpAddress",
       header: "IP Address",
+      size: 132,
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.IpAddress || "-"}
+        </span>
+      ),
     },
     {
       accessorKey: "hostServerTypeNames",
       header: "Type",
+      size: 260,
       cell: ({ row }) => {
         const types = row.original.hostServerTypeNames || [];
-        return types.length ? types.join(", ") : "-";
+        return <CompactBadgeList items={types} empty="Unclassified" maxVisible={2} />;
       },
     },
     {
       accessorKey: "platformTypeNames",
       header: "Platform",
+      size: 280,
       cell: ({ row }) => {
         const plats = row.original.platformTypeNames || [];
-        return (
-          <span className="max-w-xs truncate block" title={plats.join(", ")}>{plats.length ? plats.join(", ") : "-"}</span>
-        );
+        return <CompactBadgeList items={plats} empty="No platform" maxVisible={2} />;
       },
     },
     {
       accessorKey: "Username",
       header: "Username",
+      size: 140,
+      cell: ({ row }) => (
+        <span className="max-w-[140px] truncate font-mono text-xs" title={row.original.Username}>
+          {row.original.Username || "-"}
+        </span>
+      ),
     },
     {
       id: "status",
       header: "Status",
+      size: 132,
       cell: ({ row }) => {
         const status = pingStatusMap ? pingStatusMap[row.original.ID] : undefined;
         if (status === undefined) {
@@ -120,6 +143,7 @@ export function getColumns({ onEdit, onDelete, onView, onConnect, pingStatusMap 
     {
       accessorKey: "LastModified",
       header: "Last Modified",
+      size: 128,
       cell: ({ row }) =>
         row.original.LastModified
           ? new Date(row.original.LastModified).toLocaleDateString()
@@ -127,6 +151,7 @@ export function getColumns({ onEdit, onDelete, onView, onConnect, pingStatusMap 
     },
     {
       id: "actions",
+      size: 56,
       cell: ({ row }) => {
         const node = row.original;
         return (
@@ -159,3 +184,42 @@ export function getColumns({ onEdit, onDelete, onView, onConnect, pingStatusMap 
     },
   ];
 } 
+
+function CompactBadgeList({
+  items,
+  empty,
+  maxVisible,
+}: {
+  items: string[];
+  empty: string;
+  maxVisible: number;
+}) {
+  const visible = items.slice(0, maxVisible);
+  const hiddenCount = Math.max(items.length - visible.length, 0);
+
+  if (!items.length) {
+    return <span className="text-muted-foreground">{empty}</span>;
+  }
+
+  return (
+    <div
+      className="flex max-w-[280px] items-center gap-1 overflow-hidden"
+      title={items.join(", ")}
+    >
+      {visible.map((item) => (
+        <Badge
+          key={item}
+          variant="secondary"
+          className="max-w-[120px] truncate rounded-md px-2 py-0.5 font-normal"
+        >
+          {item}
+        </Badge>
+      ))}
+      {hiddenCount > 0 && (
+        <Badge variant="outline" className="shrink-0 rounded-md px-2 py-0.5 font-normal">
+          +{hiddenCount}
+        </Badge>
+      )}
+    </div>
+  );
+}

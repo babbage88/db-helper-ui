@@ -35,6 +35,10 @@ import {
 } from "@/components/ui/chart";
 import { HostServersService, type HostServerResponse } from "@/lib/api";
 import {
+  hostStatsApi,
+  type HostResourceStatsSummary,
+} from "@/lib/host-stats-api";
+import {
   formatBytes,
   s3AdminApi,
   type S3BucketSummary,
@@ -89,8 +93,16 @@ const memoryChartConfig = {
   },
 } satisfies ChartConfig;
 
+const cpuChartConfig = {
+  cpuCores: {
+    label: "CPU cores",
+    color: "var(--chart-3)",
+  },
+} satisfies ChartConfig;
+
 type DashboardState = {
   hosts: HostServerResponse[];
+  hostStats: HostResourceStatsSummary | null;
   endpoints: S3EndpointSummary[];
   buckets: S3BucketSummary[];
 };
@@ -104,6 +116,7 @@ type HardwareMetrics = {
 export function Dashboard() {
   const [state, setState] = useState<DashboardState>({
     hosts: [],
+    hostStats: null,
     endpoints: [],
     buckets: [],
   });
@@ -118,9 +131,10 @@ export function Dashboard() {
       setError(null);
 
       try {
-        const [hosts, endpoints] = await Promise.all([
+        const [hosts, endpoints, hostStats] = await Promise.all([
           HostServersService.getAllHostServers(),
           s3AdminApi.listEndpoints(),
+          hostStatsApi.getSummary().catch(() => null),
         ]);
 
         const bucketResults = await Promise.allSettled(
@@ -136,7 +150,7 @@ export function Dashboard() {
           return;
         }
 
-        setState({ hosts, endpoints, buckets });
+        setState({ hosts, hostStats, endpoints, buckets });
       } catch (err) {
         if (!isMounted) {
           return;
@@ -159,16 +173,17 @@ export function Dashboard() {
     };
   }, []);
 
-  const hardware = useMemo(() => getHardwareMetrics(state.hosts), [state.hosts]);
+  const hardware = useMemo(
+    () => getHardwareMetrics(state.hostStats),
+    [state.hostStats]
+  );
   const usedStorageBytes = useMemo(
     () => state.buckets.reduce((total, bucket) => total + bucket.totalSize, 0),
     [state.buckets]
   );
-  const availableStorageBytes = useMemo(
-    () =>
-      sumOptional(state.endpoints.map((endpoint) => endpoint.availableStorageBytes)),
-    [state.endpoints]
-  );
+  const availableStorageBytes = state.hostStats?.hasStorage
+    ? state.hostStats.storageAvailableBytes
+    : null;
   const totalObjects = useMemo(
     () => state.buckets.reduce((total, bucket) => total + bucket.objectCount, 0),
     [state.buckets]
@@ -189,6 +204,9 @@ export function Dashboard() {
     [state.buckets]
   );
   const memoryData = useMemo(() => getMemoryData(hardware), [hardware]);
+  const cpuByHostData = useMemo(() => getCpuByHostData(state.hostStats), [
+    state.hostStats,
+  ]);
 
   return (
     <div className="min-h-screen px-3 py-6 sm:px-6 lg:px-8">
@@ -214,35 +232,39 @@ export function Dashboard() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <MetricCard
             title="Managed Hosts"
             value={state.hosts.length.toLocaleString()}
-            detail={`${hostTypeData.length} host type${hostTypeData.length === 1 ? "" : "s"}`}
+            detail={
+              state.hostStats
+                ? `${state.hostStats.reachableHostCount} reachable, ${state.hostStats.guestHostCount} guests`
+                : `${hostTypeData.length} host type${hostTypeData.length === 1 ? "" : "s"}`
+            }
             icon={Server}
           />
           <MetricCard
-            title="Total Memory"
+            title="Physical Memory"
             value={formatMetricBytes(hardware.totalMemoryBytes)}
             detail={
               hardware.availableMemoryBytes === null
-                ? "Available memory not reported"
-                : `${formatBytes(hardware.availableMemoryBytes)} available`
+                ? "Live memory stats unavailable"
+                : `${formatBytes(hardware.availableMemoryBytes)} available on capacity hosts`
             }
             icon={MemoryStick}
           />
           <MetricCard
-            title="CPU Cores"
+            title="Physical CPU Cores"
             value={
               hardware.totalCpuCores === null
                 ? "Not reported"
                 : hardware.totalCpuCores.toLocaleString()
             }
-            detail="Summed from host inventory"
+            detail="Excludes VMs and LXC containers"
             icon={Cpu}
           />
           <MetricCard
-            title="Available S3 Storage"
+            title="Physical Host Storage"
             value={
               availableStorageBytes === null
                 ? "Not reported"
@@ -250,6 +272,20 @@ export function Dashboard() {
             }
             detail={`${formatBytes(usedStorageBytes)} used in ${state.buckets.length} buckets, ${totalObjects} objects`}
             icon={HardDrive}
+          />
+          <MetricCard
+            title="Guest Allocation"
+            value={
+              state.hostStats?.hasGuestCpuCores
+                ? `${state.hostStats.guestTotalCpuCores.toLocaleString()} cores`
+                : "Not reported"
+            }
+            detail={
+              state.hostStats?.hasGuestMemory
+                ? `${formatBytes(state.hostStats.guestMemoryTotalBytes)} guest memory`
+                : "VM/LXC stats are separated"
+            }
+            icon={Cpu}
           />
         </div>
 
@@ -293,7 +329,7 @@ export function Dashboard() {
             <CardHeader>
               <CardTitle>Memory Availability</CardTitle>
               <CardDescription>
-                Total and available memory when hosts report hardware inventory.
+                Physical and hypervisor memory only; guest memory is excluded.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -334,11 +370,47 @@ export function Dashboard() {
                   </PieChart>
                 </ChartContainer>
               ) : (
-                <EmptyChartMessage message="Memory totals are not reported by host_servers yet." />
+                <EmptyChartMessage message="Live memory stats are not available yet." />
               )}
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>CPU Cores By Host</CardTitle>
+            <CardDescription>
+              Live CPU core counts for capacity hosts only.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {cpuByHostData.length ? (
+              <ChartContainer config={cpuChartConfig} className="h-[300px] w-full">
+                <BarChart data={cpuByHostData} margin={{ left: -20, right: 24 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="hostname"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                  />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel />}
+                  />
+                  <Bar
+                    dataKey="cpuCores"
+                    fill="var(--color-cpuCores)"
+                    radius={6}
+                  />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <EmptyChartMessage message="No reachable hosts reported CPU stats." />
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -470,36 +542,15 @@ function getHostTypeData(hosts: HostServerResponse[]) {
     .sort((a, b) => b.count - a.count);
 }
 
-function getHardwareMetrics(hosts: HostServerResponse[]): HardwareMetrics {
-  const memoryTotals = hosts.map((host) =>
-    getFirstNumber(host, [
-      "total_memory_bytes",
-      "memory_total_bytes",
-      "totalMemoryBytes",
-      "memoryTotalBytes",
-    ])
-  );
-  const memoryAvailable = hosts.map((host) =>
-    getFirstNumber(host, [
-      "available_memory_bytes",
-      "memory_available_bytes",
-      "availableMemoryBytes",
-      "memoryAvailableBytes",
-    ])
-  );
-  const cpuCores = hosts.map((host) =>
-    getFirstNumber(host, [
-      "cpu_cores",
-      "total_cpu_cores",
-      "cpuCores",
-      "totalCpuCores",
-    ])
-  );
-
+function getHardwareMetrics(
+  hostStats: HostResourceStatsSummary | null
+): HardwareMetrics {
   return {
-    totalMemoryBytes: sumOptional(memoryTotals),
-    availableMemoryBytes: sumOptional(memoryAvailable),
-    totalCpuCores: sumOptional(cpuCores),
+    totalMemoryBytes: hostStats?.hasMemory ? hostStats.memoryTotalBytes : null,
+    availableMemoryBytes: hostStats?.hasMemory
+      ? hostStats.memoryAvailableBytes
+      : null,
+    totalCpuCores: hostStats?.hasCpuCores ? hostStats.totalCpuCores : null,
   };
 }
 
@@ -526,31 +577,19 @@ function getMemoryData(hardware: HardwareMetrics) {
   ];
 }
 
-function getFirstNumber(
-  source: Record<string, unknown>,
-  keys: string[]
-): number | null {
-  for (const key of keys) {
-    const value = source[key];
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-  }
-
-  return null;
-}
-
-function sumOptional(values: Array<number | null | undefined>) {
-  const numbers = values.filter(
-    (value): value is number =>
-      typeof value === "number" && Number.isFinite(value)
-  );
-
-  if (!numbers.length) {
-    return null;
-  }
-
-  return numbers.reduce((total, value) => total + value, 0);
+function getCpuByHostData(hostStats: HostResourceStatsSummary | null) {
+  return (hostStats?.hosts || [])
+    .filter(
+      (host) =>
+        host.status === "ok" &&
+        typeof host.cpuCores === "number" &&
+        (host.capacityRole === "physical" || host.capacityRole === "hypervisor")
+    )
+    .map((host) => ({
+      hostname: host.hostname || host.ipAddress,
+      cpuCores: host.cpuCores || 0,
+    }))
+    .sort((a, b) => b.cpuCores - a.cpuCores);
 }
 
 function formatMetricBytes(value: number | null) {

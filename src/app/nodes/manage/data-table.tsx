@@ -15,7 +15,9 @@ import {
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, RefreshCw, Filter } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ChevronLeft, ChevronRight, RefreshCw, Filter, Cpu, HardDrive, MemoryStick, Server, ShieldCheck, UserRound } from "lucide-react";
 import { getColumns, type Node } from "./columns";
 import { HostServersService } from "@/lib/api/services/HostServersService";
 import type { HostServerType } from "@/lib/api/models/HostServerType";
@@ -26,6 +28,7 @@ import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappings
 import type { CreateSshKeyHostMappingResponse } from "@/lib/api/models/CreateSshKeyHostMappingResponse";
 import { NetworkPingService } from "@/lib/api/services/NetworkPingService";
 import { TerminalComponent } from "@/app/nodes/manage/terminal/terminal";
+import { formatBytes } from "@/lib/s3-admin-api";
 import ReactSelect from 'react-select';
 import type { MultiValue } from 'react-select';
 
@@ -366,20 +369,22 @@ export function DataTable({ data, onChange }: DataTableProps) {
       {/* Responsive View Modal */}
       {viewNode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 sm:p-4">
-          <div className="bg-card p-2 sm:p-6 rounded shadow-lg w-full sm:max-w-2xl sm:mx-auto max-h-[90vh] overflow-y-auto">
-            <h2 className="font-bold mb-2 text-lg">Node Details</h2>
+          <div className="w-full max-h-[92vh] overflow-y-auto rounded-lg border bg-card p-4 shadow-xl sm:max-w-4xl sm:p-6">
             {isViewLoading ? (
               <div className="flex items-center justify-center py-8">
                 <RefreshCw className="h-6 w-6 animate-spin mr-2" />
                 Loading...
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <pre className="text-xs mb-4 whitespace-pre-wrap">{JSON.stringify(viewNodeDetails, null, 2)}</pre>
-              </div>
+              <NodeDetailsPanel
+                node={viewNodeDetails || viewNode}
+                pingStatus={pingStatusMap[viewNode.ID]}
+              />
             )}
-            <div className="flex justify-end">
-              <Button onClick={() => { setViewNode(null); setViewNodeDetails(null); }}>Close</Button>
+            <div className="mt-6 flex justify-end">
+              <Button onClick={() => { setViewNode(null); setViewNodeDetails(null); }}>
+                Close
+              </Button>
             </div>
           </div>
         </div>
