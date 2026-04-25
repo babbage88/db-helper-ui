@@ -713,7 +713,7 @@ function WorkloadTable({
                   <td className="px-3 py-2">{item.node || "-"}</td>
                   <td className="px-3 py-2">{typeof item.cpu === "number" ? item.cpu.toFixed(2) : "-"}</td>
                   <td className="px-3 py-2">{formatSize(item.mem, item.maxmem)}</td>
-                  <td className="px-3 py-2">{formatSize(item.disk, item.maxdisk)}</td>
+                  <td className="px-3 py-2">{formatSize(getDiskUsed(item), item.maxdisk)}</td>
                 </tr>
               ))
             )}
@@ -734,6 +734,13 @@ function formatSize(used?: number, total?: number) {
 
   if (used === undefined && total === undefined) return "-";
   return `${formatter(used)} / ${formatter(total)}`;
+}
+
+function getDiskUsed(item: ProxmoxWorkload | ProxmoxVM | ProxmoxContainer) {
+  if ("disk" in item && typeof item.disk === "number") {
+    return item.disk;
+  }
+  return undefined;
 }
 
 function TextInput({
