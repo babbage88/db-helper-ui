@@ -54,6 +54,7 @@ export type { GetRolesPermissionCountResponse } from './models/GetRolesPermissio
 export type { GetUserByIdResponse } from './models/GetUserByIdResponse';
 export type { HostedDbPlatform } from './models/HostedDbPlatform';
 export type { HostServer } from './models/HostServer';
+export type { HostServerIDResponse } from './models/HostServerIDResponse';
 export type { HostServerResponse } from './models/HostServerResponse';
 export type { HostServersResponse } from './models/HostServersResponse';
 export type { HostServerType } from './models/HostServerType';

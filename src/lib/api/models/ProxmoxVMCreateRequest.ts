@@ -2,11 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { ProxmoxAuthOptions } from './ProxmoxAuthOptions';
-import type { SSHOptions } from './SSHOptions';
 import type { UUID } from './UUID';
 export type ProxmoxVMCreateRequest = {
-    auth?: ProxmoxAuthOptions;
     ci_custom_script?: string;
     ci_password?: string;
     ci_snippets_storage?: string;
@@ -23,7 +20,6 @@ export type ProxmoxVMCreateRequest = {
     proxmox_secret_id?: UUID;
     search_domain?: string;
     sockets?: number;
-    ssh?: SSHOptions;
     ssh_public_keys?: Array<string>;
     start?: boolean;
     storage?: string;

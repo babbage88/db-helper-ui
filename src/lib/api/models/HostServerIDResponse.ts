@@ -3,10 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { UUID } from './UUID';
-export type ProxmoxVMStartRequest = {
-    host_server_id?: UUID;
-    node?: string;
-    proxmox_secret_id?: UUID;
-    vmid?: number;
+export type HostServerIDResponse = {
+    id?: UUID;
 };
 

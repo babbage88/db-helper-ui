@@ -2,11 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { ProxmoxAuthOptions } from './ProxmoxAuthOptions';
 import type { UUID } from './UUID';
 export type ProxmoxLXCRequest = {
     arch?: string;
-    auth?: ProxmoxAuthOptions;
     cmode?: string;
     console?: boolean;
     cores?: number;

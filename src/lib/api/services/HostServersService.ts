@@ -7,6 +7,7 @@ import type { CreateHostServerTypeBodyRequest } from '../models/CreateHostServer
 import type { CreateHostServerTypeMappingRequest } from '../models/CreateHostServerTypeMappingRequest';
 import type { CreatePlatformTypeBodyRequest } from '../models/CreatePlatformTypeBodyRequest';
 import type { CreatePlatformTypeMappingRequest } from '../models/CreatePlatformTypeMappingRequest';
+import type { HostServerIDResponse } from '../models/HostServerIDResponse';
 import type { HostServerResponse } from '../models/HostServerResponse';
 import type { HostServerType } from '../models/HostServerType';
 import type { PlatformType } from '../models/PlatformType';
@@ -177,6 +178,29 @@ export class HostServersService {
             url: '/host-servers',
             errors: {
                 401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Get a host server UUID by hostname.
+     * @param hostname Host server hostname
+     * @returns HostServerIDResponse (empty)
+     * @throws ApiError
+     */
+    public static getHostServerIdByHostname(
+        hostname: string,
+    ): CancelablePromise<HostServerIDResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/host-servers/by-hostname/{hostname}/id',
+            path: {
+                'hostname': hostname,
+            },
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                404: `Not Found`,
                 500: `Internal Server Error`,
             },
         });

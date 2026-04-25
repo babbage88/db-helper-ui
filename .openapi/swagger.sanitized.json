@@ -192,12 +192,27 @@
         "operationId": "ListProxmoxContainers",
         "parameters": [
           {
+            "x-go-name": "HostServerID",
+            "description": "Host server ID for a Proxmox VE node. When supplied, auth and SSH details are resolved automatically for the current user.",
+            "name": "host_server_id",
+            "in": "query",
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "x-go-name": "ProxmoxSecretID",
+            "description": "Optional stored Proxmox secret ID to use for this host.",
+            "name": "proxmox_secret_id",
+            "in": "query",
+            "type": "string",
+            "format": "uuid"
+          },
+          {
             "type": "string",
             "x-go-name": "Node",
-            "description": "Proxmox node name.",
+            "description": "Proxmox node name. Optional when host_server_id resolves the node automatically.",
             "name": "node",
-            "in": "query",
-            "required": true
+            "in": "query"
           },
           {
             "type": "boolean",
@@ -296,12 +311,27 @@
         "operationId": "ListProxmoxVMs",
         "parameters": [
           {
+            "x-go-name": "HostServerID",
+            "description": "Host server ID for a Proxmox VE node. When supplied, auth and SSH details are resolved automatically for the current user.",
+            "name": "host_server_id",
+            "in": "query",
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "x-go-name": "ProxmoxSecretID",
+            "description": "Optional stored Proxmox secret ID to use for this host.",
+            "name": "proxmox_secret_id",
+            "in": "query",
+            "type": "string",
+            "format": "uuid"
+          },
+          {
             "type": "string",
             "x-go-name": "Node",
-            "description": "Proxmox node name.",
+            "description": "Proxmox node name. Optional when host_server_id resolves the node automatically.",
             "name": "node",
-            "in": "query",
-            "required": true
+            "in": "query"
           },
           {
             "type": "boolean",
@@ -440,12 +470,27 @@
         "operationId": "ListProxmoxWorkloads",
         "parameters": [
           {
+            "x-go-name": "HostServerID",
+            "description": "Host server ID for a Proxmox VE node. When supplied, auth and SSH details are resolved automatically for the current user.",
+            "name": "host_server_id",
+            "in": "query",
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "x-go-name": "ProxmoxSecretID",
+            "description": "Optional stored Proxmox secret ID to use for this host.",
+            "name": "proxmox_secret_id",
+            "in": "query",
+            "type": "string",
+            "format": "uuid"
+          },
+          {
             "type": "string",
             "x-go-name": "Node",
-            "description": "Proxmox node name.",
+            "description": "Proxmox node name. Optional when host_server_id resolves the node automatically.",
             "name": "node",
-            "in": "query",
-            "required": true
+            "in": "query"
           },
           {
             "type": "boolean",
@@ -1245,6 +1290,43 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/host-servers/by-hostname/{hostname}/id": {
+      "get": {
+        "tags": [
+          "host-servers"
+        ],
+        "summary": "Get a host server UUID by hostname.",
+        "operationId": "GetHostServerIDByHostname",
+        "parameters": [
+          {
+            "type": "string",
+            "example": "server-01.example.com",
+            "x-go-name": "Hostname",
+            "description": "Host server hostname",
+            "name": "hostname",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/HostServerIDResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not Found"
           },
           "500": {
             "description": "Internal Server Error"
@@ -4506,6 +4588,15 @@
       },
       "x-go-package": "github.com/babbage88/go-infra/services/user_crud_svc"
     },
+    "HostServerIDResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/UUID"
+        }
+      },
+      "x-go-package": "github.com/babbage88/go-infra/services/host_servers"
+    },
     "HostServerResponse": {
       "type": "object",
       "title": "HostServerResponse represents a host server response.",
@@ -5003,10 +5094,6 @@
         "host_server_id": {
           "$ref": "#/definitions/UUID"
         },
-        "host_url": {
-          "type": "string",
-          "x-go-name": "HostURL"
-        },
         "node": {
           "type": "string",
           "x-go-name": "Node"
@@ -5022,9 +5109,6 @@
         "role": {
           "type": "string",
           "x-go-name": "Role"
-        },
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
         },
         "store_as_user_secret": {
           "type": "boolean",
@@ -5274,9 +5358,6 @@
           "type": "string",
           "x-go-name": "Arch"
         },
-        "auth": {
-          "$ref": "#/definitions/ProxmoxAuthOptions"
-        },
         "cmode": {
           "type": "string",
           "x-go-name": "Cmode"
@@ -5440,9 +5521,6 @@
           "type": "string",
           "x-go-name": "Realm"
         },
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
-        },
         "username": {
           "type": "string",
           "x-go-name": "Username"
@@ -5548,9 +5626,6 @@
     "ProxmoxVMCreateRequest": {
       "type": "object",
       "properties": {
-        "auth": {
-          "$ref": "#/definitions/ProxmoxAuthOptions"
-        },
         "ci_custom_script": {
           "type": "string",
           "x-go-name": "CICustomScript"
@@ -5615,9 +5690,6 @@
           "type": "integer",
           "format": "int64",
           "x-go-name": "Sockets"
-        },
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
         },
         "ssh_public_keys": {
           "type": "array",
@@ -5699,9 +5771,6 @@
     "ProxmoxVMStartRequest": {
       "type": "object",
       "properties": {
-        "auth": {
-          "$ref": "#/definitions/ProxmoxAuthOptions"
-        },
         "host_server_id": {
           "$ref": "#/definitions/UUID"
         },
@@ -5745,9 +5814,6 @@
         "agent": {
           "type": "boolean",
           "x-go-name": "Agent"
-        },
-        "auth": {
-          "$ref": "#/definitions/ProxmoxAuthOptions"
         },
         "boot_order": {
           "type": "string",
@@ -5813,9 +5879,6 @@
           "type": "integer",
           "format": "int64",
           "x-go-name": "Sockets"
-        },
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
         },
         "storage": {
           "type": "string",
@@ -7149,6 +7212,12 @@
         "items": {
           "$ref": "#/definitions/UserSecretEntry"
         }
+      }
+    },
+    "HostServerIDResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/HostServerIDResponse"
       }
     },
     "HostServerResponse": {

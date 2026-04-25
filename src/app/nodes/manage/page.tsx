@@ -83,7 +83,7 @@ export default function ManageNodesPage() {
       // Removed unused: hostTypeMap, platformTypeMap, hostTypeMappings, platformTypeMappings
       // For demo, assume server.host_server_type_ids and server.platform_type_ids exist (adjust if not)
       const accessibleNodes = allServers
-        .filter(server => server.id && userMappingsMap.has(server.id))
+        .filter(server => server.id)
         .map(server => {
           const mapping = userMappingsMap.get(server.id!);
           const hostServerTypeIds = Array.isArray(server.host_server_types)

@@ -43,19 +43,25 @@ export class ProxmoxService {
     }
     /**
      * List Proxmox LXC containers.
-     * @param node Proxmox node name.
+     * @param hostServerId Host server ID for a Proxmox VE node. When supplied, auth and SSH details are resolved automatically for the current user.
+     * @param proxmoxSecretId Optional stored Proxmox secret ID to use for this host.
+     * @param node Proxmox node name. Optional when host_server_id resolves the node automatically.
      * @param full Whether to include full container info.
      * @returns ProxmoxContainerListResult (empty)
      * @throws ApiError
      */
     public static listProxmoxContainers(
-        node: string,
+        hostServerId?: string,
+        proxmoxSecretId?: string,
+        node?: string,
         full?: boolean,
     ): CancelablePromise<ProxmoxContainerListResult> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/proxmox/container',
             query: {
+                'host_server_id': hostServerId,
+                'proxmox_secret_id': proxmoxSecretId,
                 'node': node,
                 'full': full,
             },
@@ -108,19 +114,25 @@ export class ProxmoxService {
     }
     /**
      * List Proxmox QEMU VMs.
-     * @param node Proxmox node name.
+     * @param hostServerId Host server ID for a Proxmox VE node. When supplied, auth and SSH details are resolved automatically for the current user.
+     * @param proxmoxSecretId Optional stored Proxmox secret ID to use for this host.
+     * @param node Proxmox node name. Optional when host_server_id resolves the node automatically.
      * @param full Whether to include full VM info.
      * @returns ProxmoxVMListResult (empty)
      * @throws ApiError
      */
     public static listProxmoxVMs(
-        node: string,
+        hostServerId?: string,
+        proxmoxSecretId?: string,
+        node?: string,
         full?: boolean,
     ): CancelablePromise<ProxmoxVMListResult> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/proxmox/vm',
             query: {
+                'host_server_id': hostServerId,
+                'proxmox_secret_id': proxmoxSecretId,
                 'node': node,
                 'full': full,
             },
@@ -198,19 +210,25 @@ export class ProxmoxService {
     }
     /**
      * List all Proxmox QEMU VMs and LXC containers for a node.
-     * @param node Proxmox node name.
+     * @param hostServerId Host server ID for a Proxmox VE node. When supplied, auth and SSH details are resolved automatically for the current user.
+     * @param proxmoxSecretId Optional stored Proxmox secret ID to use for this host.
+     * @param node Proxmox node name. Optional when host_server_id resolves the node automatically.
      * @param full Whether to include full workload info.
      * @returns ProxmoxWorkloadInventoryResult (empty)
      * @throws ApiError
      */
     public static listProxmoxWorkloads(
-        node: string,
+        hostServerId?: string,
+        proxmoxSecretId?: string,
+        node?: string,
         full?: boolean,
     ): CancelablePromise<ProxmoxWorkloadInventoryResult> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/proxmox/workload',
             query: {
+                'host_server_id': hostServerId,
+                'proxmox_secret_id': proxmoxSecretId,
                 'node': node,
                 'full': full,
             },

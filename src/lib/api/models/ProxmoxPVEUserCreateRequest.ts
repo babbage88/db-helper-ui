@@ -2,7 +2,6 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { SSHOptions } from './SSHOptions';
 import type { UUID } from './UUID';
 export type ProxmoxPVEUserCreateRequest = {
     comment?: string;
@@ -11,7 +10,6 @@ export type ProxmoxPVEUserCreateRequest = {
     node?: string;
     password?: string;
     realm?: string;
-    ssh?: SSHOptions;
     username?: string;
 };
 

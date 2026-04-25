@@ -2,12 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { ProxmoxAuthOptions } from './ProxmoxAuthOptions';
-import type { SSHOptions } from './SSHOptions';
 import type { UUID } from './UUID';
 export type ProxmoxVMTemplateRequest = {
     agent?: boolean;
-    auth?: ProxmoxAuthOptions;
     boot_order?: string;
     cleanup_image?: boolean;
     cloudinit_storage?: string;
@@ -24,7 +21,6 @@ export type ProxmoxVMTemplateRequest = {
     scsihw?: string;
     serial_console?: boolean;
     sockets?: number;
-    ssh?: SSHOptions;
     storage?: string;
     vmid?: number;
 };
