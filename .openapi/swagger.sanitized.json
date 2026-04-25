@@ -23,6 +23,134 @@
   },
   "host": "localhost:8993",
   "paths": {
+    "/api/v1/database/mariadb/install": {
+      "post": {
+        "tags": [
+          "Deployment"
+        ],
+        "summary": "Install and configure MariaDB for remote access.",
+        "operationId": "InstallMariaDB",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/MariaDBInstallRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/MariaDBInstallResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/database/postgres/app": {
+      "post": {
+        "tags": [
+          "Deployment"
+        ],
+        "summary": "Create or update a PostgreSQL application database and role over SSH.",
+        "operationId": "SetupPostgresApp",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/PostgresAppSetupRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/PostgresAppSetupResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/database/valkey/install": {
+      "post": {
+        "tags": [
+          "Deployment"
+        ],
+        "summary": "Install and configure Valkey for remote access.",
+        "operationId": "InstallValkey",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ValkeyInstallRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ValkeyInstallResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/deploy/systemd-app": {
+      "post": {
+        "tags": [
+          "Deployment"
+        ],
+        "summary": "Build or upload and deploy an application as a remote systemd service.",
+        "operationId": "DeploySystemdApp",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/SystemdAppDeployRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/SystemdAppDeployResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/api/v1/proxmox/container": {
       "get": {
         "tags": [
@@ -33,6 +161,38 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ProxmoxContainerListResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/proxmox/lxc": {
+      "post": {
+        "tags": [
+          "Proxmox"
+        ],
+        "summary": "Create a Proxmox LXC container.",
+        "operationId": "CreateProxmoxLXC",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ProxmoxLXCRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ProxmoxLXCResponse"
           },
           "400": {
             "description": "Invalid request"
@@ -72,6 +232,68 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ProxmoxVMListResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Proxmox"
+        ],
+        "summary": "Create a Proxmox VM from a template.",
+        "operationId": "CreateProxmoxVM",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ProxmoxVMCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ProxmoxVMCreateResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/proxmox/vm/template": {
+      "post": {
+        "tags": [
+          "Proxmox"
+        ],
+        "summary": "Create a Proxmox VM template from a cloud image.",
+        "operationId": "CreateProxmoxVMTemplate",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ProxmoxVMTemplateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ProxmoxVMTemplateResponse"
           },
           "400": {
             "description": "Invalid request"
@@ -137,6 +359,110 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ProxmoxWorkloadInventoryResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/proxy/{name}/install": {
+      "post": {
+        "tags": [
+          "Deployment"
+        ],
+        "summary": "Install and configure a supported proxy on a remote host over SSH.",
+        "operationId": "InstallProxy",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Name",
+            "description": "Proxy name to install.",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ProxyInstallRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ProxyInstallResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/storage/s3/garage/node": {
+      "post": {
+        "tags": [
+          "Deployment"
+        ],
+        "summary": "Install and configure a Garage S3 node on a remote host.",
+        "operationId": "DeployGarageNode",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/GarageNodeRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GarageNodeResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/storage/s3/garage/token": {
+      "post": {
+        "tags": [
+          "Deployment"
+        ],
+        "summary": "Create Garage S3 credentials on a remote host.",
+        "operationId": "CreateGarageToken",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/GarageTokenRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/GarageTokenResponse"
           },
           "400": {
             "description": "Invalid request"
@@ -3714,6 +4040,22 @@
       },
       "x-go-package": "github.com/babbage88/go-infra/services/user_secrets"
     },
+    "GarageNodeRequest": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+    },
+    "GarageNodeResult": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+    },
+    "GarageTokenRequest": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+    },
+    "GarageTokenResult": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+    },
     "GetAllAppPermissionsResponse": {
       "type": "object",
       "properties": {
@@ -3984,6 +4326,14 @@
       "x-go-name": "LocalLoginResponse",
       "x-go-package": "github.com/babbage88/go-infra/api/authapi"
     },
+    "MariaDBInstallRequest": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+    },
+    "MariaDBInstallResult": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+    },
     "NetworkProbeResponse": {
       "type": "object",
       "required": [
@@ -4126,6 +4476,14 @@
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/services/host_servers"
+    },
+    "PostgresAppSetupRequest": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+    },
+    "PostgresAppSetupResult": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
     },
     "ProbeByHostIdRequest": {
       "type": "object",
@@ -4284,6 +4642,147 @@
       },
       "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
     },
+    "ProxmoxLXCRequest": {
+      "type": "object",
+      "properties": {
+        "arch": {
+          "type": "string",
+          "x-go-name": "Arch"
+        },
+        "auth": {
+          "$ref": "#/definitions/ProxmoxAuthOptions"
+        },
+        "cmode": {
+          "type": "string",
+          "x-go-name": "Cmode"
+        },
+        "console": {
+          "type": "boolean",
+          "x-go-name": "Console"
+        },
+        "cores": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Cores"
+        },
+        "cpu_limit": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "CPULimit"
+        },
+        "cpu_units": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "CPUUnits"
+        },
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "features": {
+          "type": "string",
+          "x-go-name": "Features"
+        },
+        "hostname": {
+          "type": "string",
+          "x-go-name": "Hostname"
+        },
+        "memory": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Memory"
+        },
+        "nameserver": {
+          "type": "string",
+          "x-go-name": "Nameserver"
+        },
+        "net0": {
+          "type": "string",
+          "x-go-name": "Net0"
+        },
+        "node": {
+          "type": "string",
+          "x-go-name": "Node"
+        },
+        "ostemplate": {
+          "type": "string",
+          "x-go-name": "OSTemplate"
+        },
+        "password": {
+          "type": "string",
+          "x-go-name": "Password"
+        },
+        "rootfs_size": {
+          "type": "string",
+          "x-go-name": "RootFSSize"
+        },
+        "search_domain": {
+          "type": "string",
+          "x-go-name": "SearchDomain"
+        },
+        "ssh_public_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "SshPublicKeys"
+        },
+        "start": {
+          "type": "boolean",
+          "x-go-name": "Start"
+        },
+        "storage": {
+          "type": "string",
+          "x-go-name": "Storage"
+        },
+        "swap": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Swap"
+        },
+        "unprivileged": {
+          "type": "boolean",
+          "x-go-name": "Unprivileged"
+        },
+        "vmid": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "VMID"
+        }
+      },
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
+    },
+    "ProxmoxLXCResult": {
+      "type": "object",
+      "properties": {
+        "console": {
+          "type": "boolean",
+          "x-go-name": "Console"
+        },
+        "hostname": {
+          "type": "string",
+          "x-go-name": "Hostname"
+        },
+        "node": {
+          "type": "string",
+          "x-go-name": "Node"
+        },
+        "started": {
+          "type": "boolean",
+          "x-go-name": "Started"
+        },
+        "status": {
+          "type": "string",
+          "x-go-name": "Status"
+        },
+        "vmid": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "VMID"
+        }
+      },
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
+    },
     "ProxmoxVM": {
       "type": "object",
       "properties": {
@@ -4349,6 +4848,134 @@
       },
       "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
     },
+    "ProxmoxVMCreateRequest": {
+      "type": "object",
+      "properties": {
+        "auth": {
+          "$ref": "#/definitions/ProxmoxAuthOptions"
+        },
+        "ci_custom_script": {
+          "type": "string",
+          "x-go-name": "CICustomScript"
+        },
+        "ci_password": {
+          "type": "string",
+          "x-go-name": "CIPassword"
+        },
+        "ci_snippets_storage": {
+          "type": "string",
+          "x-go-name": "CISnippetsStorage"
+        },
+        "ci_user": {
+          "type": "string",
+          "x-go-name": "CIUser"
+        },
+        "cores": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Cores"
+        },
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "full_clone": {
+          "type": "boolean",
+          "x-go-name": "FullClone"
+        },
+        "ipconfig0": {
+          "type": "string",
+          "x-go-name": "IPConfig0"
+        },
+        "memory_mb": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "MemoryMB"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "nameserver": {
+          "type": "string",
+          "x-go-name": "Nameserver"
+        },
+        "node": {
+          "type": "string",
+          "x-go-name": "Node"
+        },
+        "search_domain": {
+          "type": "string",
+          "x-go-name": "SearchDomain"
+        },
+        "sockets": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Sockets"
+        },
+        "ssh": {
+          "$ref": "#/definitions/SSHOptions"
+        },
+        "ssh_public_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "SshPublicKeys"
+        },
+        "start": {
+          "type": "boolean",
+          "x-go-name": "Start"
+        },
+        "storage": {
+          "type": "string",
+          "x-go-name": "Storage"
+        },
+        "template_vmid": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "TemplateVMID"
+        },
+        "vmid": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "VMID"
+        }
+      },
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
+    },
+    "ProxmoxVMCreateResult": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "node": {
+          "type": "string",
+          "x-go-name": "Node"
+        },
+        "started": {
+          "type": "boolean",
+          "x-go-name": "Started"
+        },
+        "status": {
+          "type": "string",
+          "x-go-name": "Status"
+        },
+        "template_vmid": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "TemplateVMID"
+        },
+        "vmid": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "VMID"
+        }
+      },
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
+    },
     "ProxmoxVMListResult": {
       "type": "object",
       "properties": {
@@ -4394,6 +5021,117 @@
         "upid": {
           "type": "string",
           "x-go-name": "UPID"
+        },
+        "vmid": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "VMID"
+        }
+      },
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
+    },
+    "ProxmoxVMTemplateRequest": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "type": "boolean",
+          "x-go-name": "Agent"
+        },
+        "auth": {
+          "$ref": "#/definitions/ProxmoxAuthOptions"
+        },
+        "boot_order": {
+          "type": "string",
+          "x-go-name": "BootOrder"
+        },
+        "cleanup_image": {
+          "type": "boolean",
+          "x-go-name": "CleanupImage"
+        },
+        "cloudinit_storage": {
+          "type": "string",
+          "x-go-name": "CloudInitStorage"
+        },
+        "cores": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Cores"
+        },
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "disk_bus": {
+          "type": "string",
+          "x-go-name": "DiskBus"
+        },
+        "image_url": {
+          "type": "string",
+          "x-go-name": "ImageURL"
+        },
+        "memory_mb": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "MemoryMB"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "net0": {
+          "type": "string",
+          "x-go-name": "Net0"
+        },
+        "node": {
+          "type": "string",
+          "x-go-name": "Node"
+        },
+        "scsihw": {
+          "type": "string",
+          "x-go-name": "SCSIHW"
+        },
+        "serial_console": {
+          "type": "boolean",
+          "x-go-name": "SerialConsole"
+        },
+        "sockets": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Sockets"
+        },
+        "ssh": {
+          "$ref": "#/definitions/SSHOptions"
+        },
+        "storage": {
+          "type": "string",
+          "x-go-name": "Storage"
+        },
+        "vmid": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "VMID"
+        }
+      },
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
+    },
+    "ProxmoxVMTemplateResult": {
+      "type": "object",
+      "properties": {
+        "imported_volume_id": {
+          "type": "string",
+          "x-go-name": "ImportedVolumeID"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "node": {
+          "type": "string",
+          "x-go-name": "Node"
+        },
+        "template": {
+          "type": "boolean",
+          "x-go-name": "Template"
         },
         "vmid": {
           "type": "integer",
@@ -4501,6 +5239,14 @@
       },
       "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
     },
+    "ProxyInstallRequest": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+    },
+    "ProxyInstallResult": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+    },
     "RolePermissionCount": {
       "type": "object",
       "properties": {
@@ -4547,6 +5293,45 @@
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/services/user_crud_svc"
+    },
+    "SSHOptions": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "x-go-name": "Host"
+        },
+        "key_path": {
+          "type": "string",
+          "x-go-name": "KeyPath"
+        },
+        "passphrase": {
+          "type": "string",
+          "x-go-name": "Passphrase"
+        },
+        "port": {
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "Port"
+        },
+        "private_key_base64": {
+          "type": "string",
+          "x-go-name": "PrivateKeyBase64"
+        },
+        "private_key_pem": {
+          "type": "string",
+          "x-go-name": "PrivateKeyPEM"
+        },
+        "use_agent": {
+          "type": "boolean",
+          "x-go-name": "UseAgent"
+        },
+        "user": {
+          "type": "string",
+          "x-go-name": "User"
+        }
+      },
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
     },
     "SoftDeleteRoleByIdRequest": {
       "type": "object",
@@ -4740,6 +5525,14 @@
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/services/ssh_connections"
+    },
+    "SystemdAppDeployRequest": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+    },
+    "SystemdAppDeployResult": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
     },
     "TokenRefreshReq": {
       "type": "object",
@@ -5104,6 +5897,14 @@
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/services/user_secrets"
+    },
+    "ValkeyInstallRequest": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+    },
+    "ValkeyInstallResult": {
+      "type": "object",
+      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
     }
   },
   "responses": {
@@ -5252,6 +6053,18 @@
       "description": "(empty)",
       "schema": {
         "$ref": "#/definitions/EnableDisableUserResponse"
+      }
+    },
+    "GarageNodeResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/GarageNodeResult"
+      }
+    },
+    "GarageTokenResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/GarageTokenResult"
       }
     },
     "GetAllAppPermissionsResponse": {
@@ -5447,6 +6260,12 @@
         "Body": {}
       }
     },
+    "MariaDBInstallResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/MariaDBInstallResult"
+      }
+    },
     "NetworkProbeResponse": {
       "description": "(empty)",
       "schema": {
@@ -5465,10 +6284,28 @@
         "$ref": "#/definitions/PlatformType"
       }
     },
+    "PostgresAppSetupResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/PostgresAppSetupResult"
+      }
+    },
     "ProxmoxContainerListResponse": {
       "description": "(empty)",
       "schema": {
         "$ref": "#/definitions/ProxmoxContainerListResult"
+      }
+    },
+    "ProxmoxLXCResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/ProxmoxLXCResult"
+      }
+    },
+    "ProxmoxVMCreateResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/ProxmoxVMCreateResult"
       }
     },
     "ProxmoxVMListResponse": {
@@ -5483,10 +6320,22 @@
         "$ref": "#/definitions/ProxmoxVMStartResult"
       }
     },
+    "ProxmoxVMTemplateResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/ProxmoxVMTemplateResult"
+      }
+    },
     "ProxmoxWorkloadInventoryResponse": {
       "description": "(empty)",
       "schema": {
         "$ref": "#/definitions/ProxmoxWorkloadInventoryResult"
+      }
+    },
+    "ProxyInstallResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/ProxyInstallResult"
       }
     },
     "RefreshAccessTokenResponse": {
@@ -5533,6 +6382,12 @@
         "$ref": "#/definitions/SoftDeleteUserByIdResponse"
       }
     },
+    "SystemdAppDeployResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/SystemdAppDeployResult"
+      }
+    },
     "UpdateExternalApplicationResponse": {
       "description": "(empty)",
       "schema": {
@@ -5555,6 +6410,12 @@
       "description": "(empty)",
       "schema": {
         "$ref": "#/definitions/UserPasswordUpdateResponse"
+      }
+    },
+    "ValkeyInstallResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/ValkeyInstallResult"
       }
     }
   },

@@ -3,9 +3,15 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { ProxmoxContainerListResult } from '../models/ProxmoxContainerListResult';
+import type { ProxmoxLXCRequest } from '../models/ProxmoxLXCRequest';
+import type { ProxmoxLXCResult } from '../models/ProxmoxLXCResult';
+import type { ProxmoxVMCreateRequest } from '../models/ProxmoxVMCreateRequest';
+import type { ProxmoxVMCreateResult } from '../models/ProxmoxVMCreateResult';
 import type { ProxmoxVMListResult } from '../models/ProxmoxVMListResult';
 import type { ProxmoxVMStartRequest } from '../models/ProxmoxVMStartRequest';
 import type { ProxmoxVMStartResult } from '../models/ProxmoxVMStartResult';
+import type { ProxmoxVMTemplateRequest } from '../models/ProxmoxVMTemplateRequest';
+import type { ProxmoxVMTemplateResult } from '../models/ProxmoxVMTemplateResult';
 import type { ProxmoxWorkloadInventoryResult } from '../models/ProxmoxWorkloadInventoryResult';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
@@ -20,6 +26,26 @@ export class ProxmoxService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/proxmox/container',
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Create a Proxmox LXC container.
+     * @param body
+     * @returns ProxmoxLXCResult (empty)
+     * @throws ApiError
+     */
+    public static createProxmoxLxc(
+        body?: ProxmoxLXCRequest,
+    ): CancelablePromise<ProxmoxLXCResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/lxc',
+            body: body,
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,
@@ -45,6 +71,46 @@ export class ProxmoxService {
                 'node': node,
                 'full': full,
             },
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Create a Proxmox VM from a template.
+     * @param body
+     * @returns ProxmoxVMCreateResult (empty)
+     * @throws ApiError
+     */
+    public static createProxmoxVm(
+        body?: ProxmoxVMCreateRequest,
+    ): CancelablePromise<ProxmoxVMCreateResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/vm',
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Create a Proxmox VM template from a cloud image.
+     * @param body
+     * @returns ProxmoxVMTemplateResult (empty)
+     * @throws ApiError
+     */
+    public static createProxmoxVmTemplate(
+        body?: ProxmoxVMTemplateRequest,
+    ): CancelablePromise<ProxmoxVMTemplateResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/vm/template',
+            body: body,
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,
