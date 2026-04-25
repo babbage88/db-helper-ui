@@ -34,6 +34,8 @@ import type { ProxmoxAPITokenCreateResult } from "@/lib/api/models/ProxmoxAPITok
 import { TerminalComponent } from "@/app/nodes/manage/terminal/terminal";
 import { formatBytes } from "@/lib/s3-admin-api";
 import { showErrorToast, showSuccessToast, showWarningToast } from "@/lib/toast-utils";
+import { ProxmoxManagerDialog } from "./proxmox-manager-dialog";
+import { isProxmoxHypervisorNode } from "./proxmox-utils";
 import ReactSelect from 'react-select';
 import type { MultiValue } from 'react-select';
 
@@ -84,17 +86,6 @@ const defaultProxmoxTokenFormState: ProxmoxTokenFormState = {
   yolo: false,
 };
 
-function isProxmoxHypervisorNode(node: Node) {
-  const platformNames = (node.platformTypeNames || []).map((name) => name.toLowerCase());
-  const hostTypeNames = (node.hostServerTypeNames || []).map((name) => name.toLowerCase());
-  const isProxmoxPlatform = platformNames.some((name) => name.includes("proxmox"));
-  const isHypervisorType = hostTypeNames.some(
-    (name) => name.includes("hypervisor") || name.includes("host")
-  );
-
-  return isProxmoxPlatform && isHypervisorType;
-}
-
 export function DataTable({ data, onChange }: DataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -110,6 +101,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const [pingStatusMap, setPingStatusMap] = React.useState<Record<string, { success: boolean; latency: string; error?: string }>>({});
   const [isPinging, setIsPinging] = React.useState(false);
   const [terminalNode, setTerminalNode] = React.useState<Node | null>(null); // For Terminal modal
+  const [proxmoxManagerNode, setProxmoxManagerNode] = React.useState<Node | null>(null);
   const [isCreateTokenDialogOpen, setIsCreateTokenDialogOpen] = React.useState(false);
   const [isCreatingTokens, setIsCreatingTokens] = React.useState(false);
   const [proxmoxTokenForm, setProxmoxTokenForm] = React.useState<ProxmoxTokenFormState>(
@@ -187,6 +179,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
   };
   const handleDelete = (node: Node) => setDeleteNode(node);
   const handleConnect = (node: Node) => setTerminalNode(node);
+  const handleManageProxmox = (node: Node) => setProxmoxManagerNode(node);
 
   const confirmDeleteMapping = async () => {
     if (!deleteNode || !deleteNode.mappingId) return;
@@ -221,6 +214,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
     onDelete: handleDelete,
     onView: handleView,
     onConnect: handleConnect,
+    onManageProxmox: handleManageProxmox,
     pingStatusMap, // pass the map for use in columns
   }), [pingStatusMap]);
 
@@ -857,6 +851,17 @@ export function DataTable({ data, onChange }: DataTableProps) {
           term="xterm-256color" // You can change this to any term type you want
         />
       )}
+
+      <ProxmoxManagerDialog
+        node={proxmoxManagerNode}
+        open={!!proxmoxManagerNode}
+        onOpenChange={(open) => {
+          if (!open) {
+            setProxmoxManagerNode(null);
+            onChange?.();
+          }
+        }}
+      />
     </div>
   );
 }

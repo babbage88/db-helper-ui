@@ -35,10 +35,11 @@ type ActionHandlers = {
   onDelete: (node: Node) => void;
   onView: (node: Node) => void;
   onConnect: (node: Node) => void;
+  onManageProxmox?: (node: Node) => void;
   pingStatusMap?: Record<string, { success: boolean; latency: string; error?: string }>;
 };
 
-export function getColumns({ onEdit, onDelete, onView, onConnect, pingStatusMap }: ActionHandlers): ColumnDef<Node>[] {
+export function getColumns({ onEdit, onDelete, onView, onConnect, onManageProxmox, pingStatusMap }: ActionHandlers): ColumnDef<Node>[] {
   return [
     {
       id: "select",
@@ -174,6 +175,11 @@ export function getColumns({ onEdit, onDelete, onView, onConnect, pingStatusMap 
               <DropdownMenuItem onClick={() => onView(node)}>
                 View Details
               </DropdownMenuItem>
+              {onManageProxmox && node.platformTypeNames.some((name) => name.toLowerCase().includes("proxmox")) && (
+                <DropdownMenuItem onClick={() => onManageProxmox(node)}>
+                  Manage Proxmox
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => onConnect(node)}>
                 Connect
               </DropdownMenuItem>
