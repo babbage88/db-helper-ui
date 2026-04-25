@@ -12,6 +12,8 @@ export type { Addr } from './models/Addr';
 export type { AppPermissionDao } from './models/AppPermissionDao';
 export type { AuthToken } from './models/AuthToken';
 export type { AuthTokenDao } from './models/AuthTokenDao';
+export type { CertDnsRenewReq } from './models/CertDnsRenewReq';
+export type { CertificateData } from './models/CertificateData';
 export type { CreateAppPermissionRequest } from './models/CreateAppPermissionRequest';
 export type { CreateAppPermissionResult } from './models/CreateAppPermissionResult';
 export type { CreateExternalApplicationRequest } from './models/CreateExternalApplicationRequest';
@@ -35,6 +37,7 @@ export type { DeleteRolePermissionMappingRequest } from './models/DeleteRolePerm
 export type { DeleteRolePermissionMappingResponse } from './models/DeleteRolePermissionMappingResponse';
 export type { DeleteSshKeyHostMappingResponse } from './models/DeleteSshKeyHostMappingResponse';
 export type { DisableUserRequest } from './models/DisableUserRequest';
+export type { Duration } from './models/Duration';
 export type { EnableDisableUserResponse } from './models/EnableDisableUserResponse';
 export type { EnableUserRequest } from './models/EnableUserRequest';
 export type { ExternalApplicationDao } from './models/ExternalApplicationDao';
@@ -98,6 +101,7 @@ export type { UUIDs } from './models/UUIDs';
 
 export { Service } from './services/Service';
 export { AuthenticationService } from './services/AuthenticationService';
+export { CertificatesService } from './services/CertificatesService';
 export { ExternalApplicationsService } from './services/ExternalApplicationsService';
 export { HostServersService } from './services/HostServersService';
 export { NetworkPingService } from './services/NetworkPingService';
