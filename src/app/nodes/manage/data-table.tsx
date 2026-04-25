@@ -28,8 +28,12 @@ import { SecretsService } from "@/lib/api/services/SecretsService";
 import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
 import type { CreateSshKeyHostMappingResponse } from "@/lib/api/models/CreateSshKeyHostMappingResponse";
 import { NetworkPingService } from "@/lib/api/services/NetworkPingService";
+import { ProxmoxService } from "@/lib/api/services/ProxmoxService";
+import type { ProxmoxAPITokenCreateRequest } from "@/lib/api/models/ProxmoxAPITokenCreateRequest";
+import type { ProxmoxAPITokenCreateResult } from "@/lib/api/models/ProxmoxAPITokenCreateResult";
 import { TerminalComponent } from "@/app/nodes/manage/terminal/terminal";
 import { formatBytes } from "@/lib/s3-admin-api";
+import { showErrorToast, showSuccessToast, showWarningToast } from "@/lib/toast-utils";
 import ReactSelect from 'react-select';
 import type { MultiValue } from 'react-select';
 
@@ -40,6 +44,55 @@ interface DataTableProps {
 
 interface NodeDetails extends Node {
   sshKeyHostMappings?: CreateSshKeyHostMappingResponse[];
+}
+
+type ProxmoxTokenFormState = {
+  username: string;
+  realm: string;
+  tokenId: string;
+  comment: string;
+  role: string;
+  aclPath: string;
+  expirationDate: string;
+  daysValid: string;
+  privsep: boolean;
+  force: boolean;
+  verify: boolean;
+  storeAsUserSecret: boolean;
+  yolo: boolean;
+};
+
+type ProxmoxTokenRunResult = {
+  node: Node;
+  result?: ProxmoxAPITokenCreateResult;
+  error?: string;
+};
+
+const defaultProxmoxTokenFormState: ProxmoxTokenFormState = {
+  username: "root",
+  realm: "pam",
+  tokenId: "infractl-ui",
+  comment: "Created from InfraCTL UI",
+  role: "InfraCtlProxmoxManager",
+  aclPath: "/",
+  expirationDate: "",
+  daysValid: "30",
+  privsep: true,
+  force: false,
+  verify: true,
+  storeAsUserSecret: true,
+  yolo: false,
+};
+
+function isProxmoxHypervisorNode(node: Node) {
+  const platformNames = (node.platformTypeNames || []).map((name) => name.toLowerCase());
+  const hostTypeNames = (node.hostServerTypeNames || []).map((name) => name.toLowerCase());
+  const isProxmoxPlatform = platformNames.some((name) => name.includes("proxmox"));
+  const isHypervisorType = hostTypeNames.some(
+    (name) => name.includes("hypervisor") || name.includes("host")
+  );
+
+  return isProxmoxPlatform && isHypervisorType;
 }
 
 export function DataTable({ data, onChange }: DataTableProps) {
@@ -57,6 +110,13 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const [pingStatusMap, setPingStatusMap] = React.useState<Record<string, { success: boolean; latency: string; error?: string }>>({});
   const [isPinging, setIsPinging] = React.useState(false);
   const [terminalNode, setTerminalNode] = React.useState<Node | null>(null); // For Terminal modal
+  const [isCreateTokenDialogOpen, setIsCreateTokenDialogOpen] = React.useState(false);
+  const [isCreatingTokens, setIsCreatingTokens] = React.useState(false);
+  const [proxmoxTokenForm, setProxmoxTokenForm] = React.useState<ProxmoxTokenFormState>(
+    defaultProxmoxTokenFormState
+  );
+  const [proxmoxTokenResults, setProxmoxTokenResults] = React.useState<ProxmoxTokenRunResult[]>([]);
+  const [proxmoxTokenError, setProxmoxTokenError] = React.useState<string | null>(null);
 
   // Ping all nodes to check their status (update as each finishes)
   const pingNodes = React.useCallback(async (nodes: Node[]) => {
@@ -189,6 +249,134 @@ export function DataTable({ data, onChange }: DataTableProps) {
   });
 
   const numSelected = Object.keys(rowSelection).length;
+  const selectedRows = table.getFilteredSelectedRowModel().rows;
+  const selectedNodes = React.useMemo(
+    () => selectedRows.map((row) => row.original),
+    [selectedRows]
+  );
+  const selectedProxmoxNodes = React.useMemo(
+    () => selectedNodes.filter(isProxmoxHypervisorNode),
+    [selectedNodes]
+  );
+  const selectedNonProxmoxNodes = React.useMemo(
+    () => selectedNodes.filter((node) => !isProxmoxHypervisorNode(node)),
+    [selectedNodes]
+  );
+
+  const openCreateTokenDialog = React.useCallback(() => {
+    if (selectedProxmoxNodes.length === 0) {
+      showWarningToast(
+        "Select at least one Proxmox hypervisor",
+        "This action only runs against rows tagged as Proxmox hypervisors."
+      );
+      return;
+    }
+
+    setProxmoxTokenError(null);
+    setProxmoxTokenResults([]);
+    setIsCreateTokenDialogOpen(true);
+  }, [selectedProxmoxNodes.length]);
+
+  const closeCreateTokenDialog = React.useCallback(() => {
+    if (isCreatingTokens) {
+      return;
+    }
+    setIsCreateTokenDialogOpen(false);
+    setProxmoxTokenError(null);
+  }, [isCreatingTokens]);
+
+  const handleTokenFieldChange = React.useCallback(
+    <K extends keyof ProxmoxTokenFormState>(field: K, value: ProxmoxTokenFormState[K]) => {
+      setProxmoxTokenForm((prev) => ({ ...prev, [field]: value }));
+    },
+    []
+  );
+
+  const createSelectedProxmoxTokens = React.useCallback(async () => {
+    if (selectedProxmoxNodes.length === 0) {
+      setProxmoxTokenError("Select at least one Proxmox hypervisor node.");
+      return;
+    }
+    if (proxmoxTokenForm.expirationDate.trim() && proxmoxTokenForm.daysValid.trim()) {
+      setProxmoxTokenError("Use either expiration date or days valid, not both.");
+      return;
+    }
+
+    setIsCreatingTokens(true);
+    setProxmoxTokenError(null);
+    setProxmoxTokenResults([]);
+
+    try {
+      const daysValid = proxmoxTokenForm.daysValid.trim()
+        ? Number(proxmoxTokenForm.daysValid.trim())
+        : undefined;
+
+      if (daysValid !== undefined && (!Number.isInteger(daysValid) || daysValid < 0)) {
+        throw new Error("Days valid must be a whole number greater than or equal to zero.");
+      }
+
+      const requestBase: Omit<ProxmoxAPITokenCreateRequest, "host_server_id"> = {
+        username: proxmoxTokenForm.yolo ? undefined : proxmoxTokenForm.username.trim() || undefined,
+        realm: proxmoxTokenForm.yolo ? undefined : proxmoxTokenForm.realm.trim() || undefined,
+        token_id: proxmoxTokenForm.tokenId.trim() || undefined,
+        comment: proxmoxTokenForm.comment.trim() || undefined,
+        role: proxmoxTokenForm.yolo ? undefined : proxmoxTokenForm.role.trim() || undefined,
+        acl_path: proxmoxTokenForm.yolo ? undefined : proxmoxTokenForm.aclPath.trim() || undefined,
+        expiration_date: proxmoxTokenForm.expirationDate.trim() || undefined,
+        days_valid: daysValid,
+        privsep: proxmoxTokenForm.privsep,
+        force: proxmoxTokenForm.force,
+        verify: proxmoxTokenForm.verify,
+        store_as_user_secret: proxmoxTokenForm.storeAsUserSecret,
+        yolo: proxmoxTokenForm.yolo,
+      };
+
+      const results = await Promise.all(
+        selectedProxmoxNodes.map(async (node) => {
+          try {
+            const result = await ProxmoxService.createProxmoxApiToken({
+              ...requestBase,
+              host_server_id: node.ID,
+            });
+            return { node, result } satisfies ProxmoxTokenRunResult;
+          } catch (error: any) {
+            const message =
+              error?.body ||
+              error?.message ||
+              `Failed to create token on ${node.Hostname || node.IpAddress || node.ID}.`;
+            return { node, error: String(message) } satisfies ProxmoxTokenRunResult;
+          }
+        })
+      );
+
+      setProxmoxTokenResults(results);
+
+      const successCount = results.filter((item) => item.result).length;
+      const failureCount = results.length - successCount;
+
+      if (successCount > 0) {
+        showSuccessToast(
+          `Created ${successCount} Proxmox API token${successCount === 1 ? "" : "s"}`,
+          failureCount > 0 ? `${failureCount} node(s) failed.` : "Results are shown below."
+        );
+      }
+      if (failureCount > 0) {
+        showErrorToast(
+          `Failed on ${failureCount} node${failureCount === 1 ? "" : "s"}`,
+          "Review the per-node errors in the dialog."
+        );
+      }
+
+      onChange?.();
+    } catch (error: any) {
+      const message =
+        error?.message || "Failed to create Proxmox API tokens for the selected nodes.";
+      setProxmoxTokenError(message);
+      showErrorToast("Failed to create Proxmox API tokens", message);
+    } finally {
+      setIsCreatingTokens(false);
+    }
+  }, [onChange, proxmoxTokenForm, selectedProxmoxNodes]);
 
   const confirmBulkDelete = async () => {
     setIsDeleting(true);
@@ -251,6 +439,16 @@ export function DataTable({ data, onChange }: DataTableProps) {
             <span className="hidden sm:inline">{isPinging ? 'Pinging...' : 'Refresh Status'}</span>
             <span className="sm:hidden">{isPinging ? 'Pinging...' : 'Refresh'}</span>
           </Button>
+          {selectedProxmoxNodes.length > 0 && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={openCreateTokenDialog}
+              className="w-full sm:w-auto"
+            >
+              Create Proxmox API Token ({selectedProxmoxNodes.length})
+            </Button>
+          )}
           {numSelected > 0 && (
             <Button
               variant="destructive"
@@ -363,6 +561,220 @@ export function DataTable({ data, onChange }: DataTableProps) {
               </Button>
               <Button variant="outline" onClick={() => setIsBulkDeleteConfirmOpen(false)} disabled={isDeleting} className="w-full sm:w-auto">
                 Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isCreateTokenDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-2 sm:p-4">
+          <div className="bg-card p-4 sm:p-6 rounded shadow-lg w-full sm:max-w-4xl sm:mx-auto max-h-[92vh] overflow-y-auto">
+            <div className="space-y-2">
+              <h2 className="font-bold text-lg">Create Proxmox API Tokens</h2>
+              <p className="text-sm text-muted-foreground">
+                This will call <code>/api/v1/proxmox/api-token</code> once for each selected
+                Proxmox hypervisor node.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Target nodes: {selectedProxmoxNodes.map((node) => node.Hostname || node.IpAddress).join(", ")}
+              </p>
+              {selectedNonProxmoxNodes.length > 0 && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  Ignoring {selectedNonProxmoxNodes.length} selected node(s) that are not tagged as
+                  Proxmox hypervisors.
+                </div>
+              )}
+              {proxmoxTokenError && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                  {proxmoxTokenError}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="proxmox-token-username">Username</Label>
+                <Input
+                  id="proxmox-token-username"
+                  value={proxmoxTokenForm.username}
+                  onChange={(e) => handleTokenFieldChange("username", e.target.value)}
+                  disabled={isCreatingTokens || proxmoxTokenForm.yolo}
+                />
+              </div>
+              <div>
+                <Label htmlFor="proxmox-token-realm">Realm</Label>
+                <Input
+                  id="proxmox-token-realm"
+                  value={proxmoxTokenForm.realm}
+                  onChange={(e) => handleTokenFieldChange("realm", e.target.value)}
+                  disabled={isCreatingTokens || proxmoxTokenForm.yolo}
+                />
+              </div>
+              <div>
+                <Label htmlFor="proxmox-token-id">Token ID</Label>
+                <Input
+                  id="proxmox-token-id"
+                  value={proxmoxTokenForm.tokenId}
+                  onChange={(e) => handleTokenFieldChange("tokenId", e.target.value)}
+                  disabled={isCreatingTokens}
+                />
+              </div>
+              <div>
+                <Label htmlFor="proxmox-token-role">Role</Label>
+                <Input
+                  id="proxmox-token-role"
+                  value={proxmoxTokenForm.role}
+                  onChange={(e) => handleTokenFieldChange("role", e.target.value)}
+                  disabled={isCreatingTokens || proxmoxTokenForm.yolo}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor="proxmox-token-comment">Comment</Label>
+                <Input
+                  id="proxmox-token-comment"
+                  value={proxmoxTokenForm.comment}
+                  onChange={(e) => handleTokenFieldChange("comment", e.target.value)}
+                  disabled={isCreatingTokens}
+                />
+              </div>
+              <div>
+                <Label htmlFor="proxmox-token-acl">ACL Path</Label>
+                <Input
+                  id="proxmox-token-acl"
+                  value={proxmoxTokenForm.aclPath}
+                  onChange={(e) => handleTokenFieldChange("aclPath", e.target.value)}
+                  disabled={isCreatingTokens || proxmoxTokenForm.yolo}
+                />
+              </div>
+              <div>
+                <Label htmlFor="proxmox-token-days">Days Valid</Label>
+                <Input
+                  id="proxmox-token-days"
+                  inputMode="numeric"
+                  value={proxmoxTokenForm.daysValid}
+                  onChange={(e) => handleTokenFieldChange("daysValid", e.target.value)}
+                  disabled={isCreatingTokens || proxmoxTokenForm.expirationDate.trim().length > 0}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor="proxmox-token-expiration">Expiration Date</Label>
+                <Input
+                  id="proxmox-token-expiration"
+                  placeholder="YYYY-MM-DD or RFC3339"
+                  value={proxmoxTokenForm.expirationDate}
+                  onChange={(e) => handleTokenFieldChange("expirationDate", e.target.value)}
+                  disabled={isCreatingTokens || proxmoxTokenForm.daysValid.trim().length > 0}
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={proxmoxTokenForm.privsep}
+                  onChange={(e) => handleTokenFieldChange("privsep", e.target.checked)}
+                  disabled={isCreatingTokens || proxmoxTokenForm.yolo}
+                />
+                Privilege separation
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={proxmoxTokenForm.force}
+                  onChange={(e) => handleTokenFieldChange("force", e.target.checked)}
+                  disabled={isCreatingTokens}
+                />
+                Force recreate if token exists
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={proxmoxTokenForm.verify}
+                  onChange={(e) => handleTokenFieldChange("verify", e.target.checked)}
+                  disabled={isCreatingTokens}
+                />
+                Verify token capabilities
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={proxmoxTokenForm.storeAsUserSecret}
+                  onChange={(e) => handleTokenFieldChange("storeAsUserSecret", e.target.checked)}
+                  disabled={isCreatingTokens}
+                />
+                Store as user secret
+              </label>
+              <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={proxmoxTokenForm.yolo}
+                  onChange={(e) => handleTokenFieldChange("yolo", e.target.checked)}
+                  disabled={isCreatingTokens}
+                />
+                YOLO mode (create root token with broad access)
+              </label>
+            </div>
+
+            {proxmoxTokenResults.length > 0 && (
+              <div className="mt-6 space-y-3">
+                <h3 className="font-semibold">Results</h3>
+                {proxmoxTokenResults.map((item) => (
+                  <div key={item.node.ID} className="rounded-md border p-3">
+                    <div className="font-medium">
+                      {item.node.Hostname || item.node.IpAddress || item.node.ID}
+                    </div>
+                    {item.error ? (
+                      <p className="mt-2 text-sm text-destructive">{item.error}</p>
+                    ) : item.result ? (
+                      <div className="mt-2 space-y-1 text-sm">
+                        <div>
+                          <span className="font-medium">Token:</span> {item.result.full_token_id}
+                        </div>
+                        <div>
+                          <span className="font-medium">Secret:</span> {item.result.secret}
+                        </div>
+                        <div>
+                          <span className="font-medium">API Token:</span> {item.result.api_token}
+                        </div>
+                        <div>
+                          <span className="font-medium">Stored Secret ID:</span>{" "}
+                          {item.result.stored_secret_id || "Not stored"}
+                        </div>
+                        <div>
+                          <span className="font-medium">Role:</span> {item.result.role || "Default"}
+                        </div>
+                        <div>
+                          <span className="font-medium">Expires:</span>{" "}
+                          {item.result.expires_at_unix
+                            ? new Date(item.result.expires_at_unix * 1000).toLocaleString()
+                            : "No expiration"}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-2 sm:justify-end">
+              <Button
+                variant="outline"
+                onClick={closeCreateTokenDialog}
+                disabled={isCreatingTokens}
+                className="w-full sm:w-auto"
+              >
+                Close
+              </Button>
+              <Button
+                onClick={createSelectedProxmoxTokens}
+                disabled={isCreatingTokens || selectedProxmoxNodes.length === 0}
+                className="w-full sm:w-auto"
+              >
+                {isCreatingTokens
+                  ? `Creating for ${selectedProxmoxNodes.length} node(s)...`
+                  : `Create for ${selectedProxmoxNodes.length} node(s)`}
               </Button>
             </div>
           </div>
