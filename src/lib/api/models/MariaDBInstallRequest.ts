@@ -4,11 +4,11 @@
 /* eslint-disable */
 import type { SSHOptions } from './SSHOptions';
 export type MariaDBInstallRequest = {
-    ssh?: SSHOptions;
-    db_name?: string;
-    username?: string;
-    password?: string;
     bind?: string;
+    db_name?: string;
+    password?: string;
     port?: number;
+    ssh?: SSHOptions;
+    username?: string;
 };
 

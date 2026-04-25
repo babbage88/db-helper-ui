@@ -3,12 +3,12 @@
 /* tslint:disable */
 /* eslint-disable */
 export type GarageTokenResult = {
-    host?: string;
-    s3_endpoint?: string;
-    bucket_name?: string;
-    key_name?: string;
     access_key_id?: string;
-    secret_access_key?: string;
+    bucket_name?: string;
+    host?: string;
+    key_name?: string;
     mc_alias_set_command?: string;
+    s3_endpoint?: string;
+    secret_access_key?: string;
 };
 

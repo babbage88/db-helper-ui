@@ -3,10 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export type MariaDBInstallResult = {
+    db_name?: string;
     host?: string;
     port?: number;
-    db_name?: string;
-    username?: string;
     uri?: string;
+    username?: string;
 };
 

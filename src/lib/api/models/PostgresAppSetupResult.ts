@@ -3,12 +3,12 @@
 /* tslint:disable */
 /* eslint-disable */
 export type PostgresAppSetupResult = {
-    host?: string;
     db_name?: string;
-    username?: string;
-    schema_name?: string;
+    host?: string;
     postgres_host?: string;
     postgres_port?: number;
+    schema_name?: string;
     uri?: string;
+    username?: string;
 };
 

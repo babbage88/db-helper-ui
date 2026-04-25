@@ -3,13 +3,15 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { SSHOptions } from './SSHOptions';
+import type { UUID } from './UUID';
 export type ProxmoxPVEUserCreateRequest = {
-    ssh?: SSHOptions;
-    node?: string;
-    username?: string;
-    realm?: string;
     comment?: string;
-    password?: string;
     force?: boolean;
+    host_server_id?: UUID;
+    node?: string;
+    password?: string;
+    realm?: string;
+    ssh?: SSHOptions;
+    username?: string;
 };
 

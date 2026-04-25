@@ -4,6 +4,7 @@
 /* eslint-disable */
 import type { ProxmoxAuthOptions } from './ProxmoxAuthOptions';
 import type { SSHOptions } from './SSHOptions';
+import type { UUID } from './UUID';
 export type ProxmoxVMCreateRequest = {
     auth?: ProxmoxAuthOptions;
     ci_custom_script?: string;
@@ -13,11 +14,13 @@ export type ProxmoxVMCreateRequest = {
     cores?: number;
     description?: string;
     full_clone?: boolean;
+    host_server_id?: UUID;
     ipconfig0?: string;
     memory_mb?: number;
     name?: string;
     nameserver?: string;
     node?: string;
+    proxmox_secret_id?: UUID;
     search_domain?: string;
     sockets?: number;
     ssh?: SSHOptions;

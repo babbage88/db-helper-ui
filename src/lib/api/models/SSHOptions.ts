@@ -4,12 +4,12 @@
 /* eslint-disable */
 export type SSHOptions = {
     host?: string;
-    user?: string;
     key_path?: string;
-    private_key_pem?: string;
-    private_key_base64?: string;
     passphrase?: string;
-    use_agent?: boolean;
     port?: number;
+    private_key_base64?: string;
+    private_key_pem?: string;
+    use_agent?: boolean;
+    user?: string;
 };
 

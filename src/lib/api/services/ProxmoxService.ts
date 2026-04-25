@@ -22,6 +22,26 @@ import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class ProxmoxService {
     /**
+     * Create a Proxmox API token over SSH on a Proxmox node.
+     * @param body
+     * @returns ProxmoxAPITokenCreateResult (empty)
+     * @throws ApiError
+     */
+    public static createProxmoxApiToken(
+        body?: ProxmoxAPITokenCreateRequest,
+    ): CancelablePromise<ProxmoxAPITokenCreateResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/api-token',
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
      * List Proxmox LXC containers.
      * @param node Proxmox node name.
      * @param full Whether to include full container info.
@@ -58,6 +78,26 @@ export class ProxmoxService {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/proxmox/lxc',
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Create a Proxmox user over SSH on a Proxmox node.
+     * @param body
+     * @returns ProxmoxPVEUserCreateResult (empty)
+     * @throws ApiError
+     */
+    public static createProxmoxPveUser(
+        body?: ProxmoxPVEUserCreateRequest,
+    ): CancelablePromise<ProxmoxPVEUserCreateResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/pve-user',
             body: body,
             errors: {
                 400: `Invalid request`,
@@ -174,46 +214,6 @@ export class ProxmoxService {
                 'node': node,
                 'full': full,
             },
-            errors: {
-                400: `Invalid request`,
-                401: `Unauthorized`,
-                500: `Internal Server Error`,
-            },
-        });
-    }
-    /**
-     * Create a Proxmox user over SSH on a Proxmox node.
-     * @param body
-     * @returns ProxmoxPVEUserCreateResult Proxmox PVE user creation response
-     * @throws ApiError
-     */
-    public static createProxmoxPveUser(
-        body?: ProxmoxPVEUserCreateRequest,
-    ): CancelablePromise<ProxmoxPVEUserCreateResult> {
-        return __request(OpenAPI, {
-            method: 'POST',
-            url: '/api/v1/proxmox/pve-user',
-            body: body,
-            errors: {
-                400: `Invalid request`,
-                401: `Unauthorized`,
-                500: `Internal Server Error`,
-            },
-        });
-    }
-    /**
-     * Create a Proxmox API token over SSH on a Proxmox node.
-     * @param body
-     * @returns ProxmoxAPITokenCreateResult Proxmox API token creation response
-     * @throws ApiError
-     */
-    public static createProxmoxApiToken(
-        body?: ProxmoxAPITokenCreateRequest,
-    ): CancelablePromise<ProxmoxAPITokenCreateResult> {
-        return __request(OpenAPI, {
-            method: 'POST',
-            url: '/api/v1/proxmox/api-token',
-            body: body,
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,

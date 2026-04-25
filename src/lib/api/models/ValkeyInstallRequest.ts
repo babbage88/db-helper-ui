@@ -4,11 +4,11 @@
 /* eslint-disable */
 import type { SSHOptions } from './SSHOptions';
 export type ValkeyInstallRequest = {
+    acl_file?: string;
+    bind?: string;
+    password?: string;
+    port?: number;
     ssh?: SSHOptions;
     username?: string;
-    password?: string;
-    bind?: string;
-    port?: number;
-    acl_file?: string;
 };
 

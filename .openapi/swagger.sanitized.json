@@ -151,6 +151,38 @@
         }
       }
     },
+    "/api/v1/proxmox/api-token": {
+      "post": {
+        "tags": [
+          "Proxmox"
+        ],
+        "summary": "Create a Proxmox API token over SSH on a Proxmox node.",
+        "operationId": "CreateProxmoxAPIToken",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ProxmoxAPITokenCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ProxmoxAPITokenCreateResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/api/v1/proxmox/container": {
       "get": {
         "tags": [
@@ -210,6 +242,38 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ProxmoxLXCResponse"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/proxmox/pve-user": {
+      "post": {
+        "tags": [
+          "Proxmox"
+        ],
+        "summary": "Create a Proxmox user over SSH on a Proxmox node.",
+        "operationId": "CreateProxmoxPVEUser",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ProxmoxPVEUserCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ProxmoxPVEUserCreateResponse"
           },
           "400": {
             "description": "Invalid request"
@@ -3303,70 +3367,6 @@
           }
         ]
       }
-    },
-    "/api/v1/proxmox/pve-user": {
-      "post": {
-        "tags": [
-          "Proxmox"
-        ],
-        "summary": "Create a Proxmox user over SSH on a Proxmox node.",
-        "operationId": "CreateProxmoxPVEUser",
-        "parameters": [
-          {
-            "name": "Body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/ProxmoxPVEUserCreateRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ProxmoxPVEUserCreateResponse"
-          },
-          "400": {
-            "description": "Invalid request"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/api/v1/proxmox/api-token": {
-      "post": {
-        "tags": [
-          "Proxmox"
-        ],
-        "summary": "Create a Proxmox API token over SSH on a Proxmox node.",
-        "operationId": "CreateProxmoxAPIToken",
-        "parameters": [
-          {
-            "name": "Body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/ProxmoxAPITokenCreateRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ProxmoxAPITokenCreateResponse"
-          },
-          "400": {
-            "description": "Invalid request"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
     }
   },
   "definitions": {
@@ -4145,12 +4145,13 @@
     "GarageNodeRequest": {
       "type": "object",
       "properties": {
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
-        },
-        "version": {
+        "admin_api_bind_addr": {
           "type": "string",
-          "x-go-name": "Version"
+          "x-go-name": "AdminAPIBindAddr"
+        },
+        "admin_token": {
+          "type": "string",
+          "x-go-name": "AdminToken"
         },
         "binary_path": {
           "type": "string",
@@ -4160,10 +4161,6 @@
           "type": "string",
           "x-go-name": "ConfigPath"
         },
-        "metadata_dir": {
-          "type": "string",
-          "x-go-name": "MetadataDir"
-        },
         "data_dir": {
           "type": "string",
           "x-go-name": "DataDir"
@@ -4171,6 +4168,22 @@
         "db_engine": {
           "type": "string",
           "x-go-name": "DBEngine"
+        },
+        "k2v_api_bind_addr": {
+          "type": "string",
+          "x-go-name": "K2VAPIBindAddr"
+        },
+        "log_level": {
+          "type": "string",
+          "x-go-name": "LogLevel"
+        },
+        "metadata_dir": {
+          "type": "string",
+          "x-go-name": "MetadataDir"
+        },
+        "metrics_token": {
+          "type": "string",
+          "x-go-name": "MetricsToken"
         },
         "replication_factor": {
           "type": "integer",
@@ -4205,33 +4218,20 @@
           "type": "string",
           "x-go-name": "S3WebBindAddr"
         },
-        "s3_web_root_domain": {
-          "type": "string",
-          "x-go-name": "S3WebRootDomain"
-        },
         "s3_web_index": {
           "type": "string",
           "x-go-name": "S3WebIndex"
         },
-        "k2v_api_bind_addr": {
+        "s3_web_root_domain": {
           "type": "string",
-          "x-go-name": "K2VAPIBindAddr"
+          "x-go-name": "S3WebRootDomain"
         },
-        "admin_api_bind_addr": {
-          "type": "string",
-          "x-go-name": "AdminAPIBindAddr"
+        "ssh": {
+          "$ref": "#/definitions/SSHOptions"
         },
-        "admin_token": {
+        "version": {
           "type": "string",
-          "x-go-name": "AdminToken"
-        },
-        "metrics_token": {
-          "type": "string",
-          "x-go-name": "MetricsToken"
-        },
-        "log_level": {
-          "type": "string",
-          "x-go-name": "LogLevel"
+          "x-go-name": "Version"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -4239,9 +4239,13 @@
     "GarageNodeResult": {
       "type": "object",
       "properties": {
-        "host": {
+        "admin_endpoint": {
           "type": "string",
-          "x-go-name": "Host"
+          "x-go-name": "AdminEndpoint"
+        },
+        "admin_token": {
+          "type": "string",
+          "x-go-name": "AdminToken"
         },
         "binary_path": {
           "type": "string",
@@ -4251,9 +4255,13 @@
           "type": "string",
           "x-go-name": "ConfigPath"
         },
-        "service_name": {
+        "host": {
           "type": "string",
-          "x-go-name": "ServiceName"
+          "x-go-name": "Host"
+        },
+        "metrics_token": {
+          "type": "string",
+          "x-go-name": "MetricsToken"
         },
         "rpc_public_addr": {
           "type": "string",
@@ -4263,17 +4271,9 @@
           "type": "string",
           "x-go-name": "S3Endpoint"
         },
-        "admin_endpoint": {
+        "service_name": {
           "type": "string",
-          "x-go-name": "AdminEndpoint"
-        },
-        "admin_token": {
-          "type": "string",
-          "x-go-name": "AdminToken"
-        },
-        "metrics_token": {
-          "type": "string",
-          "x-go-name": "MetricsToken"
+          "x-go-name": "ServiceName"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -4281,24 +4281,13 @@
     "GarageTokenRequest": {
       "type": "object",
       "properties": {
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
-        },
-        "bucket_name": {
-          "type": "string",
-          "x-go-name": "BucketName"
-        },
-        "key_name": {
-          "type": "string",
-          "x-go-name": "KeyName"
-        },
-        "create_bucket": {
-          "type": "boolean",
-          "x-go-name": "CreateBucket"
-        },
         "allow_create_buckets": {
           "type": "boolean",
           "x-go-name": "AllowCreateBuckets"
+        },
+        "allow_owner": {
+          "type": "boolean",
+          "x-go-name": "AllowOwner"
         },
         "allow_read": {
           "type": "boolean",
@@ -4308,29 +4297,40 @@
           "type": "boolean",
           "x-go-name": "AllowWrite"
         },
-        "allow_owner": {
-          "type": "boolean",
-          "x-go-name": "AllowOwner"
-        },
         "binary_path": {
           "type": "string",
           "x-go-name": "BinaryPath"
+        },
+        "bucket_name": {
+          "type": "string",
+          "x-go-name": "BucketName"
         },
         "config_path": {
           "type": "string",
           "x-go-name": "ConfigPath"
         },
-        "s3_endpoint": {
+        "create_bucket": {
+          "type": "boolean",
+          "x-go-name": "CreateBucket"
+        },
+        "key_name": {
           "type": "string",
-          "x-go-name": "S3Endpoint"
+          "x-go-name": "KeyName"
+        },
+        "layout_capacity": {
+          "type": "string",
+          "x-go-name": "LayoutCapacity"
         },
         "layout_zone": {
           "type": "string",
           "x-go-name": "LayoutZone"
         },
-        "layout_capacity": {
+        "s3_endpoint": {
           "type": "string",
-          "x-go-name": "LayoutCapacity"
+          "x-go-name": "S3Endpoint"
+        },
+        "ssh": {
+          "$ref": "#/definitions/SSHOptions"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -4338,33 +4338,33 @@
     "GarageTokenResult": {
       "type": "object",
       "properties": {
-        "host": {
+        "access_key_id": {
           "type": "string",
-          "x-go-name": "Host"
-        },
-        "s3_endpoint": {
-          "type": "string",
-          "x-go-name": "S3Endpoint"
+          "x-go-name": "AccessKeyID"
         },
         "bucket_name": {
           "type": "string",
           "x-go-name": "BucketName"
         },
+        "host": {
+          "type": "string",
+          "x-go-name": "Host"
+        },
         "key_name": {
           "type": "string",
           "x-go-name": "KeyName"
         },
-        "access_key_id": {
+        "mc_alias_set_command": {
           "type": "string",
-          "x-go-name": "AccessKeyID"
+          "x-go-name": "MCAliasSetCommand"
+        },
+        "s3_endpoint": {
+          "type": "string",
+          "x-go-name": "S3Endpoint"
         },
         "secret_access_key": {
           "type": "string",
           "x-go-name": "SecretAccessKey"
-        },
-        "mc_alias_set_command": {
-          "type": "string",
-          "x-go-name": "MCAliasSetCommand"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -4634,29 +4634,29 @@
     "MariaDBInstallRequest": {
       "type": "object",
       "properties": {
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
+        "bind": {
+          "type": "string",
+          "x-go-name": "Bind"
         },
         "db_name": {
           "type": "string",
           "x-go-name": "DatabaseName"
         },
-        "username": {
-          "type": "string",
-          "x-go-name": "Username"
-        },
         "password": {
           "type": "string",
           "x-go-name": "Password"
-        },
-        "bind": {
-          "type": "string",
-          "x-go-name": "Bind"
         },
         "port": {
           "type": "integer",
           "format": "int64",
           "x-go-name": "Port"
+        },
+        "ssh": {
+          "$ref": "#/definitions/SSHOptions"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -4664,6 +4664,10 @@
     "MariaDBInstallResult": {
       "type": "object",
       "properties": {
+        "db_name": {
+          "type": "string",
+          "x-go-name": "DatabaseName"
+        },
         "host": {
           "type": "string",
           "x-go-name": "Host"
@@ -4673,17 +4677,13 @@
           "format": "int64",
           "x-go-name": "Port"
         },
-        "db_name": {
+        "uri": {
           "type": "string",
-          "x-go-name": "DatabaseName"
+          "x-go-name": "URI"
         },
         "username": {
           "type": "string",
           "x-go-name": "Username"
-        },
-        "uri": {
-          "type": "string",
-          "x-go-name": "URI"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -4834,69 +4834,69 @@
     "PostgresAppSetupRequest": {
       "type": "object",
       "properties": {
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
+        "create_db": {
+          "type": "boolean",
+          "x-go-name": "CreateDB"
         },
         "db_name": {
           "type": "string",
           "x-go-name": "DatabaseName"
         },
-        "username": {
-          "type": "string",
-          "x-go-name": "Username"
+        "drop_first": {
+          "type": "boolean",
+          "x-go-name": "DropFirst"
         },
         "password": {
           "type": "string",
           "x-go-name": "Password"
         },
-        "schema_name": {
+        "postgres_conn_db": {
           "type": "string",
-          "x-go-name": "SchemaName"
-        },
-        "create_db": {
-          "type": "boolean",
-          "x-go-name": "CreateDB"
-        },
-        "drop_first": {
-          "type": "boolean",
-          "x-go-name": "DropFirst"
-        },
-        "postgres_user": {
-          "type": "string",
-          "x-go-name": "PostgresUser"
-        },
-        "postgres_password": {
-          "type": "string",
-          "x-go-name": "PostgresPassword"
+          "x-go-name": "PostgresConnDB"
         },
         "postgres_host": {
           "type": "string",
           "x-go-name": "PostgresHost"
+        },
+        "postgres_password": {
+          "type": "string",
+          "x-go-name": "PostgresPassword"
         },
         "postgres_port": {
           "type": "integer",
           "format": "int64",
           "x-go-name": "PostgresPort"
         },
-        "postgres_conn_db": {
+        "postgres_user": {
           "type": "string",
-          "x-go-name": "PostgresConnDB"
-        },
-        "setup_remote_postgres": {
-          "type": "boolean",
-          "x-go-name": "SetupRemotePostgres"
-        },
-        "remote_postgres_hba_cidr": {
-          "type": "string",
-          "x-go-name": "RemotePostgresHBACIDR"
+          "x-go-name": "PostgresUser"
         },
         "remote_postgres_auth_method": {
           "type": "string",
           "x-go-name": "RemotePostgresAuthMethod"
         },
+        "remote_postgres_hba_cidr": {
+          "type": "string",
+          "x-go-name": "RemotePostgresHBACIDR"
+        },
         "remote_postgres_listen_addresses": {
           "type": "string",
           "x-go-name": "RemotePostgresListenAddresses"
+        },
+        "schema_name": {
+          "type": "string",
+          "x-go-name": "SchemaName"
+        },
+        "setup_remote_postgres": {
+          "type": "boolean",
+          "x-go-name": "SetupRemotePostgres"
+        },
+        "ssh": {
+          "$ref": "#/definitions/SSHOptions"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -4904,21 +4904,13 @@
     "PostgresAppSetupResult": {
       "type": "object",
       "properties": {
-        "host": {
-          "type": "string",
-          "x-go-name": "Host"
-        },
         "db_name": {
           "type": "string",
           "x-go-name": "DatabaseName"
         },
-        "username": {
+        "host": {
           "type": "string",
-          "x-go-name": "Username"
-        },
-        "schema_name": {
-          "type": "string",
-          "x-go-name": "SchemaName"
+          "x-go-name": "Host"
         },
         "postgres_host": {
           "type": "string",
@@ -4929,9 +4921,17 @@
           "format": "int64",
           "x-go-name": "PostgresPort"
         },
+        "schema_name": {
+          "type": "string",
+          "x-go-name": "SchemaName"
+        },
         "uri": {
           "type": "string",
           "x-go-name": "URI"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -4975,6 +4975,180 @@
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/services/node_networking"
+    },
+    "ProxmoxAPITokenCreateRequest": {
+      "type": "object",
+      "properties": {
+        "acl_path": {
+          "type": "string",
+          "x-go-name": "ACLPath"
+        },
+        "comment": {
+          "type": "string",
+          "x-go-name": "Comment"
+        },
+        "days_valid": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "DaysValid"
+        },
+        "expiration_date": {
+          "type": "string",
+          "x-go-name": "ExpirationDate"
+        },
+        "force": {
+          "type": "boolean",
+          "x-go-name": "Force"
+        },
+        "host_server_id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "host_url": {
+          "type": "string",
+          "x-go-name": "HostURL"
+        },
+        "node": {
+          "type": "string",
+          "x-go-name": "Node"
+        },
+        "privsep": {
+          "type": "boolean",
+          "x-go-name": "Privsep"
+        },
+        "realm": {
+          "type": "string",
+          "x-go-name": "Realm"
+        },
+        "role": {
+          "type": "string",
+          "x-go-name": "Role"
+        },
+        "ssh": {
+          "$ref": "#/definitions/SSHOptions"
+        },
+        "store_as_user_secret": {
+          "type": "boolean",
+          "x-go-name": "StoreAsUserSecret"
+        },
+        "token_id": {
+          "type": "string",
+          "x-go-name": "TokenID"
+        },
+        "userid": {
+          "type": "string",
+          "x-go-name": "UserID"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
+        },
+        "verify": {
+          "type": "boolean",
+          "x-go-name": "Verify"
+        },
+        "yolo": {
+          "type": "boolean",
+          "x-go-name": "Yolo"
+        }
+      },
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
+    },
+    "ProxmoxAPITokenCreateResult": {
+      "type": "object",
+      "properties": {
+        "acl_path": {
+          "type": "string",
+          "x-go-name": "ACLPath"
+        },
+        "api_token": {
+          "type": "string",
+          "x-go-name": "APIToken"
+        },
+        "assigned_privileges": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "AssignedPrivileges"
+        },
+        "assigned_roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "AssignedRoles"
+        },
+        "direct_checks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "DirectChecks"
+        },
+        "expires_at_unix": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "ExpiresAtUnix"
+        },
+        "full_token_id": {
+          "type": "string",
+          "x-go-name": "FullTokenID"
+        },
+        "host": {
+          "type": "string",
+          "x-go-name": "Host"
+        },
+        "host_url": {
+          "type": "string",
+          "x-go-name": "HostURL"
+        },
+        "inferred_checks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "InferredChecks"
+        },
+        "missing_capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "MissingCapabilities"
+        },
+        "node": {
+          "type": "string",
+          "x-go-name": "Node"
+        },
+        "privsep": {
+          "type": "boolean",
+          "x-go-name": "Privsep"
+        },
+        "role": {
+          "type": "string",
+          "x-go-name": "Role"
+        },
+        "secret": {
+          "type": "string",
+          "x-go-name": "Secret"
+        },
+        "stored_secret_id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "token_id": {
+          "type": "string",
+          "x-go-name": "TokenID"
+        },
+        "userid": {
+          "type": "string",
+          "x-go-name": "UserID"
+        },
+        "yolo": {
+          "type": "boolean",
+          "x-go-name": "Yolo"
+        }
+      },
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
     },
     "ProxmoxAuthOptions": {
       "type": "object",
@@ -5134,6 +5308,9 @@
           "type": "string",
           "x-go-name": "Features"
         },
+        "host_server_id": {
+          "$ref": "#/definitions/UUID"
+        },
         "hostname": {
           "type": "string",
           "x-go-name": "Hostname"
@@ -5162,6 +5339,9 @@
         "password": {
           "type": "string",
           "x-go-name": "Password"
+        },
+        "proxmox_secret_id": {
+          "$ref": "#/definitions/UUID"
         },
         "rootfs_size": {
           "type": "string",
@@ -5230,6 +5410,72 @@
           "type": "integer",
           "format": "int64",
           "x-go-name": "VMID"
+        }
+      },
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
+    },
+    "ProxmoxPVEUserCreateRequest": {
+      "type": "object",
+      "properties": {
+        "comment": {
+          "type": "string",
+          "x-go-name": "Comment"
+        },
+        "force": {
+          "type": "boolean",
+          "x-go-name": "Force"
+        },
+        "host_server_id": {
+          "$ref": "#/definitions/UUID"
+        },
+        "node": {
+          "type": "string",
+          "x-go-name": "Node"
+        },
+        "password": {
+          "type": "string",
+          "x-go-name": "Password"
+        },
+        "realm": {
+          "type": "string",
+          "x-go-name": "Realm"
+        },
+        "ssh": {
+          "$ref": "#/definitions/SSHOptions"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
+        }
+      },
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
+    },
+    "ProxmoxPVEUserCreateResult": {
+      "type": "object",
+      "properties": {
+        "created": {
+          "type": "boolean",
+          "x-go-name": "Created"
+        },
+        "host": {
+          "type": "string",
+          "x-go-name": "Host"
+        },
+        "realm": {
+          "type": "string",
+          "x-go-name": "Realm"
+        },
+        "recreated": {
+          "type": "boolean",
+          "x-go-name": "Recreated"
+        },
+        "userid": {
+          "type": "string",
+          "x-go-name": "UserID"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
@@ -5334,6 +5580,9 @@
           "type": "boolean",
           "x-go-name": "FullClone"
         },
+        "host_server_id": {
+          "$ref": "#/definitions/UUID"
+        },
         "ipconfig0": {
           "type": "string",
           "x-go-name": "IPConfig0"
@@ -5354,6 +5603,9 @@
         "node": {
           "type": "string",
           "x-go-name": "Node"
+        },
+        "proxmox_secret_id": {
+          "$ref": "#/definitions/UUID"
         },
         "search_domain": {
           "type": "string",
@@ -5450,9 +5702,15 @@
         "auth": {
           "$ref": "#/definitions/ProxmoxAuthOptions"
         },
+        "host_server_id": {
+          "$ref": "#/definitions/UUID"
+        },
         "node": {
           "type": "string",
           "x-go-name": "Node"
+        },
+        "proxmox_secret_id": {
+          "$ref": "#/definitions/UUID"
         },
         "vmid": {
           "type": "integer",
@@ -5516,6 +5774,9 @@
           "type": "string",
           "x-go-name": "DiskBus"
         },
+        "host_server_id": {
+          "$ref": "#/definitions/UUID"
+        },
         "image_url": {
           "type": "string",
           "x-go-name": "ImageURL"
@@ -5536,6 +5797,9 @@
         "node": {
           "type": "string",
           "x-go-name": "Node"
+        },
+        "proxmox_secret_id": {
+          "$ref": "#/definitions/UUID"
         },
         "scsihw": {
           "type": "string",
@@ -5693,8 +5957,17 @@
     "ProxyInstallRequest": {
       "type": "object",
       "properties": {
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
+        "binary_name": {
+          "type": "string",
+          "x-go-name": "BinaryName"
+        },
+        "config_path": {
+          "type": "string",
+          "x-go-name": "ConfigPath"
+        },
+        "local_config_path": {
+          "type": "string",
+          "x-go-name": "LocalConfigPath"
         },
         "name": {
           "type": "string",
@@ -5704,21 +5977,12 @@
           "type": "string",
           "x-go-name": "PackageName"
         },
-        "binary_name": {
-          "type": "string",
-          "x-go-name": "BinaryName"
-        },
         "service_name": {
           "type": "string",
           "x-go-name": "ServiceName"
         },
-        "config_path": {
-          "type": "string",
-          "x-go-name": "ConfigPath"
-        },
-        "local_config_path": {
-          "type": "string",
-          "x-go-name": "LocalConfigPath"
+        "ssh": {
+          "$ref": "#/definitions/SSHOptions"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -5726,9 +5990,21 @@
     "ProxyInstallResult": {
       "type": "object",
       "properties": {
+        "binary_name": {
+          "type": "string",
+          "x-go-name": "BinaryName"
+        },
+        "config_path": {
+          "type": "string",
+          "x-go-name": "ConfigPath"
+        },
         "host": {
           "type": "string",
           "x-go-name": "Host"
+        },
+        "local_config_path": {
+          "type": "string",
+          "x-go-name": "LocalConfigPath"
         },
         "name": {
           "type": "string",
@@ -5738,21 +6014,9 @@
           "type": "string",
           "x-go-name": "PackageName"
         },
-        "binary_name": {
-          "type": "string",
-          "x-go-name": "BinaryName"
-        },
         "service_name": {
           "type": "string",
           "x-go-name": "ServiceName"
-        },
-        "config_path": {
-          "type": "string",
-          "x-go-name": "ConfigPath"
-        },
-        "local_config_path": {
-          "type": "string",
-          "x-go-name": "LocalConfigPath"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -5811,37 +6075,37 @@
           "type": "string",
           "x-go-name": "Host"
         },
-        "user": {
-          "type": "string",
-          "x-go-name": "User"
-        },
         "key_path": {
           "type": "string",
           "x-go-name": "KeyPath"
-        },
-        "private_key_pem": {
-          "type": "string",
-          "x-go-name": "PrivateKeyPEM"
-        },
-        "private_key_base64": {
-          "type": "string",
-          "x-go-name": "PrivateKeyBase64"
         },
         "passphrase": {
           "type": "string",
           "x-go-name": "Passphrase"
         },
-        "use_agent": {
-          "type": "boolean",
-          "x-go-name": "UseAgent"
-        },
         "port": {
           "type": "integer",
           "format": "uint64",
           "x-go-name": "Port"
+        },
+        "private_key_base64": {
+          "type": "string",
+          "x-go-name": "PrivateKeyBase64"
+        },
+        "private_key_pem": {
+          "type": "string",
+          "x-go-name": "PrivateKeyPEM"
+        },
+        "use_agent": {
+          "type": "boolean",
+          "x-go-name": "UseAgent"
+        },
+        "user": {
+          "type": "string",
+          "x-go-name": "User"
         }
       },
-      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
     },
     "SoftDeleteRoleByIdRequest": {
       "type": "object",
@@ -6039,12 +6303,13 @@
     "SystemdAppDeployRequest": {
       "type": "object",
       "properties": {
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
-        },
         "app_name": {
           "type": "string",
           "x-go-name": "AppName"
+        },
+        "destination_binary": {
+          "type": "string",
+          "x-go-name": "DestinationBinary"
         },
         "env_vars": {
           "type": "object",
@@ -6053,50 +6318,26 @@
           },
           "x-go-name": "EnvVars"
         },
-        "service_user": {
+        "install_dir": {
           "type": "string",
-          "x-go-name": "ServiceUser"
+          "x-go-name": "InstallDir"
         },
         "service_uid": {
           "type": "integer",
           "format": "int64",
           "x-go-name": "ServiceUID"
         },
-        "destination_binary": {
+        "service_user": {
           "type": "string",
-          "x-go-name": "DestinationBinary"
-        },
-        "install_dir": {
-          "type": "string",
-          "x-go-name": "InstallDir"
-        },
-        "systemd_dir": {
-          "type": "string",
-          "x-go-name": "SystemdDir"
-        },
-        "source_dir": {
-          "type": "string",
-          "x-go-name": "SourceDir"
+          "x-go-name": "ServiceUser"
         },
         "source_bin": {
           "type": "string",
           "x-go-name": "SourceBin"
         },
-        "source_go_module": {
+        "source_dir": {
           "type": "string",
-          "x-go-name": "SourceGoModule"
-        },
-        "source_repo": {
-          "type": "string",
-          "x-go-name": "SourceRepo"
-        },
-        "source_ref": {
-          "type": "string",
-          "x-go-name": "SourceRef"
-        },
-        "source_package": {
-          "type": "string",
-          "x-go-name": "SourcePackage"
+          "x-go-name": "SourceDir"
         },
         "source_excludes": {
           "type": "array",
@@ -6104,6 +6345,29 @@
             "type": "string"
           },
           "x-go-name": "SourceExcludes"
+        },
+        "source_go_module": {
+          "type": "string",
+          "x-go-name": "SourceGoModule"
+        },
+        "source_package": {
+          "type": "string",
+          "x-go-name": "SourcePackage"
+        },
+        "source_ref": {
+          "type": "string",
+          "x-go-name": "SourceRef"
+        },
+        "source_repo": {
+          "type": "string",
+          "x-go-name": "SourceRepo"
+        },
+        "ssh": {
+          "$ref": "#/definitions/SSHOptions"
+        },
+        "systemd_dir": {
+          "type": "string",
+          "x-go-name": "SystemdDir"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -6111,13 +6375,21 @@
     "SystemdAppDeployResult": {
       "type": "object",
       "properties": {
+        "app_name": {
+          "type": "string",
+          "x-go-name": "AppName"
+        },
+        "binary_path": {
+          "type": "string",
+          "x-go-name": "BinaryPath"
+        },
         "host": {
           "type": "string",
           "x-go-name": "Host"
         },
-        "app_name": {
+        "install_dir": {
           "type": "string",
-          "x-go-name": "AppName"
+          "x-go-name": "InstallDir"
         },
         "service_name": {
           "type": "string",
@@ -6127,21 +6399,13 @@
           "type": "string",
           "x-go-name": "ServiceUser"
         },
-        "install_dir": {
+        "source_binary": {
           "type": "string",
-          "x-go-name": "InstallDir"
-        },
-        "binary_path": {
-          "type": "string",
-          "x-go-name": "BinaryPath"
+          "x-go-name": "SourceBinary"
         },
         "systemd_unit": {
           "type": "string",
           "x-go-name": "SystemdUnit"
-        },
-        "source_binary": {
-          "type": "string",
-          "x-go-name": "SourceBinary"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -6513,29 +6777,29 @@
     "ValkeyInstallRequest": {
       "type": "object",
       "properties": {
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
-        },
-        "username": {
+        "acl_file": {
           "type": "string",
-          "x-go-name": "Username"
-        },
-        "password": {
-          "type": "string",
-          "x-go-name": "Password"
+          "x-go-name": "ACLFile"
         },
         "bind": {
           "type": "string",
           "x-go-name": "Bind"
+        },
+        "password": {
+          "type": "string",
+          "x-go-name": "Password"
         },
         "port": {
           "type": "integer",
           "format": "int64",
           "x-go-name": "Port"
         },
-        "acl_file": {
+        "ssh": {
+          "$ref": "#/definitions/SSHOptions"
+        },
+        "username": {
           "type": "string",
-          "x-go-name": "ACLFile"
+          "x-go-name": "Username"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
@@ -6552,243 +6816,16 @@
           "format": "int64",
           "x-go-name": "Port"
         },
-        "username": {
-          "type": "string",
-          "x-go-name": "Username"
-        },
         "uri": {
           "type": "string",
           "x-go-name": "URI"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
-    },
-    "ProxmoxPVEUserCreateRequest": {
-      "type": "object",
-      "properties": {
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
-        },
-        "node": {
-          "type": "string",
-          "x-go-name": "Node"
-        },
-        "username": {
-          "type": "string",
-          "x-go-name": "Username"
-        },
-        "realm": {
-          "type": "string",
-          "x-go-name": "Realm"
-        },
-        "comment": {
-          "type": "string",
-          "x-go-name": "Comment"
-        },
-        "password": {
-          "type": "string",
-          "x-go-name": "Password"
-        },
-        "force": {
-          "type": "boolean",
-          "x-go-name": "Force"
-        }
-      },
-      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
-    },
-    "ProxmoxPVEUserCreateResult": {
-      "type": "object",
-      "properties": {
-        "host": {
-          "type": "string",
-          "x-go-name": "Host"
-        },
-        "userid": {
-          "type": "string",
-          "x-go-name": "UserID"
-        },
-        "username": {
-          "type": "string",
-          "x-go-name": "Username"
-        },
-        "realm": {
-          "type": "string",
-          "x-go-name": "Realm"
-        },
-        "created": {
-          "type": "boolean",
-          "x-go-name": "Created"
-        },
-        "recreated": {
-          "type": "boolean",
-          "x-go-name": "Recreated"
-        }
-      },
-      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
-    },
-    "ProxmoxAPITokenCreateRequest": {
-      "type": "object",
-      "properties": {
-        "ssh": {
-          "$ref": "#/definitions/SSHOptions"
-        },
-        "node": {
-          "type": "string",
-          "x-go-name": "Node"
-        },
-        "host_url": {
-          "type": "string",
-          "x-go-name": "HostURL"
-        },
-        "userid": {
-          "type": "string",
-          "x-go-name": "UserID"
-        },
-        "username": {
-          "type": "string",
-          "x-go-name": "Username"
-        },
-        "realm": {
-          "type": "string",
-          "x-go-name": "Realm"
-        },
-        "token_id": {
-          "type": "string",
-          "x-go-name": "TokenID"
-        },
-        "comment": {
-          "type": "string",
-          "x-go-name": "Comment"
-        },
-        "role": {
-          "type": "string",
-          "x-go-name": "Role"
-        },
-        "acl_path": {
-          "type": "string",
-          "x-go-name": "ACLPath"
-        },
-        "expiration_date": {
-          "type": "string",
-          "x-go-name": "ExpirationDate"
-        },
-        "days_valid": {
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "DaysValid"
-        },
-        "privsep": {
-          "type": "boolean",
-          "x-go-name": "Privsep"
-        },
-        "force": {
-          "type": "boolean",
-          "x-go-name": "Force"
-        },
-        "yolo": {
-          "type": "boolean",
-          "x-go-name": "Yolo"
-        },
-        "verify": {
-          "type": "boolean",
-          "x-go-name": "Verify"
-        }
-      },
-      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
-    },
-    "ProxmoxAPITokenCreateResult": {
-      "type": "object",
-      "properties": {
-        "host": {
-          "type": "string",
-          "x-go-name": "Host"
-        },
-        "node": {
-          "type": "string",
-          "x-go-name": "Node"
-        },
-        "host_url": {
-          "type": "string",
-          "x-go-name": "HostURL"
-        },
-        "userid": {
-          "type": "string",
-          "x-go-name": "UserID"
-        },
-        "token_id": {
-          "type": "string",
-          "x-go-name": "TokenID"
-        },
-        "full_token_id": {
-          "type": "string",
-          "x-go-name": "FullTokenID"
-        },
-        "secret": {
-          "type": "string",
-          "x-go-name": "Secret"
-        },
-        "api_token": {
-          "type": "string",
-          "x-go-name": "APIToken"
-        },
-        "role": {
-          "type": "string",
-          "x-go-name": "Role"
-        },
-        "acl_path": {
-          "type": "string",
-          "x-go-name": "ACLPath"
-        },
-        "expires_at_unix": {
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "ExpiresAtUnix"
-        },
-        "privsep": {
-          "type": "boolean",
-          "x-go-name": "Privsep"
-        },
-        "yolo": {
-          "type": "boolean",
-          "x-go-name": "Yolo"
-        },
-        "assigned_roles": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "AssignedRoles"
-        },
-        "assigned_privileges": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "AssignedPrivileges"
-        },
-        "direct_checks": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "DirectChecks"
-        },
-        "inferred_checks": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "InferredChecks"
-        },
-        "missing_capabilities": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "MissingCapabilities"
-        }
-      },
-      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
     }
   },
   "responses": {
@@ -7174,6 +7211,12 @@
         "$ref": "#/definitions/PostgresAppSetupResult"
       }
     },
+    "ProxmoxAPITokenCreateResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/ProxmoxAPITokenCreateResult"
+      }
+    },
     "ProxmoxContainerListResponse": {
       "description": "(empty)",
       "schema": {
@@ -7184,6 +7227,12 @@
       "description": "(empty)",
       "schema": {
         "$ref": "#/definitions/ProxmoxLXCResult"
+      }
+    },
+    "ProxmoxPVEUserCreateResponse": {
+      "description": "(empty)",
+      "schema": {
+        "$ref": "#/definitions/ProxmoxPVEUserCreateResult"
       }
     },
     "ProxmoxVMCreateResponse": {
@@ -7300,18 +7349,6 @@
       "description": "(empty)",
       "schema": {
         "$ref": "#/definitions/ValkeyInstallResult"
-      }
-    },
-    "ProxmoxPVEUserCreateResponse": {
-      "description": "Proxmox PVE user creation response",
-      "schema": {
-        "$ref": "#/definitions/ProxmoxPVEUserCreateResult"
-      }
-    },
-    "ProxmoxAPITokenCreateResponse": {
-      "description": "Proxmox API token creation response",
-      "schema": {
-        "$ref": "#/definitions/ProxmoxAPITokenCreateResult"
       }
     }
   },

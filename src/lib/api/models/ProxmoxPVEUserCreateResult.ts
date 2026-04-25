@@ -3,11 +3,11 @@
 /* tslint:disable */
 /* eslint-disable */
 export type ProxmoxPVEUserCreateResult = {
+    created?: boolean;
     host?: string;
+    realm?: string;
+    recreated?: boolean;
     userid?: string;
     username?: string;
-    realm?: string;
-    created?: boolean;
-    recreated?: boolean;
 };
 

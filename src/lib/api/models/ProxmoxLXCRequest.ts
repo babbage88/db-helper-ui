@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { ProxmoxAuthOptions } from './ProxmoxAuthOptions';
+import type { UUID } from './UUID';
 export type ProxmoxLXCRequest = {
     arch?: string;
     auth?: ProxmoxAuthOptions;
@@ -13,6 +14,7 @@ export type ProxmoxLXCRequest = {
     cpu_units?: number;
     description?: string;
     features?: string;
+    host_server_id?: UUID;
     hostname?: string;
     memory?: number;
     nameserver?: string;
@@ -20,6 +22,7 @@ export type ProxmoxLXCRequest = {
     node?: string;
     ostemplate?: string;
     password?: string;
+    proxmox_secret_id?: UUID;
     rootfs_size?: string;
     search_domain?: string;
     ssh_public_keys?: Array<string>;

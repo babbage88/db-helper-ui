@@ -5,7 +5,7 @@
 export type ValkeyInstallResult = {
     host?: string;
     port?: number;
-    username?: string;
     uri?: string;
+    username?: string;
 };
 
