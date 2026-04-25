@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/chart";
 import { HostServersService } from "@/lib/api/services/HostServersService";
 import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
-import { TokenService } from "@/lib/tokenManager";
+import { useAuth } from "@/lib/auth-context";
 import {
   hostStatsApi,
   type HostResourceStatsSummary,
@@ -59,12 +59,12 @@ export default function ManageNodesPage() {
   const [hostStats, setHostStats] = React.useState<HostResourceStatsSummary | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
+  const { user } = useAuth();
 
   const fetchNodes = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const userInfo = TokenService.getUserInfo();
-      if (!userInfo || !userInfo.userId) {
+      if (!user?.user_id) {
         console.error("User not logged in");
         setNodes([]);
         return;
@@ -72,7 +72,7 @@ export default function ManageNodesPage() {
 
       const [allServers, userMappings, statsSummary] = await Promise.all([
         HostServersService.getAllHostServers(),
-        SshKeyHostMappingsService.getSshKeyHostMappingsByUserId(userInfo.userId),
+        SshKeyHostMappingsService.getSshKeyHostMappingsByUserId(user.user_id),
         hostStatsApi.getSummary().catch(() => null),
       ]);
 
@@ -121,7 +121,7 @@ export default function ManageNodesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user?.user_id]);
 
   React.useEffect(() => {
     fetchNodes();

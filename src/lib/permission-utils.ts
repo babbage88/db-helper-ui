@@ -1,6 +1,5 @@
 import React from "react";
-import { UserCrudService } from "@/lib/api/services/UserCrudService";
-import type { UserDao } from "@/lib/api/models/UserDao";
+import { authSessionApi } from "@/lib/auth-session";
 
 /**
  * Check if the current user has a specific permission
@@ -9,24 +8,9 @@ export async function checkUserPermission(
   permissionName: string
 ): Promise<boolean> {
   try {
-    // Get the current user info from localStorage
-    const userId = localStorage.getItem("userId");
-    if (!userId) {
-      console.warn("No user ID found in localStorage");
-      return false;
-    }
-
-    // Fetch user details including roles
-    const response = await UserCrudService.getUserById(userId);
-    // Handle response structure - user might be in body.user or just user
-    const user = (response as any).body?.user || response.user as UserDao;
-
-    console.log("Response structure:", { hasBody: !!(response as any).body, hasDirectUser: !!(response as any).user });
-    console.log("Extracted user:", user);
-
+    const user = await authSessionApi.getSession();
     if (!user || !user.roles) {
       console.warn("No user or roles found in response");
-      console.log("User:", user);
       return false;
     }
 

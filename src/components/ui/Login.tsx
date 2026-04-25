@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +12,6 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -24,17 +22,10 @@ export function Login() {
       const request: UserLoginRequest = { username, password };
       const data = await AuthenticationService.localLogin(request);
 
-      const { accessToken, refreshToken, user_id } = data;
-
-      if (!accessToken || !refreshToken) {
+      if (!data.user_id) {
         throw new Error('Invalid response from server');
       }
-
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('userId', user_id ?? '');
-
-      navigate('/dashboard');
+      window.location.assign('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
       setError(`Login failed: ${(err as Error).message}`);

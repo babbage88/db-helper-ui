@@ -39,12 +39,12 @@ import { SshKeysService } from "@/lib/api/services/SshKeysService";
 import type { CreateHostServerRequest } from "@/lib/api/models/CreateHostServerRequest";
 import type { CreateSshKeyHostMappingRequestWithoutUserID } from "@/lib/api/models/CreateSshKeyHostMappingRequestWithoutUserID";
 import type { SshKeyListItem } from "@/lib/api/models/SshKeyListItem";
-import { TokenService } from "@/lib/tokenManager";
 import { AddSshKeyDialog } from "@/components/db-helper/add-ssh-key-dialog";
 import type { HostServerType } from "@/lib/api/models/HostServerType";
 import type { PlatformType } from "@/lib/api/models/PlatformType";
 import ReactSelect from 'react-select';
 import type { MultiValue } from 'react-select';
+import { useAuth } from "@/lib/auth-context";
 
 const nodeFormSchema = z.object({
   hostname: z.string().min(1, "Hostname is required"),
@@ -72,6 +72,7 @@ export function AddNodeDialog({
   onOpenChange,
   onSuccess,
 }: AddNodeDialogProps) {
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [availableSshKeys, setAvailableSshKeys] = React.useState<SshKeyListItem[]>([]);
   const [isLoadingKeys, setIsLoadingKeys] = React.useState(false);
@@ -97,20 +98,19 @@ export function AddNodeDialog({
   const fetchKeys = React.useCallback(async () => {
     setIsLoadingKeys(true);
     try {
-      const userInfo = TokenService.getUserInfo();
-      if (!userInfo || !userInfo.userId) {
+      if (!user?.user_id) {
         console.error("User ID not found. Cannot fetch SSH keys.");
         setAvailableSshKeys([]);
         return;
       }
-      const keys = await SshKeysService.getSshKeysByUserId(userInfo.userId);
+      const keys = await SshKeysService.getSshKeysByUserId(user.user_id);
       setAvailableSshKeys(keys);
     } catch (error) {
       console.error("Failed to fetch SSH keys:", error);
     } finally {
       setIsLoadingKeys(false);
     }
-  }, []);
+  }, [user?.user_id]);
 
   // Fetch host server types and platform types
   const fetchTypes = React.useCallback(async () => {

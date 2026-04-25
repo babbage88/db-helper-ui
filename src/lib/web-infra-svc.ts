@@ -1,11 +1,11 @@
 import { OpenAPI } from "@/lib/api/core/OpenAPI";
-import { getAccessToken } from "./tokenManager";
 
 // src/lib/downloadZip.ts
 const baseUrl = import.meta.env.VITE_API_WEB_INFRA_URL;
 const cfCertUrl = baseUrl + "/certs";
 OpenAPI.BASE = import.meta.env.VITE_API_WEB_INFRA_URL;
-OpenAPI.TOKEN = async () => await getAccessToken() ?? '';
+OpenAPI.WITH_CREDENTIALS = true;
+OpenAPI.CREDENTIALS = "include";
 
 export interface CertificateRequest {
   acmeEmail: string;
@@ -20,14 +20,14 @@ export interface CertificateRequest {
 }
 
 export async function sendCertificateRequest(
-  jwtToken: string,
+  _jwtToken: string,
   requestBody: CertificateRequest
 ): Promise<Response> {
   try {
     const response = await fetch(cfCertUrl, {
       method: 'POST',
+      credentials: 'include',
       headers: {
-        'Authorization': `Bearer ${jwtToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
@@ -44,5 +44,4 @@ export async function sendCertificateRequest(
     throw error;
   }
 }
-
 

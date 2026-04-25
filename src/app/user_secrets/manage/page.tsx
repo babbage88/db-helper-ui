@@ -37,7 +37,6 @@ import { Calendar } from "@/components/ui/calendar";
 
 import { SecretsService } from "@/lib/api/services/SecretsService";
 import { useAuth } from "@/lib/auth-context";
-import { TokenService } from "@/lib/tokenManager";
 
 import { DataTable } from "@/app/user_secrets/manage/data-table";
 import type { UserSecret } from "@/app/user_secrets/manage/columns";
@@ -46,21 +45,20 @@ import type { ExternalApplicationInfo } from "@/lib/api/models/ExternalApplicati
 
 export default function ManageSecretsPage() {
   const [secrets, setSecrets] = React.useState<UserSecret[]>([]);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
 
   const fetchSecrets = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const userInfo = TokenService.getUserInfo();
-      if (!userInfo || !userInfo.userId) {
+      if (!user?.user_id) {
         console.error("User not logged in");
         setSecrets([]);
         return;
       }
 
-      const resp = await SecretsService.getUserSecretEntries(userInfo.userId);
+      const resp = await SecretsService.getUserSecretEntries(user.user_id);
 
       const mapped = await Promise.all(
         (resp || []).map(async (entry): Promise<UserSecret> => {
@@ -89,7 +87,7 @@ export default function ManageSecretsPage() {
             external_application_id: appName,
             secret: "",
             expiration: meta?.expiry,
-            user_id: meta?.userId || userInfo.userId,
+            user_id: meta?.userId || user.user_id,
           };
         })
       );
@@ -101,7 +99,7 @@ export default function ManageSecretsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user?.user_id]);
 
   React.useEffect(() => {
     if (isAuthenticated) {
@@ -138,7 +136,7 @@ export default function ManageSecretsPage() {
             <DataTable
               data={secrets}
               onChange={fetchSecrets}
-              userId={TokenService.getUserInfo()?.userId || ""}
+              userId={user?.user_id || ""}
             />
           )}
         </CardContent>
@@ -162,6 +160,7 @@ function AddSecretDialog({
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }) {
+  const { user } = useAuth();
   const [appId, setAppId] = React.useState("");
   const [secretVal, setSecretVal] = React.useState("");
   const [expiration, setExpiration] = React.useState<Date | undefined>(
@@ -199,8 +198,7 @@ function AddSecretDialog({
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const userInfo = TokenService.getUserInfo();
-      if (!userInfo || !userInfo.userId) {
+      if (!user?.user_id) {
         throw new Error("User not logged in");
       }
 

@@ -3,17 +3,23 @@
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button" // optional: ShadCN UI
 import { LogOutIcon } from "lucide-react"
-import { TokenService } from "@/lib/tokenManager"
+import { authSessionApi } from "@/lib/auth-session"
+import { useAuth } from "@/lib/auth-context"
 
 export function LogoutButton() {
   const navigate = useNavigate()
+  const { setIsAuthenticated, setUser } = useAuth()
 
-  const handleLogout = () => {
-    TokenService.clearTokens()
-    TokenService.clearUserInfo()
-    // You can also clear any other app-specific state here
-
-    navigate("/login", { replace: true })
+  const handleLogout = async () => {
+    try {
+      await authSessionApi.logout()
+    } catch (error) {
+      console.error("Logout failed:", error)
+    } finally {
+      setUser(null)
+      setIsAuthenticated(false)
+      navigate("/login", { replace: true })
+    }
   }
 
   return (

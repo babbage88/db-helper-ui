@@ -1,12 +1,11 @@
 // src/lib/http/client.ts
 import axios, { type InternalAxiosRequestConfig } from 'axios';
-import { TokenService } from '@/lib/tokenManager';
 
 const API_BASE_URL = import.meta.env.VITE_API_WEB_INFRA_URL;
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
-    withCredentials: false,
+    withCredentials: true,
 });
 
 let isRefreshing = false;
@@ -28,11 +27,6 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     if (!config.baseURL) {
         config.baseURL = API_BASE_URL;
     }
-
-    const token = TokenService.getAccessToken();
-    if (token && config.headers) {
-        config.headers['Authorization'] = `Bearer ${token}`;
-    }
     return config;
 });
 
@@ -41,16 +35,12 @@ apiClient.interceptors.response.use(
     async error => {
         const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && !originalRequest?._retry && !String(originalRequest?.url || '').includes('/token/refresh')) {
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
                 })
-                .then((token) => {
-                    if (typeof token !== 'string') {
-                        return Promise.reject(new Error('Invalid token in retry queue'));
-                    }
-                    originalRequest.headers['Authorization'] = 'Bearer ' + token;
+                .then(() => {
                     return apiClient(originalRequest);
                 })
                 .catch(err => Promise.reject(err));
@@ -59,34 +49,14 @@ apiClient.interceptors.response.use(
             originalRequest._retry = true;
             isRefreshing = true;
 
-            const refreshToken = TokenService.getRefreshToken();
-            if (!refreshToken) {
-                TokenService.clearTokens();
-                TokenService.clearUserInfo();
-                return Promise.reject(error);
-            }
-
             try {
-                const response = await axios.post(`${API_BASE_URL}/token/refresh`, {
-                    refreshToken: refreshToken,
+                await axios.post(`${API_BASE_URL}/token/refresh`, {}, {
+                    withCredentials: true,
                 });
-
-                const newAccessToken = response.data.accessToken;
-                const newRefreshToken = response.data.refreshToken;
-
-                TokenService.setAccessToken(newAccessToken);
-                TokenService.setRefreshToken(newRefreshToken);
-
-                apiClient.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
-                processQueue(null, newAccessToken);
-
-                originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+                processQueue(null);
                 return apiClient(originalRequest);
             } catch (err) {
                 processQueue(err, null);
-                TokenService.clearTokens();
-                TokenService.clearUserInfo();
-
                 return Promise.reject(err);
             } finally {
                 isRefreshing = false;

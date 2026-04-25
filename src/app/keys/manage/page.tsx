@@ -15,24 +15,22 @@ import { useAuth } from "@/lib/auth-context";
 import { AddSshKeyDialog } from "@/components/db-helper/add-ssh-key-dialog";
 import { type SshKey } from "@/app/keys/manage/columns";
 import { DataTable } from "@/app/keys/manage/data-table";
-import { TokenService } from "@/lib/tokenManager";
 
 export default function ManageSshKeysPage() {
   const [keys, setKeys] = React.useState<SshKey[]>([]);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
 
   const fetchKeys = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const userInfo = TokenService.getUserInfo();
-      if (!userInfo || !userInfo.userId) {
+      if (!user?.user_id) {
         console.error("User not logged in");
         setKeys([]);
         return;
       }
-      const response = await SshKeysService.getSshKeysByUserId(userInfo.userId);
+      const response = await SshKeysService.getSshKeysByUserId(user.user_id);
       const mapped = response.map(key => ({
         id: key.id || "",
         name: key.name || "",
@@ -47,7 +45,7 @@ export default function ManageSshKeysPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user?.user_id]);
 
   React.useEffect(() => {
     if (isAuthenticated) {

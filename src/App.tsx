@@ -6,6 +6,7 @@ import {
   Outlet,
 } from "react-router-dom";
 import {
+  useCallback,
   useEffect,
   useState,
   type JSX,
@@ -22,8 +23,6 @@ import { CertificateRequestForm } from "@/components/web-infra/CfCerts";
 import { Dashboard } from "@/components/ui/BobDashboard";
 import LoginPage from "@/app/LoginPage";
 import LoginGithubCallbackPage from "@/app/LoginGithubCallbackPage";
-import { AuthenticationService } from "@/lib/api";
-import { OpenAPI } from "@/lib/api";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import LogoutPage from "./components/ui/LogoutRoute";
@@ -37,11 +36,11 @@ import ManageRolesPage from "@/app/roles/manage/page";
 import { PermissionProtectedRoute } from "@/components/permission-protected-route";
 
 import clsx from "clsx";
+import { authSessionApi, type SessionUser } from "@/lib/auth-session";
+import "@/lib/configure-api";
 
 // Import permission debug utility
 import "@/lib/permission-debug";
-
-OpenAPI.TOKEN = localStorage.getItem("accessToken") || "";
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useAuth();
@@ -61,28 +60,28 @@ import { useAuth } from "@/lib/auth-context";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
+
+  const refreshSession = useCallback(async () => {
+    try {
+      const session = await authSessionApi.getSession();
+      setUser(session);
+      setIsAuthenticated(true);
+      return session;
+    } catch {
+      setUser(null);
+      setIsAuthenticated(false);
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-
     const checkAuth = async () => {
-      if (!token) {
-        setIsAuthenticated(false);
-        return;
-      }
-
-      try {
-        // We assume the token is valid initially. 
-        // The interceptor will handle 401s if it's not.
-        await AuthenticationService.verifyToken();
-        setIsAuthenticated(true);
-      } catch {
-        setIsAuthenticated(false);
-      }
+      await refreshSession();
     };
 
     checkAuth();
-  }, []);
+  }, [refreshSession]);
 
   if (isAuthenticated === null) {
     return (
@@ -93,7 +92,9 @@ export default function App() {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated }}>
+    <AuthContext.Provider
+      value={{ isAuthenticated, setIsAuthenticated, user, setUser, refreshSession }}
+    >
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         {/* Hidden element to force Tailwind v4 to generate data-active classes */}
         <div className="hidden data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground" />

@@ -7,7 +7,6 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import "./terminal-overrides.css";
 import { SshService } from "@/lib/api/services/SshService";
-import { TokenService } from '@/lib/tokenManager';
 
 interface TerminalProps {
   nodeId: string;
@@ -33,26 +32,12 @@ async function createSshConnectionWithRefresh(params: SshConnectionWithSizeParam
   } catch (err: any) {
     // If 401, try to refresh and retry
     if (err?.status === 401 || err?.response?.status === 401) {
-      // Call your refresh endpoint and update tokens
-      const refreshToken = TokenService.getRefreshToken();
-      if (refreshToken) {
-        // You may need to call your refresh endpoint here
-        // Example:
-        const response = await fetch(`${import.meta.env.VITE_API_WEB_INFRA_URL}/token/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
-        });
-        if (response.ok) {
-          const data = await response.json();
-          await TokenService.setAccessToken(data.accessToken);
-          await TokenService.setRefreshToken(data.refreshToken);
-          // Retry the SSH connection
-          return await SshService.createSshConnection(params);
-        } else {
-          // TokenService.clearTokens();
-          // TokenService.clearUserInfo();
-        }
+      const response = await fetch(`${import.meta.env.VITE_API_WEB_INFRA_URL}/token/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        return await SshService.createSshConnection(params);
       }
     }
     throw err;
@@ -139,14 +124,6 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
       if (!wsUrl) {
         throw new Error('No WebSocket URL received from server');
       }
-      // Always get the latest JWT from storage right before opening the WebSocket
-      let jwt = await TokenService.getAccessToken();
-      if (jwt) {
-        const urlObj = new URL(wsUrl);
-        urlObj.searchParams.set('token', jwt);
-        wsUrl = urlObj.toString();
-      }
-      console.log("WebSocket URL (with latest token):", wsUrl);
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {

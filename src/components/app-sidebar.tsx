@@ -31,22 +31,17 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/lib/auth-context";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const [user, setUser] = React.useState({
-    name: "",
-    email: "",
-    avatar: "",
-    userId: "",
-  });
+  const { user: sessionUser } = useAuth();
 
-  React.useEffect(() => {
-    const name = localStorage.getItem("username") || "Anonymous";
-    const email = localStorage.getItem("email") || "no-email@example.com";
-    const avatar = localStorage.getItem("avatar") || "";
-    const userId = localStorage.getItem("userId") || "";
-    setUser({ name, email, avatar, userId });
-  }, []);
+  const user = React.useMemo(() => ({
+    name: sessionUser?.userName || "Anonymous",
+    email: sessionUser?.email || "no-email@example.com",
+    avatar: "",
+    userId: sessionUser?.user_id || "",
+  }), [sessionUser]);
 
   const data = {
     user,

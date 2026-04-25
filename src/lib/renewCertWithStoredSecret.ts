@@ -2,12 +2,7 @@ import { SecretsService } from "./api/services/SecretsService";
 import { CertificatesService } from "./api/services/CertificatesService";
 import type { CertDnsRenewReq } from "./api/models/CertDnsRenewReq";
 import type { CertificateData } from "./api/models/CertificateData";
-import { OpenAPI } from "@/lib/api/core/OpenAPI";
-import { getAccessToken } from "./tokenManager";
-
-// src/lib/downloadZip.ts
-OpenAPI.BASE = import.meta.env.VITE_API_WEB_INFRA_URL;
-OpenAPI.TOKEN = async () => (await getAccessToken()) ?? "";
+import { authSessionApi } from "@/lib/auth-session";
 
 /**
  * Renew an SSL certificate using a secret token stored by ID
@@ -19,7 +14,8 @@ export async function renewCertificateWithSecret(
 ): Promise<CertificateData> {
   try {
     certReq.pushS3 = true;
-    const uid = localStorage.getItem("userId") ?? "";
+    const session = await authSessionApi.getSession();
+    const uid = session.user_id;
     const appName = "CloudflareDNS";
     // Step 1: Get List of CloudflareDNS secrets for the current user
     const secretEntries = await SecretsService.getUserSecretEntriesByAppName(

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import type { CertDnsRenewReq } from "@/lib/api/models/CertDnsRenewReq";
 import type { CertificateData } from "@/lib/api/models/CertificateData";
 import { renewCertificateWithSecret } from "@/lib/renewCertWithStoredSecret";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/lib/auth-context";
 
 // Only import CheckCircle, X if certData is shown
 import { CheckCircle, X, Plus } from "lucide-react";
@@ -105,8 +106,8 @@ function PemBlock({ label, content }: { label: string; content: string }) {
 }
 
 export function CertificateRequestForm() {
-  let userEmail: string = localStorage.getItem("email") || "";
-  const [acmeEmail, setAcmeEmail] = useState(userEmail);
+  const { user } = useAuth();
+  const [acmeEmail, setAcmeEmail] = useState(user?.email || "");
   const [acmeUrl, setAcmeUrl] = useState(
     "https://acme-v02.api.letsencrypt.org/directory"
   );
@@ -116,6 +117,12 @@ export function CertificateRequestForm() {
   const [certData, setCertData] = useState<CertificateData | null>(null);
   const [loading, setLoading] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (user?.email) {
+      setAcmeEmail((current) => current || user.email);
+    }
+  }, [user?.email]);
 
   const handleSubmit = async () => {
     setLoading(true);

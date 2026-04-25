@@ -2,26 +2,13 @@
  * Debug utility to check and display user permissions
  * Use in console: checkUserPermissionDebug("Alter Users")
  */
-import { UserCrudService } from "@/lib/api/services/UserCrudService";
-import type { UserDao } from "@/lib/api/models/UserDao";
+import { authSessionApi } from "@/lib/auth-session";
 
 export async function checkUserPermissionDebug(permissionName: string) {
   try {
-    const userId = localStorage.getItem("userId");
     console.log("=== Permission Debug ===");
-    console.log("User ID:", userId);
-
-    if (!userId) {
-      console.warn("No user ID found in localStorage");
-      return;
-    }
-
-    const response = await UserCrudService.getUserById(userId);
-    console.log("Full API response:", response);
-
-    // Handle response structure - user might be in body.user or just user
-    const user = (response as any).body?.user || response.user as UserDao;
-    console.log("Response structure:", { hasBody: !!(response as any).body, hasDirectUser: !!(response as any).user });
+    const user = await authSessionApi.getSession();
+    console.log("Session user:", user);
     console.log("User object:", user);
     console.log("User roles (raw):", user?.roles);
     console.log("User roles (array):", Array.isArray(user?.roles) ? user?.roles : [user?.roles]);

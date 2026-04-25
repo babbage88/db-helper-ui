@@ -4,14 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { AuthenticationService } from "@/lib/api";
 import type { FormEvent } from "react";
 import mascot from "@/assets/InfraCtlMark.sky.svg";
-import { TokenService } from "@/lib/tokenManager";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { useContext, useState } from "react";
 import { AuthContext } from "@/lib/auth-context";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { setIsAuthenticated } = useContext(AuthContext);
+  const { refreshSession } = useContext(AuthContext);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -26,21 +25,11 @@ export default function LoginPage() {
 
     try {
       const data = await AuthenticationService.localLogin({ username: email, password });
-      const { accessToken, refreshToken } = data;
-
-      if (!accessToken || !refreshToken) {
+      if (!data.user_id) {
         throw new Error("Invalid response from server");
       }
 
-      const currentUserId = data.user_id ?? "";
-      const username = data.userName ?? "";
-      const userEmail = data.email ?? "";
-
-      TokenService.setAccessToken(accessToken);
-      TokenService.setRefreshToken(refreshToken);
-      TokenService.setUserInfo(currentUserId, username, userEmail);
-
-      setIsAuthenticated(true); 
+      await refreshSession();
       navigate("/dashboard");
     } catch (err: any) {
       console.error("Login error:", err.message);

@@ -1,5 +1,4 @@
 import apiClient from "@/lib/api/apiClient";
-import { TokenService } from "@/lib/tokenManager";
 
 export type S3EndpointSummary = {
   name: string;
@@ -87,7 +86,6 @@ export const s3AdminApi = {
 
   async downloadObject(endpointName: string, bucketName: string, key: string) {
     const baseUrl = import.meta.env.VITE_API_WEB_INFRA_URL;
-    const token = TokenService.getAccessToken();
     const url = new URL(
       `/storage/s3/endpoints/${encodeURIComponent(endpointName)}/buckets/${encodeURIComponent(bucketName)}/download`,
       baseUrl,
@@ -95,7 +93,7 @@ export const s3AdminApi = {
     url.searchParams.set("key", key);
 
     const response = await fetch(url.toString(), {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      credentials: "include",
     });
 
     if (!response.ok) {
