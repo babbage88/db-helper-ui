@@ -11,7 +11,8 @@ import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class AuthenticationService {
     /**
-     * Local Auth login with username and password
+     * Local Auth login with username and password.
+     * Successful login sets secure HTTP-only auth cookies for subsequent requests.
      * @param body
      * @returns LoginResponseInfo (empty)
      * @throws ApiError
@@ -32,6 +33,7 @@ export class AuthenticationService {
     }
     /**
      * Refresh accessTokens and return to client.
+     * When a refresh cookie is present, the request body token is optional.
      * @param body
      * @returns AccessTokens (empty)
      * @throws ApiError
@@ -51,7 +53,8 @@ export class AuthenticationService {
         });
     }
     /**
-     * Verify a JWT access token's validity.
+     * Verify the current access token's validity.
+     * The token may be supplied by the secure auth cookie or the Authorization header.
      * @returns any Valid Token
      * @throws ApiError
      */

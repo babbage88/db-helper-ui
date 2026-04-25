@@ -158,6 +158,23 @@
         ],
         "summary": "List Proxmox LXC containers.",
         "operationId": "ListProxmoxContainers",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Node",
+            "description": "Proxmox node name.",
+            "name": "node",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "x-go-name": "Full",
+            "description": "Whether to include full container info.",
+            "name": "full",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/responses/ProxmoxContainerListResponse"
@@ -219,7 +236,8 @@
             "x-go-name": "Node",
             "description": "Proxmox node name.",
             "name": "node",
-            "in": "query"
+            "in": "query",
+            "required": true
           },
           {
             "type": "boolean",
@@ -356,6 +374,23 @@
         ],
         "summary": "List all Proxmox QEMU VMs and LXC containers for a node.",
         "operationId": "ListProxmoxWorkloads",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "Node",
+            "description": "Proxmox node name.",
+            "name": "node",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "x-go-name": "Full",
+            "description": "Whether to include full workload info.",
+            "name": "full",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/responses/ProxmoxWorkloadInventoryResponse"
@@ -1336,10 +1371,11 @@
     },
     "/login": {
       "post": {
-        "description": "Local Auth login with username and password",
+        "description": "Successful login sets secure HTTP-only auth cookies for subsequent requests.",
         "tags": [
           "Authentication"
         ],
+        "summary": "Local Auth login with username and password.",
         "operationId": "LocalLogin",
         "parameters": [
           {
@@ -2783,6 +2819,7 @@
     },
     "/token/refresh": {
       "post": {
+        "description": "When a refresh cookie is present, the request body token is optional.",
         "tags": [
           "Authentication"
         ],
@@ -2816,10 +2853,11 @@
     },
     "/token/verify": {
       "post": {
+        "description": "The token may be supplied by the secure auth cookie or the Authorization header.",
         "tags": [
           "Authentication"
         ],
-        "summary": "Verify a JWT access token's validity.",
+        "summary": "Verify the current access token's validity.",
         "operationId": "VerifyToken",
         "responses": {
           "200": {
@@ -4298,10 +4336,6 @@
     "LoginResponseInfo": {
       "type": "object",
       "properties": {
-        "accessToken": {
-          "type": "string",
-          "x-go-name": "Token"
-        },
         "email": {
           "type": "string",
           "x-go-name": "Email"
@@ -4310,10 +4344,6 @@
           "type": "string",
           "format": "date-time",
           "x-go-name": "Expiration"
-        },
-        "refreshToken": {
-          "type": "string",
-          "x-go-name": "RefreshToken"
         },
         "userName": {
           "type": "string",
@@ -6422,7 +6452,7 @@
   "securityDefinitions": {
     "bearer": {
       "type": "apiKey",
-      "name": "Authorization",
+      "name": "Cookie",
       "in": "header"
     }
   },

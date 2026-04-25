@@ -19,13 +19,22 @@ import { request as __request } from '../core/request';
 export class ProxmoxService {
     /**
      * List Proxmox LXC containers.
+     * @param node Proxmox node name.
+     * @param full Whether to include full container info.
      * @returns ProxmoxContainerListResult (empty)
      * @throws ApiError
      */
-    public static listProxmoxContainers(): CancelablePromise<ProxmoxContainerListResult> {
+    public static listProxmoxContainers(
+        node: string,
+        full?: boolean,
+    ): CancelablePromise<ProxmoxContainerListResult> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/proxmox/container',
+            query: {
+                'node': node,
+                'full': full,
+            },
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,
@@ -61,7 +70,7 @@ export class ProxmoxService {
      * @throws ApiError
      */
     public static listProxmoxVMs(
-        node?: string,
+        node: string,
         full?: boolean,
     ): CancelablePromise<ProxmoxVMListResult> {
         return __request(OpenAPI, {
@@ -145,13 +154,22 @@ export class ProxmoxService {
     }
     /**
      * List all Proxmox QEMU VMs and LXC containers for a node.
+     * @param node Proxmox node name.
+     * @param full Whether to include full workload info.
      * @returns ProxmoxWorkloadInventoryResult (empty)
      * @throws ApiError
      */
-    public static listProxmoxWorkloads(): CancelablePromise<ProxmoxWorkloadInventoryResult> {
+    public static listProxmoxWorkloads(
+        node: string,
+        full?: boolean,
+    ): CancelablePromise<ProxmoxWorkloadInventoryResult> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/proxmox/workload',
+            query: {
+                'node': node,
+                'full': full,
+            },
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,
