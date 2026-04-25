@@ -2,9 +2,13 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { ProxmoxAPITokenCreateRequest } from '../models/ProxmoxAPITokenCreateRequest';
+import type { ProxmoxAPITokenCreateResult } from '../models/ProxmoxAPITokenCreateResult';
 import type { ProxmoxContainerListResult } from '../models/ProxmoxContainerListResult';
 import type { ProxmoxLXCRequest } from '../models/ProxmoxLXCRequest';
 import type { ProxmoxLXCResult } from '../models/ProxmoxLXCResult';
+import type { ProxmoxPVEUserCreateRequest } from '../models/ProxmoxPVEUserCreateRequest';
+import type { ProxmoxPVEUserCreateResult } from '../models/ProxmoxPVEUserCreateResult';
 import type { ProxmoxVMCreateRequest } from '../models/ProxmoxVMCreateRequest';
 import type { ProxmoxVMCreateResult } from '../models/ProxmoxVMCreateResult';
 import type { ProxmoxVMListResult } from '../models/ProxmoxVMListResult';
@@ -170,6 +174,46 @@ export class ProxmoxService {
                 'node': node,
                 'full': full,
             },
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Create a Proxmox user over SSH on a Proxmox node.
+     * @param body
+     * @returns ProxmoxPVEUserCreateResult Proxmox PVE user creation response
+     * @throws ApiError
+     */
+    public static createProxmoxPveUser(
+        body?: ProxmoxPVEUserCreateRequest,
+    ): CancelablePromise<ProxmoxPVEUserCreateResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/pve-user',
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Create a Proxmox API token over SSH on a Proxmox node.
+     * @param body
+     * @returns ProxmoxAPITokenCreateResult Proxmox API token creation response
+     * @throws ApiError
+     */
+    public static createProxmoxApiToken(
+        body?: ProxmoxAPITokenCreateRequest,
+    ): CancelablePromise<ProxmoxAPITokenCreateResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/api-token',
+            body: body,
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,

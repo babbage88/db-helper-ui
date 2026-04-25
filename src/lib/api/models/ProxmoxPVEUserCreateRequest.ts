@@ -3,12 +3,13 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { SSHOptions } from './SSHOptions';
-export type MariaDBInstallRequest = {
+export type ProxmoxPVEUserCreateRequest = {
     ssh?: SSHOptions;
-    db_name?: string;
+    node?: string;
     username?: string;
+    realm?: string;
+    comment?: string;
     password?: string;
-    bind?: string;
-    port?: number;
+    force?: boolean;
 };
 

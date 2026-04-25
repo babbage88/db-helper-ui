@@ -2,10 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type ValkeyInstallResult = {
+export type ProxmoxPVEUserCreateResult = {
     host?: string;
-    port?: number;
+    userid?: string;
     username?: string;
-    uri?: string;
+    realm?: string;
+    created?: boolean;
+    recreated?: boolean;
 };
 
