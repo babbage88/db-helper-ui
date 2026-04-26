@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   Cpu,
+  ExternalLink,
   HardDrive,
   Info,
   LoaderCircle,
@@ -17,6 +18,7 @@ import {
   Power,
   RefreshCw,
   Server,
+  SquareTerminal,
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +61,8 @@ import {
 } from "@/lib/toast-utils";
 import { cn } from "@/lib/utils";
 import type { Node } from "./columns";
+import { ProxmoxTermProxyConsole } from "./terminal/proxmox-termproxy-console";
+import { ProxmoxVncConsole } from "./terminal/proxmox-vnc-console";
 
 type InventoryErrors = {
   workloads?: string;
@@ -258,6 +262,57 @@ function isRunning(status?: string) {
   return status?.toLowerCase() === "running";
 }
 
+function buildConsoleTitle(item: ExplorerItem) {
+  if (item.kind === "lxc") {
+    return `LXC ${item.vmid ?? "-"} Console`;
+  }
+  return `VM ${item.vmid ?? "-"} Console`;
+}
+
+function RenderWorkloadConsole({
+  hostServerId,
+  hostLabel,
+  item,
+  node,
+  onClose,
+}: {
+  hostServerId: string;
+  hostLabel: string;
+  item: ExplorerItem;
+  node: Node;
+  onClose: () => void;
+}) {
+  if (!item.vmid) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-2xl border border-border/70 bg-black/60 p-6 text-sm text-muted-foreground">
+        This workload is missing a VMID.
+      </div>
+    );
+  }
+
+  if (item.kind === "lxc") {
+    return (
+      <ProxmoxTermProxyConsole
+        hostServerId={hostServerId}
+        vmid={item.vmid}
+        node={item.node || hostLabel}
+        title={buildConsoleTitle(item)}
+        onClose={onClose}
+      />
+    );
+  }
+
+  return (
+    <ProxmoxVncConsole
+      hostServerId={hostServerId}
+      vmid={item.vmid}
+      node={item.node || hostLabel}
+      title={buildConsoleTitle(item)}
+      onClose={onClose}
+    />
+  );
+}
+
 function sortExplorerItems(items: ExplorerItem[]) {
   return [...items].sort((a, b) => {
     const runningDelta = Number(isRunning(b.status)) - Number(isRunning(a.status));
@@ -296,6 +351,9 @@ export default function ProxmoxManagerPage() {
   const location = useLocation();
   const { nodeId } = useParams<{ nodeId: string }>();
   const seededNode = (location.state as { node?: Node } | null)?.node ?? null;
+  const searchParams = React.useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const popoutConsoleId = searchParams.get("console");
+  const isConsolePopout = searchParams.get("popout") === "1" && !!popoutConsoleId;
 
   const [node, setNode] = React.useState<Node | null>(seededNode);
   const [isLoadingNode, setIsLoadingNode] = React.useState(!seededNode);
@@ -321,6 +379,8 @@ export default function ProxmoxManagerPage() {
   const [lxcResources, setLxcResources] = React.useState<ProxmoxLXCResourcesResult | null>(null);
   const [editorState, setEditorState] = React.useState<EditorState>(null);
   const [isSubmittingEditor, setIsSubmittingEditor] = React.useState(false);
+  const [consoleItemId, setConsoleItemId] = React.useState<string | null>(popoutConsoleId);
+  const [consoleSessionKey, setConsoleSessionKey] = React.useState(0);
 
   const hostServerId = node?.ID ?? nodeId ?? "";
   const hostLabel = node?.Hostname || node?.IpAddress || "Proxmox host";
@@ -493,10 +553,58 @@ export default function ProxmoxManagerPage() {
     }
   }, [explorerItems, selectedItemId]);
 
+  React.useEffect(() => {
+    if (isConsolePopout && popoutConsoleId) {
+      const hasConsoleTarget = explorerItems.some((item) => item.id === popoutConsoleId);
+      if (consoleItemId !== popoutConsoleId) {
+        setConsoleItemId(popoutConsoleId);
+      }
+      if (selectedItemId !== popoutConsoleId && (explorerItems.length === 0 || hasConsoleTarget)) {
+        setSelectedItemId(popoutConsoleId);
+      }
+      return;
+    }
+    if (consoleItemId && !explorerItems.some((item) => item.id === consoleItemId)) {
+      setConsoleItemId(null);
+    }
+  }, [consoleItemId, explorerItems, isConsolePopout, popoutConsoleId]);
+
   const selectedItem =
     selectedItemId === "host"
       ? null
       : explorerItems.find((item) => item.id === selectedItemId) ?? null;
+  const consoleItem =
+    consoleItemId === null ? null : explorerItems.find((item) => item.id === consoleItemId) ?? null;
+
+  React.useEffect(() => {
+    if (!isConsolePopout && consoleItemId && selectedItem && consoleItemId !== selectedItem.id) {
+      setConsoleItemId(null);
+    }
+  }, [consoleItemId, isConsolePopout, selectedItem]);
+
+  const openConsoleInPanel = React.useCallback((item: ExplorerItem) => {
+    setSelectedItemId(item.id);
+    setConsoleItemId(item.id);
+    setConsoleSessionKey((prev) => prev + 1);
+  }, []);
+
+  const openConsoleInWindow = React.useCallback(
+    (item: ExplorerItem) => {
+      const url = `${window.location.origin}${location.pathname}?console=${encodeURIComponent(item.id)}&popout=1`;
+      const openedWindow = window.open(
+        url,
+        "_blank",
+        "popup=yes,width=1440,height=960,resizable=yes,scrollbars=no"
+      );
+      if (!openedWindow) {
+        showWarningToast(
+          "Pop-out window was blocked",
+          "Allow pop-ups for this site to open the Proxmox console in a separate window."
+        );
+      }
+    },
+    [location.pathname]
+  );
 
   const loadSelectedConfig = React.useCallback(
     async (item: ExplorerItem | null, options?: { silent?: boolean }) => {
@@ -916,6 +1024,78 @@ export default function ProxmoxManagerPage() {
 
   const hasInventoryErrors = Object.keys(inventoryErrors).length > 0;
 
+  if (isConsolePopout) {
+    if (!consoleItem && (isLoadingInventory || explorerItems.length === 0)) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+          Loading Proxmox console...
+        </div>
+      );
+    }
+
+    if (!consoleItem) {
+      return (
+        <div className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center space-y-4 px-6 py-10">
+          <Button variant="outline" onClick={() => navigate(location.pathname, { replace: true })}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Proxmox Manager
+          </Button>
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6">
+            <h1 className="text-xl font-semibold">Workload console unavailable</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              The requested VM or container was not found in the latest Proxmox inventory for this node.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex h-screen flex-col bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+                Proxmox Console
+              </Badge>
+              <Badge variant="secondary" className="uppercase">
+                {consoleItem.kind}
+              </Badge>
+            </div>
+            <h1 className="mt-2 text-xl font-semibold">{consoleItem.label}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {consoleItem.kind === "lxc"
+                ? "Attached shell via pct enter on the Proxmox host."
+                : "Attached serial console via qm terminal on the Proxmox host."}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => navigate(location.pathname, { replace: true })}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Full Manager
+            </Button>
+            <Button variant="outline" onClick={() => setConsoleSessionKey((prev) => prev + 1)}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Reconnect
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex-1 p-4">
+          <RenderWorkloadConsole
+            key={`${consoleItem.id}-${consoleSessionKey}`}
+            hostServerId={hostServerId}
+            hostLabel={hostLabel}
+            item={consoleItem}
+            node={node}
+            onClose={() => navigate(location.pathname, { replace: true })}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="-mx-4 -mb-4 -mt-3 h-[calc(100vh-3.25rem)] overflow-hidden">
@@ -1148,6 +1328,22 @@ export default function ProxmoxManagerPage() {
 
                           <div className="flex flex-wrap gap-2">
                             <Button
+                              variant={consoleItemId === selectedItem.id ? "secondary" : "outline"}
+                              onClick={() => openConsoleInPanel(selectedItem)}
+                              disabled={!selectedItem.vmid}
+                            >
+                              <SquareTerminal className="mr-2 h-4 w-4" />
+                              {consoleItemId === selectedItem.id ? "Console Open" : "Open Console"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => openConsoleInWindow(selectedItem)}
+                              disabled={!selectedItem.vmid}
+                            >
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              Pop Out
+                            </Button>
+                            <Button
                               variant="outline"
                               className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                               onClick={() => void handleDelete(selectedItem)}
@@ -1180,6 +1376,70 @@ export default function ProxmoxManagerPage() {
                           <DetailStat icon={HardDrive} label="Disk" value={formatUsage(selectedItem.disk, selectedItem.maxdisk)} />
                           <DetailStat icon={Server} label="Runtime" value={formatUptime(selectedItem.uptime)} />
                         </div>
+                      </div>
+
+                      <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/40">
+                        <div className="flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3">
+                          <div>
+                            <h3 className="text-lg font-semibold">Console</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {selectedItem.kind === "lxc"
+                                ? "Open the container console through Proxmox in the main workspace."
+                                : "Open the VM display console through Proxmox in the main workspace."}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {consoleItemId === selectedItem.id ? (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setConsoleSessionKey((prev) => prev + 1)}
+                                >
+                                  <RefreshCw className="mr-2 h-4 w-4" />
+                                  Reconnect
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openConsoleInWindow(selectedItem)}
+                                >
+                                  <ExternalLink className="mr-2 h-4 w-4" />
+                                  Pop Out
+                                </Button>
+                              </>
+                            ) : (
+                              <Button size="sm" onClick={() => openConsoleInPanel(selectedItem)}>
+                                <SquareTerminal className="mr-2 h-4 w-4" />
+                                Open in Panel
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {consoleItemId === selectedItem.id ? (
+                          <>
+                            <div className="h-[580px] p-3">
+                              <RenderWorkloadConsole
+                                key={`${selectedItem.id}-${consoleSessionKey}`}
+                                hostServerId={hostServerId}
+                                hostLabel={hostLabel}
+                                item={selectedItem}
+                                node={node}
+                                onClose={() => setConsoleItemId(null)}
+                              />
+                            </div>
+                            <div className="border-t border-border/60 px-4 py-3 text-xs text-muted-foreground">
+                              {selectedItem.kind === "qemu"
+                                ? "This console is proxied from the Proxmox VM display websocket."
+                                : "This console is proxied from the Proxmox container websocket."}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="px-4 py-8 text-sm text-muted-foreground">
+                            Open the workload console here, or pop it out into a separate window for a larger terminal.
+                          </div>
+                        )}
                       </div>
 
                       <div className="rounded-2xl border border-border/70 bg-card/40">

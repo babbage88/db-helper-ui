@@ -7,6 +7,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import "./terminal-overrides.css";
 import { SshService } from "@/lib/api/services/SshService";
+import { cn } from "@/lib/utils";
 
 interface TerminalProps {
   nodeId: string;
@@ -14,6 +15,9 @@ interface TerminalProps {
   ipAddress: string;
   username: string;
   onClose: () => void;
+  initialInput?: string;
+  mode?: "overlay" | "embedded";
+  title?: string;
   term?: string;
 }
 
@@ -44,12 +48,24 @@ async function createSshConnectionWithRefresh(params: SshConnectionWithSizeParam
   }
 }
 
-export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClose, term = "xterm-256color" }: TerminalProps) {
+export function TerminalComponent({
+  nodeId,
+  hostname,
+  ipAddress,
+  username,
+  onClose,
+  initialInput,
+  mode = "overlay",
+  title,
+  term = "xterm-256color",
+}: TerminalProps) {
   const terminalRef = React.useRef<HTMLDivElement>(null);
   const terminalInstance = React.useRef<Terminal | null>(null);
   const fitAddon = React.useRef<FitAddon | null>(null);
   const websocketRef = React.useRef<WebSocket | null>(null);
   const connectionIdRef = React.useRef<string | null>(null);
+  const resizeTimeoutRef = React.useRef<number | null>(null);
+  const initialInputSentRef = React.useRef(false);
   const [isConnected, setIsConnected] = React.useState(false);
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -161,7 +177,19 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
               data: `export TERM=${term}\r`
             }));
           }
-        }, 1000); // Wait 1 second after connection
+        }, 300);
+
+        if (initialInput) {
+          window.setTimeout(() => {
+            if (ws.readyState === WebSocket.OPEN && !initialInputSentRef.current) {
+              ws.send(JSON.stringify({
+                type: "input",
+                data: initialInput.endsWith("\r") ? initialInput : `${initialInput}\r`,
+              }));
+              initialInputSentRef.current = true;
+            }
+          }, 700);
+        }
 
         // Start keepalive ping
         keepAliveInterval = setInterval(() => {
@@ -231,10 +259,11 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
         clearInterval(keepAliveInterval);
       }
     }
-  }, [nodeId, hostname, ipAddress, username, term]);
+  }, [nodeId, hostname, ipAddress, username, initialInput, term]);
 
   React.useEffect(() => {
     if (!terminalRef.current) return;
+    initialInputSentRef.current = false;
 
     // Initialize terminal
     const terminal = new Terminal({
@@ -282,36 +311,41 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
     terminalInstance.current = terminal;
     fitAddon.current = fit;
 
-    // Handle window resize with debounce
-    let resizeTimeout: NodeJS.Timeout | undefined;
-    const handleResize = () => {
+    const syncTerminalSize = () => {
       if (fitAddon.current) {
         fitAddon.current.fit();
-        // Send resize event to WebSocket if connected
         if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
           const dims = fitAddon.current.proposeDimensions();
           if (dims) {
-            if (resizeTimeout) clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
+            if (resizeTimeoutRef.current) window.clearTimeout(resizeTimeoutRef.current);
+            resizeTimeoutRef.current = window.setTimeout(() => {
               websocketRef.current && websocketRef.current.send(JSON.stringify({
                 type: 'resize',
                 cols: dims.cols,
                 rows: dims.rows
               }));
-            }, 100); // 100ms debounce
+            }, 100);
           }
         }
       }
     };
 
-    window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(() => {
+      syncTerminalSize();
+    });
+    resizeObserver.observe(terminalRef.current);
+    window.addEventListener("resize", syncTerminalSize);
 
     // Initialize connection
-    initializeConnection();
+    void initializeConnection();
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      cleanupConnection();
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", syncTerminalSize);
+      if (resizeTimeoutRef.current) {
+        window.clearTimeout(resizeTimeoutRef.current);
+      }
+      void cleanupConnection();
       if (terminalInstance.current) {
         terminalInstance.current.dispose();
       }
@@ -325,7 +359,12 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
 
   if (error) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div
+        className={cn(
+          "flex items-center justify-center bg-black/50",
+          mode === "overlay" ? "fixed inset-0 z-50" : "h-full min-h-[320px] rounded-2xl"
+        )}
+      >
         <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
           <h3 className="text-lg font-semibold mb-4">Connection Error</h3>
           <p className="text-red-600 mb-4">{error}</p>
@@ -343,7 +382,13 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
   }
 
   return (
-    <div className="fixed inset-0 bg-black flex flex-col z-50" style={{height: '100%', minHeight: 0}}>
+    <div
+      className={cn(
+        "bg-black flex flex-col",
+        mode === "overlay" ? "fixed inset-0 z-50" : "h-full min-h-[360px] rounded-2xl border border-border/70"
+      )}
+      style={{height: '100%', minHeight: 0}}
+    >
       {/* Header */}
       <div className="db-terminal-header">
         <div className="window-controls">
@@ -352,6 +397,7 @@ export function TerminalComponent({ nodeId, hostname, ipAddress, username, onClo
           <div className="green"></div>
         </div>
         <div>
+          {title ? `${title} • ` : ""}
           {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'} - {username}@{hostname}
         </div>
         <button
