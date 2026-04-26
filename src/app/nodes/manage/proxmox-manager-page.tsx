@@ -5,38 +5,35 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Boxes,
-  KeyRound,
-  PlayCircle,
+  ChevronDown,
+  ChevronRight,
+  Cpu,
+  HardDrive,
+  Info,
+  Network,
+  Play,
+  Power,
   RefreshCw,
   Server,
-  Shield,
-  TerminalSquare,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { HostServersService } from "@/lib/api/services/HostServersService";
 import { ProxmoxService } from "@/lib/api/services/ProxmoxService";
 import { hostStatsApi } from "@/lib/host-stats-api";
 import { cn } from "@/lib/utils";
-import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
+import {
+  showErrorToast,
+  showInfoToast,
+  showSuccessToast,
+  showWarningToast,
+} from "@/lib/toast-utils";
 import type { Node } from "./columns";
 import type { ProxmoxContainer } from "@/lib/api/models/ProxmoxContainer";
 import type { ProxmoxVM } from "@/lib/api/models/ProxmoxVM";
 import type { ProxmoxWorkload } from "@/lib/api/models/ProxmoxWorkload";
-
-type AsyncSection =
-  | "inventory"
-  | "vm"
-  | "lxc"
-  | "template"
-  | "start"
-  | "pve-user"
-  | "api-token";
 
 type InventoryErrors = {
   workloads?: string;
@@ -44,152 +41,41 @@ type InventoryErrors = {
   containers?: string;
 };
 
-const defaultVmForm = {
-  vmid: "",
-  template_vmid: "",
-  name: "",
-  storage: "",
-  cores: "2",
-  sockets: "1",
-  memory_mb: "2048",
-  ci_user: "",
-  ci_password: "",
-  ipconfig0: "",
-  nameserver: "",
-  search_domain: "",
-  ssh_public_keys: "",
-  description: "",
-  full_clone: true,
-  start: true,
-  ci_custom_script: "",
-  ci_snippets_storage: "",
+type HostSummary = {
+  cpuCores?: number;
+  memoryTotalBytes?: number;
+  storageTotalBytes?: number;
+  status?: string;
+  error?: string;
 };
 
-const defaultLxcForm = {
-  vmid: "",
-  hostname: "",
-  ostemplate: "",
-  storage: "",
-  rootfs_size: "8G",
-  memory: "1024",
-  swap: "512",
-  cores: "2",
-  password: "",
-  net0: "",
-  nameserver: "",
-  search_domain: "",
-  ssh_public_keys: "",
-  description: "",
-  features: "",
-  arch: "amd64",
-  cmode: "shell",
-  console: true,
-  start: true,
-  unprivileged: true,
-  cpu_limit: "",
-  cpu_units: "",
+type WorkloadKind = "qemu" | "lxc";
+
+type ExplorerItem = {
+  id: string;
+  kind: WorkloadKind;
+  label: string;
+  status?: string;
+  vmid?: number;
+  node?: string;
+  cpu?: number;
+  mem?: number;
+  maxmem?: number;
+  disk?: number;
+  maxdisk?: number;
+  uptime?: number;
+  tags?: string;
+  raw: ProxmoxWorkload | ProxmoxVM | ProxmoxContainer;
 };
 
-const defaultTemplateForm = {
-  vmid: "",
-  name: "",
-  image_url: "",
-  storage: "",
-  cores: "2",
-  sockets: "1",
-  memory_mb: "2048",
-  net0: "virtio,bridge=vmbr0",
-  description: "",
-  agent: true,
-  cleanup_image: true,
-  serial_console: true,
-  boot_order: "c",
-  cloudinit_storage: "",
-  disk_bus: "scsi0",
-  scsihw: "virtio-scsi-pci",
+type ContextMenuState = {
+  open: boolean;
+  x: number;
+  y: number;
+  item: ExplorerItem | null;
 };
 
-const defaultVmStartForm = { vmid: "" };
-
-const defaultPveUserForm = {
-  username: "",
-  realm: "pve",
-  comment: "",
-  password: "",
-  force: false,
-};
-
-const defaultApiTokenForm = {
-  username: "root",
-  realm: "pam",
-  userid: "",
-  token_id: "infractl-ui",
-  comment: "Created from InfraCTL UI",
-  role: "InfraCtlProxmoxManager",
-  acl_path: "/",
-  expiration_date: "",
-  days_valid: "30",
-  privsep: true,
-  force: false,
-  verify: true,
-  store_as_user_secret: true,
-  yolo: false,
-};
-
-const actionTabs = [
-  {
-    value: "vm",
-    label: "VM",
-    description: "Clone a VM from a template with cloud-init configuration.",
-    icon: Server,
-  },
-  {
-    value: "lxc",
-    label: "LXC",
-    description: "Provision a container with compute, storage, and network settings.",
-    icon: Boxes,
-  },
-  {
-    value: "template",
-    label: "Template",
-    description: "Build a reusable VM template from an image URL.",
-    icon: TerminalSquare,
-  },
-  {
-    value: "start",
-    label: "Start",
-    description: "Power on an existing VM by VMID.",
-    icon: PlayCircle,
-  },
-  {
-    value: "pve-user",
-    label: "PVE User",
-    description: "Create or recreate a Proxmox VE user.",
-    icon: Shield,
-  },
-  {
-    value: "api-token",
-    label: "API Token",
-    description: "Issue a scoped token for automation and secret storage.",
-    icon: KeyRound,
-  },
-] as const;
-
-function parseInteger(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function parseLines(value: string) {
-  return value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
-function toErrorMessage(error: unknown) {
+function parseErrorMessage(error: unknown) {
   if (typeof error === "object" && error !== null) {
     const candidate = error as { body?: unknown; message?: unknown };
     if (typeof candidate.body === "string" && candidate.body) return candidate.body;
@@ -212,6 +98,107 @@ function mapHostServerToNode(server: Awaited<ReturnType<typeof HostServersServic
   };
 }
 
+function normalizeKind(kind?: string): WorkloadKind | null {
+  if (!kind) return null;
+  const normalized = kind.toLowerCase();
+  if (normalized.includes("qemu") || normalized.includes("vm")) return "qemu";
+  if (normalized.includes("lxc") || normalized.includes("container")) return "lxc";
+  return null;
+}
+
+function toExplorerItems(
+  workloads: ProxmoxWorkload[],
+  vms: ProxmoxVM[],
+  containers: ProxmoxContainer[]
+): ExplorerItem[] {
+  if (workloads.length > 0) {
+    return workloads
+      .map((item) => {
+        const kind = normalizeKind(item.kind);
+        if (!kind) return null;
+        return {
+          id: `${kind}-${item.vmid ?? item.name}`,
+          kind,
+          label: item.name || `vm-${item.vmid ?? "unknown"}`,
+          status: item.status,
+          vmid: item.vmid,
+          node: item.node,
+          cpu: item.cpu,
+          mem: item.mem,
+          maxmem: item.maxmem,
+          disk: item.disk,
+          maxdisk: item.maxdisk,
+          uptime: item.uptime,
+          tags: item.tags,
+          raw: item,
+        } satisfies ExplorerItem;
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+  }
+
+  const vmItems: ExplorerItem[] = vms.map((item) => ({
+    id: `qemu-${item.vmid ?? item.name}`,
+    kind: "qemu" as const,
+    label: item.name || `vm-${item.vmid ?? "unknown"}`,
+    status: item.status,
+    vmid: item.vmid,
+    node: item.node,
+    cpu: item.cpu,
+    mem: item.mem,
+    maxmem: item.maxmem,
+    disk: undefined,
+    maxdisk: item.maxdisk,
+    uptime: item.uptime,
+    tags: item.tags,
+    raw: item,
+  }));
+
+  const lxcItems: ExplorerItem[] = containers.map((item) => ({
+    id: `lxc-${item.vmid ?? item.name}`,
+    kind: "lxc" as const,
+    label: item.name || `lxc-${item.vmid ?? "unknown"}`,
+    status: item.status,
+    vmid: item.vmid,
+    node: item.node,
+    cpu: item.cpu,
+    mem: item.mem,
+    maxmem: item.maxmem,
+    disk: item.disk,
+    maxdisk: item.maxdisk,
+    uptime: item.uptime,
+    tags: item.tags,
+    raw: item,
+  }));
+
+  return [...vmItems, ...lxcItems];
+}
+
+function formatBytesSafe(value?: number) {
+  if (value === undefined || value === null) return "-";
+  if (value >= 1024 * 1024 * 1024) return `${(value / 1024 / 1024 / 1024).toFixed(1)} GiB`;
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MiB`;
+  return `${value}`;
+}
+
+function formatUsage(used?: number, total?: number) {
+  if (used === undefined && total === undefined) return "-";
+  return `${formatBytesSafe(used)} / ${formatBytesSafe(total)}`;
+}
+
+function formatUptime(value?: number) {
+  if (!value) return "-";
+  const days = Math.floor(value / 86400);
+  const hours = Math.floor((value % 86400) / 3600);
+  const minutes = Math.floor((value % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function isRunning(status?: string) {
+  return status?.toLowerCase() === "running";
+}
+
 export default function ProxmoxManagerPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -223,31 +210,27 @@ export default function ProxmoxManagerPage() {
   const [nodeError, setNodeError] = React.useState<string | null>(null);
 
   const [isLoadingInventory, setIsLoadingInventory] = React.useState(false);
-  const [busySection, setBusySection] = React.useState<AsyncSection | null>(null);
   const [inventoryErrors, setInventoryErrors] = React.useState<InventoryErrors>({});
   const [workloads, setWorkloads] = React.useState<ProxmoxWorkload[]>([]);
   const [vms, setVms] = React.useState<ProxmoxVM[]>([]);
   const [containers, setContainers] = React.useState<ProxmoxContainer[]>([]);
   const [apiResult, setApiResult] = React.useState<unknown>(null);
-  const [hostStatsSummary, setHostStatsSummary] = React.useState<{
-    cpuCores?: number;
-    memoryTotalBytes?: number;
-    storageTotalBytes?: number;
-    status?: string;
-    error?: string;
-  } | null>(null);
-
-  const [vmForm, setVmForm] = React.useState(defaultVmForm);
-  const [lxcForm, setLxcForm] = React.useState(defaultLxcForm);
-  const [templateForm, setTemplateForm] = React.useState(defaultTemplateForm);
-  const [vmStartForm, setVmStartForm] = React.useState(defaultVmStartForm);
-  const [pveUserForm, setPveUserForm] = React.useState(defaultPveUserForm);
-  const [apiTokenForm, setApiTokenForm] = React.useState(defaultApiTokenForm);
+  const [hostSummary, setHostSummary] = React.useState<HostSummary | null>(null);
+  const [selectedItemId, setSelectedItemId] = React.useState<string>("host");
+  const [expandedGroups, setExpandedGroups] = React.useState<Record<WorkloadKind, boolean>>({
+    qemu: true,
+    lxc: true,
+  });
+  const [actionBusyId, setActionBusyId] = React.useState<string | null>(null);
+  const [contextMenu, setContextMenu] = React.useState<ContextMenuState>({
+    open: false,
+    x: 0,
+    y: 0,
+    item: null,
+  });
 
   const hostServerId = node?.ID ?? nodeId ?? "";
   const hostLabel = node?.Hostname || node?.IpAddress || "Proxmox host";
-  const hostTypeSummary =
-    node?.hostServerTypeNames?.length ? node.hostServerTypeNames.join(", ") : "Unclassified host";
 
   React.useEffect(() => {
     if (!nodeId) {
@@ -275,7 +258,7 @@ export default function ProxmoxManagerPage() {
         const mappedNode = mapHostServerToNode(server);
         mappedNode.stats = stats ?? undefined;
         setNode(mappedNode);
-        setHostStatsSummary(
+        setHostSummary(
           stats
             ? {
                 cpuCores: stats.cpuCores,
@@ -289,7 +272,7 @@ export default function ProxmoxManagerPage() {
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        setNodeError(toErrorMessage(error));
+        setNodeError(parseErrorMessage(error));
       })
       .finally(() => {
         if (!cancelled) setIsLoadingNode(false);
@@ -318,7 +301,7 @@ export default function ProxmoxManagerPage() {
       setWorkloads(workloadsResult.value.workloads || []);
     } else {
       setWorkloads([]);
-      nextErrors.workloads = toErrorMessage(workloadsResult.reason);
+      nextErrors.workloads = parseErrorMessage(workloadsResult.reason);
     }
 
     const vmsResult = results[1];
@@ -326,7 +309,7 @@ export default function ProxmoxManagerPage() {
       setVms(vmsResult.value.vms || []);
     } else {
       setVms([]);
-      nextErrors.vms = toErrorMessage(vmsResult.reason);
+      nextErrors.vms = parseErrorMessage(vmsResult.reason);
     }
 
     const containersResult = results[2];
@@ -334,12 +317,12 @@ export default function ProxmoxManagerPage() {
       setContainers(containersResult.value.containers || []);
     } else {
       setContainers([]);
-      nextErrors.containers = toErrorMessage(containersResult.reason);
+      nextErrors.containers = parseErrorMessage(containersResult.reason);
     }
 
     const statsResult = results[3];
     if (statsResult.status === "fulfilled" && statsResult.value) {
-      setHostStatsSummary({
+      setHostSummary({
         cpuCores: statsResult.value.cpuCores,
         memoryTotalBytes: statsResult.value.memoryTotalBytes,
         storageTotalBytes: statsResult.value.storageTotalBytes,
@@ -349,11 +332,10 @@ export default function ProxmoxManagerPage() {
     }
 
     setInventoryErrors(nextErrors);
-
     if (Object.keys(nextErrors).length > 0) {
-      showErrorToast(
+      showWarningToast(
         "Some Proxmox inventory endpoints failed",
-        "The page is staying up and showing the sections that still returned data."
+        "The explorer will keep rendering with whatever data is still available."
       );
     }
     setIsLoadingInventory(false);
@@ -364,29 +346,119 @@ export default function ProxmoxManagerPage() {
     refreshInventory();
   }, [hostServerId, refreshInventory]);
 
-  const runSection = React.useCallback(
-    async (section: AsyncSection, task: () => Promise<unknown>, successMessage: string) => {
-      setBusySection(section);
+  const explorerItems = React.useMemo(
+    () =>
+      toExplorerItems(workloads, vms, containers).sort((a, b) => {
+        const runningDelta = Number(isRunning(b.status)) - Number(isRunning(a.status));
+        if (runningDelta !== 0) return runningDelta;
+        return a.label.localeCompare(b.label);
+      }),
+    [containers, vms, workloads]
+  );
+
+  const vmItems = React.useMemo(
+    () => explorerItems.filter((item) => item.kind === "qemu"),
+    [explorerItems]
+  );
+  const lxcItems = React.useMemo(
+    () => explorerItems.filter((item) => item.kind === "lxc"),
+    [explorerItems]
+  );
+
+  React.useEffect(() => {
+    if (selectedItemId === "host") return;
+    if (!explorerItems.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId("host");
+    }
+  }, [explorerItems, selectedItemId]);
+
+  React.useEffect(() => {
+    const closeMenu = () => setContextMenu((prev) => ({ ...prev, open: false }));
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeMenu();
+    };
+    window.addEventListener("click", closeMenu);
+    window.addEventListener("contextmenu", closeMenu);
+    window.addEventListener("keydown", onEscape);
+    return () => {
+      window.removeEventListener("click", closeMenu);
+      window.removeEventListener("contextmenu", closeMenu);
+      window.removeEventListener("keydown", onEscape);
+    };
+  }, []);
+
+  const selectedItem =
+    selectedItemId === "host"
+      ? null
+      : explorerItems.find((item) => item.id === selectedItemId) ?? null;
+
+  const handleStart = React.useCallback(
+    async (item: ExplorerItem) => {
+      if (!item.vmid) {
+        showErrorToast("Cannot start workload", "This item is missing a VMID.");
+        return;
+      }
+      if (item.kind !== "qemu") {
+        showWarningToast(
+          "LXC start is not wired yet",
+          "The current generated client only exposes the Proxmox VM start endpoint."
+        );
+        return;
+      }
+
+      setActionBusyId(item.id);
       try {
-        const result = await task();
+        const result = await ProxmoxService.startProxmoxVm(item.vmid, {
+          host_server_id: hostServerId,
+          vmid: item.vmid,
+        });
         setApiResult(result);
-        showSuccessToast(successMessage, "Response payload is shown below.");
-        if (section === "vm" || section === "lxc" || section === "template" || section === "start") {
-          refreshInventory();
-        }
+        showSuccessToast(`Start requested for ${item.label}`, "Refreshing workload inventory.");
+        await refreshInventory();
       } catch (error: unknown) {
-        const message = toErrorMessage(error);
+        const message = parseErrorMessage(error);
         setApiResult({ error: message });
-        showErrorToast(successMessage, message);
+        showErrorToast(`Failed to start ${item.label}`, message);
       } finally {
-        setBusySection(null);
+        setActionBusyId(null);
       }
     },
-    [refreshInventory]
+    [hostServerId, refreshInventory]
+  );
+
+  const handleStop = React.useCallback((item: ExplorerItem) => {
+    setApiResult({
+      error: "Stop action is not implemented in the current generated Proxmox API client.",
+      target: item.label,
+    });
+    showWarningToast(
+      "Stop action is not available yet",
+      "The backend/client wiring currently exposes start for QEMU VMs, but not stop."
+    );
+  }, []);
+
+  const handleContextAction = React.useCallback(
+    async (action: "start" | "stop" | "inspect", item: ExplorerItem) => {
+      setContextMenu((prev) => ({ ...prev, open: false }));
+      if (action === "inspect") {
+        setSelectedItemId(item.id);
+        return;
+      }
+      if (action === "start") {
+        await handleStart(item);
+        return;
+      }
+      handleStop(item);
+    },
+    [handleStart, handleStop]
   );
 
   if (isLoadingNode) {
-    return <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">Loading Proxmox workspace...</div>;
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
+        Loading Proxmox explorer...
+      </div>
+    );
   }
 
   if (!node || nodeError) {
@@ -396,12 +468,12 @@ export default function ProxmoxManagerPage() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Managed Nodes
         </Button>
-        <Card className="border-destructive/30">
-          <CardHeader>
-            <CardTitle>Unable to load Proxmox workspace</CardTitle>
-            <CardDescription>{nodeError || "The requested node could not be loaded."}</CardDescription>
-          </CardHeader>
-        </Card>
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6">
+          <h1 className="text-xl font-semibold">Unable to load Proxmox workspace</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {nodeError || "The requested node could not be loaded."}
+          </p>
+        </div>
       </div>
     );
   }
@@ -409,778 +481,608 @@ export default function ProxmoxManagerPage() {
   const hasInventoryErrors = Object.keys(inventoryErrors).length > 0;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1700px] flex-col gap-6 px-2 py-4 sm:px-4 sm:py-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div className="space-y-3">
-          <Button variant="ghost" className="w-fit px-0 text-muted-foreground" onClick={() => navigate("/nodes/manage")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Managed Nodes
-          </Button>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
-              Proxmox Workspace
-            </Badge>
-            <Badge variant="outline">{hostTypeSummary}</Badge>
-            {node.platformTypeNames.map((name) => (
-              <Badge key={name} variant="secondary">{name}</Badge>
-            ))}
-          </div>
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight">{hostLabel}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Dedicated operations page for inventory, provisioning, lifecycle actions, and access management.
-            </p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:min-w-[520px]">
-          <SummaryPill label="Workloads" value={String(workloads.length)} />
-          <SummaryPill label="VMs" value={String(vms.length)} />
-          <SummaryPill label="LXCs" value={String(containers.length)} />
-          <SummaryPill
-            label="Inventory"
-            value={hasInventoryErrors ? "Partial" : isLoadingInventory ? "Syncing" : "Ready"}
-            tone={hasInventoryErrors ? "warning" : isLoadingInventory ? "warning" : "success"}
-          />
-        </div>
-      </div>
+    <div className="-mx-4 -mb-4 -mt-3 h-[calc(100vh-3.25rem)] overflow-hidden">
+      <div className="grid h-full min-h-0 grid-cols-[340px_minmax(0,1fr)]">
+        <aside className="flex min-h-0 flex-col border-r border-border/70 bg-background/80">
+          <div className="space-y-3 px-2 py-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start px-2 text-muted-foreground"
+              onClick={() => navigate("/nodes/manage")}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Managed Nodes
+            </Button>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(620px,1.15fr)_minmax(560px,0.85fr)]">
-        <div className="space-y-4">
-          <Card className="border-border/70 bg-card/70 shadow-none">
-            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <CardTitle>Live inventory</CardTitle>
-                <CardDescription>
-                  The workspace now tolerates endpoint failures per section instead of crashing the whole experience.
-                </CardDescription>
+            <button
+              type="button"
+              onClick={() => setSelectedItemId("host")}
+              className={cn(
+                "flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors",
+                selectedItemId === "host"
+                  ? "border-primary/40 bg-primary/10"
+                  : "border-border/60 bg-card/30 hover:bg-card/60"
+              )}
+            >
+              <div className="mt-0.5 rounded-lg bg-primary/15 p-2 text-primary">
+                <Server className="h-4 w-4" />
               </div>
-              <Button variant="outline" onClick={refreshInventory} disabled={isLoadingInventory}>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-semibold">{hostLabel}</span>
+                  <StatusDot running={hostSummary?.status === "ok"} />
+                </div>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {node.hostServerTypeNames.slice(0, 2).map((name) => (
+                    <Badge key={name} variant="outline" className="rounded-full px-2 py-0 text-[10px]">
+                      {name}
+                    </Badge>
+                  ))}
+                  {node.platformTypeNames.slice(0, 2).map((name) => (
+                    <Badge key={name} variant="secondary" className="rounded-full px-2 py-0 text-[10px]">
+                      {name}
+                    </Badge>
+                  ))}
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">{node.IpAddress}</div>
+              </div>
+            </button>
+
+            <div className="grid grid-cols-2 gap-2">
+              <MiniStat label="VMs" value={String(vmItems.length)} />
+              <MiniStat label="LXCs" value={String(lxcItems.length)} />
+              <MiniStat label="CPU" value={hostSummary?.cpuCores ? String(hostSummary.cpuCores) : "-"} />
+              <MiniStat
+                label="Inventory"
+                value={hasInventoryErrors ? "Partial" : isLoadingInventory ? "Syncing" : "Ready"}
+                tone={hasInventoryErrors ? "warning" : "success"}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={refreshInventory}
+                disabled={isLoadingInventory}
+              >
                 <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingInventory && "animate-spin")} />
                 Refresh
               </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {hasInventoryErrors && (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-                  Some inventory endpoints failed. The sections below show each failure without taking down the rest of the page.
+              <Button
+                variant="outline"
+                size="sm"
+                className="px-3"
+                onClick={() =>
+                  showInfoToast(
+                    "Right-click any VM or LXC",
+                    "Use the tree context menu for lifecycle actions and left-click to inspect details."
+                  )
+                }
+              >
+                <Info className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="space-y-2 px-2 py-3">
+              <TreeGroup
+                title="Virtual Machines"
+                kind="qemu"
+                count={vmItems.length}
+                open={expandedGroups.qemu}
+                onToggle={() =>
+                  setExpandedGroups((prev) => ({ ...prev, qemu: !prev.qemu }))
+                }
+              >
+                {vmItems.map((item) => (
+                  <TreeWorkloadItem
+                    key={item.id}
+                    item={item}
+                    selected={selectedItemId === item.id}
+                    busy={actionBusyId === item.id}
+                    onSelect={() => setSelectedItemId(item.id)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      setSelectedItemId(item.id);
+                      setContextMenu({
+                        open: true,
+                        x: event.clientX,
+                        y: event.clientY,
+                        item,
+                      });
+                    }}
+                  />
+                ))}
+              </TreeGroup>
+
+              <TreeGroup
+                title="Containers"
+                kind="lxc"
+                count={lxcItems.length}
+                open={expandedGroups.lxc}
+                onToggle={() =>
+                  setExpandedGroups((prev) => ({ ...prev, lxc: !prev.lxc }))
+                }
+              >
+                {lxcItems.map((item) => (
+                  <TreeWorkloadItem
+                    key={item.id}
+                    item={item}
+                    selected={selectedItemId === item.id}
+                    busy={actionBusyId === item.id}
+                    onSelect={() => setSelectedItemId(item.id)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      setSelectedItemId(item.id);
+                      setContextMenu({
+                        open: true,
+                        x: event.clientX,
+                        y: event.clientY,
+                        item,
+                      });
+                    }}
+                  />
+                ))}
+              </TreeGroup>
+            </div>
+          </ScrollArea>
+        </aside>
+
+        <main className="min-h-0 overflow-hidden bg-background">
+          <ScrollArea className="h-full">
+            <div className="space-y-5 px-4 py-3">
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+                      Proxmox Explorer
+                    </Badge>
+                    {hasInventoryErrors ? (
+                      <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-200">
+                        Partial inventory
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+                    {selectedItem ? selectedItem.label : hostLabel}
+                  </h1>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {selectedItem
+                      ? "Workload details, live status, and instance-level quick actions."
+                      : "Select a VM or LXC from the tree to inspect its details and run actions."}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <HeaderMetric label="Workloads" value={String(explorerItems.length)} />
+                  <HeaderMetric label="Running" value={String(explorerItems.filter((item) => isRunning(item.status)).length)} />
+                  <HeaderMetric label="Memory" value={formatBytesSafe(hostSummary?.memoryTotalBytes)} />
+                  <HeaderMetric label="Storage" value={formatBytesSafe(hostSummary?.storageTotalBytes)} />
+                </div>
+              </div>
+
+              {selectedItem ? (
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+                  <section className="rounded-2xl border border-border/70 bg-card/40 p-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={cn(
+                            "rounded-xl p-3",
+                            selectedItem.kind === "qemu"
+                              ? "bg-sky-500/12 text-sky-300"
+                              : "bg-emerald-500/12 text-emerald-300"
+                          )}
+                        >
+                          {selectedItem.kind === "qemu" ? (
+                            <Server className="h-5 w-5" />
+                          ) : (
+                            <Boxes className="h-5 w-5" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="text-xl font-semibold">{selectedItem.label}</h2>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "rounded-full px-2.5",
+                                isRunning(selectedItem.status)
+                                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                                  : "border-zinc-500/30 bg-zinc-500/10 text-zinc-200"
+                              )}
+                            >
+                              {selectedItem.status || "unknown"}
+                            </Badge>
+                            <Badge variant="secondary" className="rounded-full px-2.5 uppercase">
+                              {selectedItem.kind}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                            <span>VMID {selectedItem.vmid ?? "-"}</span>
+                            <span>Node {selectedItem.node || hostLabel}</span>
+                            <span>Uptime {formatUptime(selectedItem.uptime)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {isRunning(selectedItem.status) ? (
+                          <Button
+                            variant="outline"
+                            onClick={() => handleStop(selectedItem)}
+                            disabled={actionBusyId === selectedItem.id}
+                          >
+                            <Power className="mr-2 h-4 w-4" />
+                            Stop
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => handleStart(selectedItem)}
+                            disabled={actionBusyId === selectedItem.id}
+                          >
+                            <Play className="mr-2 h-4 w-4" />
+                            {actionBusyId === selectedItem.id ? "Starting..." : "Start"}
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            setContextMenu({
+                              open: true,
+                              x: window.innerWidth / 2,
+                              y: 180,
+                              item: selectedItem,
+                            })
+                          }
+                        >
+                          More Actions
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <DetailStat icon={Cpu} label="CPU Usage" value={typeof selectedItem.cpu === "number" ? selectedItem.cpu.toFixed(2) : "-"} />
+                      <DetailStat icon={Network} label="Memory" value={formatUsage(selectedItem.mem, selectedItem.maxmem)} />
+                      <DetailStat icon={HardDrive} label="Disk" value={formatUsage(selectedItem.disk, selectedItem.maxdisk)} />
+                      <DetailStat icon={Server} label="Runtime" value={formatUptime(selectedItem.uptime)} />
+                    </div>
+
+                    {selectedItem.tags ? (
+                      <div className="mt-4">
+                        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Tags</div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {selectedItem.tags.split(/[;, ]+/).filter(Boolean).map((tag) => (
+                            <Badge key={tag} variant="outline" className="rounded-full px-2.5 py-0.5">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-4 rounded-xl border border-border/60 bg-background/30 p-3">
+                      <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        Raw workload payload
+                      </div>
+                      <pre className="mt-3 overflow-auto text-xs leading-6 text-muted-foreground">
+                        {JSON.stringify(selectedItem.raw, null, 2)}
+                      </pre>
+                    </div>
+                  </section>
+
+                  <section className="space-y-4">
+                    <SideNote
+                      title="Quick context"
+                      lines={[
+                        `Type: ${selectedItem.kind.toUpperCase()}`,
+                        `Status: ${selectedItem.status || "unknown"}`,
+                        `VMID: ${selectedItem.vmid ?? "-"}`,
+                        `Host node: ${selectedItem.node || hostLabel}`,
+                      ]}
+                    />
+                    <SideNote
+                      title="Actions"
+                      lines={[
+                        "Left-click selects the workload.",
+                        "Right-click opens workload commands.",
+                        "Start is wired for QEMU VMs.",
+                        "Stop is shown, but backend/client support is still missing.",
+                      ]}
+                    />
+                    {selectedItem.kind === "lxc" ? (
+                      <SideNote
+                        title="LXC note"
+                        lines={[
+                          "Container start/stop endpoints are not exposed by the generated client yet.",
+                          "Inventory and details still render normally.",
+                        ]}
+                      />
+                    ) : null}
+                  </section>
+                </div>
+              ) : (
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+                  <section className="rounded-2xl border border-border/70 bg-card/40 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                        <Server className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-semibold">{hostLabel}</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Host overview for the selected Proxmox node. Choose a workload in the tree
+                          to inspect instance-specific data.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <DetailStat icon={Cpu} label="CPU Cores" value={hostSummary?.cpuCores ? String(hostSummary.cpuCores) : "-"} />
+                      <DetailStat icon={Network} label="Memory" value={formatBytesSafe(hostSummary?.memoryTotalBytes)} />
+                      <DetailStat icon={HardDrive} label="Storage" value={formatBytesSafe(hostSummary?.storageTotalBytes)} />
+                      <DetailStat icon={Server} label="Agent Status" value={hostSummary?.status || "-"} />
+                    </div>
+
+                    {hasInventoryErrors ? (
+                      <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+                        <div className="font-medium">Inventory issues detected</div>
+                        <ul className="mt-2 space-y-1 text-amber-50/90">
+                          {inventoryErrors.workloads ? <li>Workloads: {inventoryErrors.workloads}</li> : null}
+                          {inventoryErrors.vms ? <li>VMs: {inventoryErrors.vms}</li> : null}
+                          {inventoryErrors.containers ? <li>Containers: {inventoryErrors.containers}</li> : null}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </section>
+
+                  <section className="space-y-4">
+                    <SideNote
+                      title="Explorer usage"
+                      lines={[
+                        "The left pane is now the primary workload navigator.",
+                        "Running workloads are surfaced to the top of each group.",
+                        "Use right-click for lifecycle commands.",
+                        "The selected workload fills this details pane.",
+                      ]}
+                    />
+                  </section>
                 </div>
               )}
-              <div className="grid gap-3 md:grid-cols-4">
-                <SummaryCard label="IP Address" value={node.IpAddress || "-"} mono />
-                <SummaryCard label="Username" value={node.Username || "-"} mono />
-                <SummaryCard label="CPU Cores" value={hostStatsSummary?.cpuCores ? String(hostStatsSummary.cpuCores) : "-"} />
-                <SummaryCard label="Agent Status" value={hostStatsSummary?.status || "-"} />
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <MetricCard label="Memory" value={formatBytesSafe(hostStatsSummary?.memoryTotalBytes)} />
-                <MetricCard label="Storage" value={formatBytesSafe(hostStatsSummary?.storageTotalBytes)} />
-                <MetricCard label="Last Modified" value={node.LastModified ? new Date(node.LastModified).toLocaleDateString() : "-"} />
-              </div>
-            </CardContent>
-          </Card>
 
-          <WorkloadTable
-            title="All workloads"
-            description="Combined VM and container inventory for quick verification."
-            items={workloads}
-            kindLabel
-            error={inventoryErrors.workloads}
-          />
-          <WorkloadTable
-            title="Virtual machines"
-            description="VM records reported by the Proxmox VM inventory endpoint."
-            items={vms}
-            error={inventoryErrors.vms}
-          />
-          <WorkloadTable
-            title="Containers"
-            description="LXC records reported by the Proxmox container inventory endpoint."
-            items={containers}
-            error={inventoryErrors.containers}
-          />
-        </div>
-
-        <div className="space-y-4">
-          <Tabs defaultValue="vm" className="gap-4">
-            <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-xl bg-muted/60 p-2 xl:grid-cols-3">
-              {actionTabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <TabsTrigger
-                    key={tab.value}
-                    value={tab.value}
-                    className="h-auto min-h-16 flex-col items-start gap-1 rounded-lg px-3 py-3 text-left"
-                  >
-                    <span className="flex items-center gap-2 text-sm font-semibold">
-                      <Icon className="h-4 w-4" />
-                      {tab.label}
-                    </span>
-                    <span className="whitespace-normal text-xs leading-5 text-muted-foreground">
-                      {tab.description}
-                    </span>
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-
-            <TabsContent value="vm">
-              <ActionCard title="Create VM" description="Clone a new VM from a template and apply guest identity, storage, and cloud-init settings.">
-                <SectionBlock title="Identity" description="Core identifiers for the clone target and template source.">
-                  <ResponsiveFieldGrid>
-                    <TextInput label="VM ID" value={vmForm.vmid} onChange={(value) => setVmForm((prev) => ({ ...prev, vmid: value }))} />
-                    <TextInput label="Template VMID" value={vmForm.template_vmid} onChange={(value) => setVmForm((prev) => ({ ...prev, template_vmid: value }))} />
-                    <TextInput label="Name" value={vmForm.name} onChange={(value) => setVmForm((prev) => ({ ...prev, name: value }))} className="sm:col-span-2" />
-                    <TextInput label="Storage" value={vmForm.storage} onChange={(value) => setVmForm((prev) => ({ ...prev, storage: value }))} className="sm:col-span-2" />
-                  </ResponsiveFieldGrid>
-                </SectionBlock>
-                <SectionBlock title="Compute profile" description="Sizing values passed to the Proxmox VM create endpoint.">
-                  <InlineNumericFields
-                    fields={[
-                      { label: "Cores", value: vmForm.cores, onChange: (value) => setVmForm((prev) => ({ ...prev, cores: value })) },
-                      { label: "Sockets", value: vmForm.sockets, onChange: (value) => setVmForm((prev) => ({ ...prev, sockets: value })) },
-                      { label: "Memory MB", value: vmForm.memory_mb, onChange: (value) => setVmForm((prev) => ({ ...prev, memory_mb: value })) },
-                    ]}
-                  />
-                </SectionBlock>
-                <SectionBlock title="Cloud-init" description="Guest bootstrap settings, networking, and SSH access.">
-                  <ResponsiveFieldGrid>
-                    <TextInput label="Cloud-init User" value={vmForm.ci_user} onChange={(value) => setVmForm((prev) => ({ ...prev, ci_user: value }))} />
-                    <TextInput label="Cloud-init Password" value={vmForm.ci_password} onChange={(value) => setVmForm((prev) => ({ ...prev, ci_password: value }))} />
-                    <TextInput label="IP Config 0" value={vmForm.ipconfig0} onChange={(value) => setVmForm((prev) => ({ ...prev, ipconfig0: value }))} className="sm:col-span-2" />
-                    <TextInput label="Nameserver" value={vmForm.nameserver} onChange={(value) => setVmForm((prev) => ({ ...prev, nameserver: value }))} />
-                    <TextInput label="Search Domain" value={vmForm.search_domain} onChange={(value) => setVmForm((prev) => ({ ...prev, search_domain: value }))} />
-                    <TextInput label="CI Custom Script" value={vmForm.ci_custom_script} onChange={(value) => setVmForm((prev) => ({ ...prev, ci_custom_script: value }))} className="sm:col-span-2" />
-                    <TextInput label="CI Snippets Storage" value={vmForm.ci_snippets_storage} onChange={(value) => setVmForm((prev) => ({ ...prev, ci_snippets_storage: value }))} className="sm:col-span-2" />
-                  </ResponsiveFieldGrid>
-                  <TextareaField label="SSH Public Keys" value={vmForm.ssh_public_keys} onChange={(value) => setVmForm((prev) => ({ ...prev, ssh_public_keys: value }))} placeholder="One public key per line" />
-                </SectionBlock>
-                <SectionBlock title="Behavior" description="Optional metadata and post-create actions.">
-                  <TextareaField label="Description" value={vmForm.description} onChange={(value) => setVmForm((prev) => ({ ...prev, description: value }))} />
-                  <CheckRow
-                    items={[
-                      { label: "Full clone", checked: vmForm.full_clone, onChange: (checked) => setVmForm((prev) => ({ ...prev, full_clone: checked })) },
-                      { label: "Start after create", checked: vmForm.start, onChange: (checked) => setVmForm((prev) => ({ ...prev, start: checked })) },
-                    ]}
-                  />
-                </SectionBlock>
-                <PrimaryActionButton
-                  busy={busySection === "vm"}
-                  idleLabel="Create VM"
-                  onClick={() =>
-                    runSection(
-                      "vm",
-                      () =>
-                        ProxmoxService.createProxmoxVm({
-                          host_server_id: hostServerId,
-                          vmid: parseInteger(vmForm.vmid),
-                          template_vmid: parseInteger(vmForm.template_vmid),
-                          name: vmForm.name.trim() || undefined,
-                          storage: vmForm.storage.trim() || undefined,
-                          cores: parseInteger(vmForm.cores),
-                          sockets: parseInteger(vmForm.sockets),
-                          memory_mb: parseInteger(vmForm.memory_mb),
-                          ci_user: vmForm.ci_user.trim() || undefined,
-                          ci_password: vmForm.ci_password.trim() || undefined,
-                          ipconfig0: vmForm.ipconfig0.trim() || undefined,
-                          nameserver: vmForm.nameserver.trim() || undefined,
-                          search_domain: vmForm.search_domain.trim() || undefined,
-                          ssh_public_keys: parseLines(vmForm.ssh_public_keys),
-                          description: vmForm.description.trim() || undefined,
-                          start: vmForm.start,
-                          full_clone: vmForm.full_clone,
-                          ci_custom_script: vmForm.ci_custom_script.trim() || undefined,
-                          ci_snippets_storage: vmForm.ci_snippets_storage.trim() || undefined,
-                        }),
-                      "VM create request finished"
-                    )
-                  }
-                />
-              </ActionCard>
-            </TabsContent>
-
-            <TabsContent value="lxc">
-              <ActionCard title="Create LXC" description="Provision a container with host identity, storage, network, and resource controls.">
-                <SectionBlock title="Identity" description="Container name, template image, and storage destination.">
-                  <ResponsiveFieldGrid>
-                    <TextInput label="VMID" value={lxcForm.vmid} onChange={(value) => setLxcForm((prev) => ({ ...prev, vmid: value }))} />
-                    <TextInput label="Hostname" value={lxcForm.hostname} onChange={(value) => setLxcForm((prev) => ({ ...prev, hostname: value }))} />
-                    <TextInput label="OS Template" value={lxcForm.ostemplate} onChange={(value) => setLxcForm((prev) => ({ ...prev, ostemplate: value }))} className="sm:col-span-2" />
-                    <TextInput label="Storage" value={lxcForm.storage} onChange={(value) => setLxcForm((prev) => ({ ...prev, storage: value }))} />
-                    <TextInput label="RootFS Size" value={lxcForm.rootfs_size} onChange={(value) => setLxcForm((prev) => ({ ...prev, rootfs_size: value }))} />
-                  </ResponsiveFieldGrid>
-                </SectionBlock>
-                <SectionBlock title="Resources" description="Container memory, swap, CPU, and scheduling controls.">
-                  <InlineNumericFields
-                    fields={[
-                      { label: "Memory", value: lxcForm.memory, onChange: (value) => setLxcForm((prev) => ({ ...prev, memory: value })) },
-                      { label: "Swap", value: lxcForm.swap, onChange: (value) => setLxcForm((prev) => ({ ...prev, swap: value })) },
-                      { label: "Cores", value: lxcForm.cores, onChange: (value) => setLxcForm((prev) => ({ ...prev, cores: value })) },
-                    ]}
-                  />
-                  <InlineNumericFields
-                    fields={[
-                      { label: "CPU Limit", value: lxcForm.cpu_limit, onChange: (value) => setLxcForm((prev) => ({ ...prev, cpu_limit: value })) },
-                      { label: "CPU Units", value: lxcForm.cpu_units, onChange: (value) => setLxcForm((prev) => ({ ...prev, cpu_units: value })) },
-                    ]}
-                  />
-                </SectionBlock>
-                <SectionBlock title="Access and networking" description="Guest credentials, network configuration, SSH keys, and runtime features.">
-                  <ResponsiveFieldGrid>
-                    <TextInput label="Password" value={lxcForm.password} onChange={(value) => setLxcForm((prev) => ({ ...prev, password: value }))} />
-                    <TextInput label="Architecture" value={lxcForm.arch} onChange={(value) => setLxcForm((prev) => ({ ...prev, arch: value }))} />
-                    <TextInput label="Network net0" value={lxcForm.net0} onChange={(value) => setLxcForm((prev) => ({ ...prev, net0: value }))} className="sm:col-span-2" />
-                    <TextInput label="Nameserver" value={lxcForm.nameserver} onChange={(value) => setLxcForm((prev) => ({ ...prev, nameserver: value }))} />
-                    <TextInput label="Search Domain" value={lxcForm.search_domain} onChange={(value) => setLxcForm((prev) => ({ ...prev, search_domain: value }))} />
-                    <TextInput label="Features" value={lxcForm.features} onChange={(value) => setLxcForm((prev) => ({ ...prev, features: value }))} className="sm:col-span-2" />
-                    <TextInput label="Console Mode" value={lxcForm.cmode} onChange={(value) => setLxcForm((prev) => ({ ...prev, cmode: value }))} />
-                  </ResponsiveFieldGrid>
-                  <TextareaField label="SSH Public Keys" value={lxcForm.ssh_public_keys} onChange={(value) => setLxcForm((prev) => ({ ...prev, ssh_public_keys: value }))} placeholder="One public key per line" />
-                  <TextareaField label="Description" value={lxcForm.description} onChange={(value) => setLxcForm((prev) => ({ ...prev, description: value }))} />
-                  <CheckRow
-                    items={[
-                      { label: "Console enabled", checked: lxcForm.console, onChange: (checked) => setLxcForm((prev) => ({ ...prev, console: checked })) },
-                      { label: "Start after create", checked: lxcForm.start, onChange: (checked) => setLxcForm((prev) => ({ ...prev, start: checked })) },
-                      { label: "Unprivileged", checked: lxcForm.unprivileged, onChange: (checked) => setLxcForm((prev) => ({ ...prev, unprivileged: checked })) },
-                    ]}
-                  />
-                </SectionBlock>
-                <PrimaryActionButton
-                  busy={busySection === "lxc"}
-                  idleLabel="Create LXC"
-                  onClick={() =>
-                    runSection(
-                      "lxc",
-                      () =>
-                        ProxmoxService.createProxmoxLxc({
-                          host_server_id: hostServerId,
-                          vmid: parseInteger(lxcForm.vmid),
-                          hostname: lxcForm.hostname.trim() || undefined,
-                          ostemplate: lxcForm.ostemplate.trim() || undefined,
-                          storage: lxcForm.storage.trim() || undefined,
-                          rootfs_size: lxcForm.rootfs_size.trim() || undefined,
-                          memory: parseInteger(lxcForm.memory),
-                          swap: parseInteger(lxcForm.swap),
-                          cores: parseInteger(lxcForm.cores),
-                          password: lxcForm.password.trim() || undefined,
-                          net0: lxcForm.net0.trim() || undefined,
-                          nameserver: lxcForm.nameserver.trim() || undefined,
-                          search_domain: lxcForm.search_domain.trim() || undefined,
-                          ssh_public_keys: parseLines(lxcForm.ssh_public_keys),
-                          description: lxcForm.description.trim() || undefined,
-                          features: lxcForm.features.trim() || undefined,
-                          arch: lxcForm.arch.trim() || undefined,
-                          cmode: lxcForm.cmode.trim() || undefined,
-                          console: lxcForm.console,
-                          start: lxcForm.start,
-                          unprivileged: lxcForm.unprivileged,
-                          cpu_limit: parseInteger(lxcForm.cpu_limit),
-                          cpu_units: parseInteger(lxcForm.cpu_units),
-                        }),
-                      "LXC create request finished"
-                    )
-                  }
-                />
-              </ActionCard>
-            </TabsContent>
-
-            <TabsContent value="template">
-              <ActionCard title="Create VM Template" description="Define a reusable VM template from a source image and baseline hardware profile.">
-                <SectionBlock title="Source and identity" description="Template identifiers and the image source used to build it.">
-                  <ResponsiveFieldGrid>
-                    <TextInput label="VMID" value={templateForm.vmid} onChange={(value) => setTemplateForm((prev) => ({ ...prev, vmid: value }))} />
-                    <TextInput label="Name" value={templateForm.name} onChange={(value) => setTemplateForm((prev) => ({ ...prev, name: value }))} />
-                    <TextInput label="Image URL" value={templateForm.image_url} onChange={(value) => setTemplateForm((prev) => ({ ...prev, image_url: value }))} className="sm:col-span-2" />
-                    <TextInput label="Storage" value={templateForm.storage} onChange={(value) => setTemplateForm((prev) => ({ ...prev, storage: value }))} className="sm:col-span-2" />
-                  </ResponsiveFieldGrid>
-                </SectionBlock>
-                <SectionBlock title="Hardware profile" description="Compute, networking, boot, and storage bus settings.">
-                  <InlineNumericFields
-                    fields={[
-                      { label: "Cores", value: templateForm.cores, onChange: (value) => setTemplateForm((prev) => ({ ...prev, cores: value })) },
-                      { label: "Sockets", value: templateForm.sockets, onChange: (value) => setTemplateForm((prev) => ({ ...prev, sockets: value })) },
-                      { label: "Memory MB", value: templateForm.memory_mb, onChange: (value) => setTemplateForm((prev) => ({ ...prev, memory_mb: value })) },
-                    ]}
-                  />
-                  <ResponsiveFieldGrid>
-                    <TextInput label="net0" value={templateForm.net0} onChange={(value) => setTemplateForm((prev) => ({ ...prev, net0: value }))} className="sm:col-span-2" />
-                    <TextInput label="Boot Order" value={templateForm.boot_order} onChange={(value) => setTemplateForm((prev) => ({ ...prev, boot_order: value }))} />
-                    <TextInput label="Cloud-init Storage" value={templateForm.cloudinit_storage} onChange={(value) => setTemplateForm((prev) => ({ ...prev, cloudinit_storage: value }))} />
-                    <TextInput label="Disk Bus" value={templateForm.disk_bus} onChange={(value) => setTemplateForm((prev) => ({ ...prev, disk_bus: value }))} />
-                    <TextInput label="SCSI HW" value={templateForm.scsihw} onChange={(value) => setTemplateForm((prev) => ({ ...prev, scsihw: value }))} />
-                  </ResponsiveFieldGrid>
-                </SectionBlock>
-                <SectionBlock title="Behavior" description="Template metadata and automation defaults.">
-                  <TextareaField label="Description" value={templateForm.description} onChange={(value) => setTemplateForm((prev) => ({ ...prev, description: value }))} />
-                  <CheckRow
-                    items={[
-                      { label: "QEMU agent", checked: templateForm.agent, onChange: (checked) => setTemplateForm((prev) => ({ ...prev, agent: checked })) },
-                      { label: "Cleanup image", checked: templateForm.cleanup_image, onChange: (checked) => setTemplateForm((prev) => ({ ...prev, cleanup_image: checked })) },
-                      { label: "Serial console", checked: templateForm.serial_console, onChange: (checked) => setTemplateForm((prev) => ({ ...prev, serial_console: checked })) },
-                    ]}
-                  />
-                </SectionBlock>
-                <PrimaryActionButton
-                  busy={busySection === "template"}
-                  idleLabel="Create VM Template"
-                  onClick={() =>
-                    runSection(
-                      "template",
-                      () =>
-                        ProxmoxService.createProxmoxVmTemplate({
-                          host_server_id: hostServerId,
-                          vmid: parseInteger(templateForm.vmid),
-                          name: templateForm.name.trim() || undefined,
-                          image_url: templateForm.image_url.trim() || undefined,
-                          storage: templateForm.storage.trim() || undefined,
-                          cores: parseInteger(templateForm.cores),
-                          sockets: parseInteger(templateForm.sockets),
-                          memory_mb: parseInteger(templateForm.memory_mb),
-                          net0: templateForm.net0.trim() || undefined,
-                          description: templateForm.description.trim() || undefined,
-                          agent: templateForm.agent,
-                          cleanup_image: templateForm.cleanup_image,
-                          serial_console: templateForm.serial_console,
-                          boot_order: templateForm.boot_order.trim() || undefined,
-                          cloudinit_storage: templateForm.cloudinit_storage.trim() || undefined,
-                          disk_bus: templateForm.disk_bus.trim() || undefined,
-                          scsihw: templateForm.scsihw.trim() || undefined,
-                        }),
-                      "VM template request finished"
-                    )
-                  }
-                />
-              </ActionCard>
-            </TabsContent>
-
-            <TabsContent value="start">
-              <ActionCard title="Start VM" description="Start an existing VM on this host using its VMID.">
-                <SectionBlock title="Power action" description="Use this for a direct VM start without opening the full VM workflow.">
-                  <ResponsiveFieldGrid>
-                    <TextInput label="VMID" value={vmStartForm.vmid} onChange={(value) => setVmStartForm({ vmid: value })} />
-                  </ResponsiveFieldGrid>
-                </SectionBlock>
-                <PrimaryActionButton
-                  busy={busySection === "start"}
-                  idleLabel="Start VM"
-                  disabled={!parseInteger(vmStartForm.vmid)}
-                  onClick={() =>
-                    runSection(
-                      "start",
-                      () =>
-                        ProxmoxService.startProxmoxVm(parseInteger(vmStartForm.vmid)!, {
-                          host_server_id: hostServerId,
-                          vmid: parseInteger(vmStartForm.vmid),
-                        }),
-                      "VM start request finished"
-                    )
-                  }
-                />
-              </ActionCard>
-            </TabsContent>
-
-            <TabsContent value="pve-user">
-              <ActionCard title="Create PVE User" description="Create a Proxmox VE user record and optionally force recreation if it already exists.">
-                <SectionBlock title="Account settings" description="User identity, realm, credentials, and optional notes.">
-                  <ResponsiveFieldGrid>
-                    <TextInput label="Username" value={pveUserForm.username} onChange={(value) => setPveUserForm((prev) => ({ ...prev, username: value }))} />
-                    <TextInput label="Realm" value={pveUserForm.realm} onChange={(value) => setPveUserForm((prev) => ({ ...prev, realm: value }))} />
-                    <TextInput label="Password" value={pveUserForm.password} onChange={(value) => setPveUserForm((prev) => ({ ...prev, password: value }))} className="sm:col-span-2" />
-                  </ResponsiveFieldGrid>
-                  <TextareaField label="Comment" value={pveUserForm.comment} onChange={(value) => setPveUserForm((prev) => ({ ...prev, comment: value }))} />
-                  <CheckRow
-                    items={[
-                      { label: "Force recreate", checked: pveUserForm.force, onChange: (checked) => setPveUserForm((prev) => ({ ...prev, force: checked })) },
-                    ]}
-                  />
-                </SectionBlock>
-                <PrimaryActionButton
-                  busy={busySection === "pve-user"}
-                  idleLabel="Create PVE User"
-                  onClick={() =>
-                    runSection(
-                      "pve-user",
-                      () =>
-                        ProxmoxService.createProxmoxPveUser({
-                          host_server_id: hostServerId,
-                          username: pveUserForm.username.trim() || undefined,
-                          realm: pveUserForm.realm.trim() || undefined,
-                          password: pveUserForm.password.trim() || undefined,
-                          comment: pveUserForm.comment.trim() || undefined,
-                          force: pveUserForm.force,
-                        }),
-                      "PVE user request finished"
-                    )
-                  }
-                />
-              </ActionCard>
-            </TabsContent>
-
-            <TabsContent value="api-token">
-              <ActionCard title="Create API Token" description="Generate an automation token with role and ACL settings, then optionally store it as a user secret.">
-                <SectionBlock title="Principal" description="Target user information and token identity.">
-                  <ResponsiveFieldGrid>
-                    <TextInput label="Username" value={apiTokenForm.username} onChange={(value) => setApiTokenForm((prev) => ({ ...prev, username: value }))} />
-                    <TextInput label="Realm" value={apiTokenForm.realm} onChange={(value) => setApiTokenForm((prev) => ({ ...prev, realm: value }))} />
-                    <TextInput label="User ID" value={apiTokenForm.userid} onChange={(value) => setApiTokenForm((prev) => ({ ...prev, userid: value }))} />
-                    <TextInput label="Token ID" value={apiTokenForm.token_id} onChange={(value) => setApiTokenForm((prev) => ({ ...prev, token_id: value }))} />
-                  </ResponsiveFieldGrid>
-                </SectionBlock>
-                <SectionBlock title="Authorization" description="Role assignment, ACL scope, and expiration settings.">
-                  <ResponsiveFieldGrid>
-                    <TextInput label="Role" value={apiTokenForm.role} onChange={(value) => setApiTokenForm((prev) => ({ ...prev, role: value }))} />
-                    <TextInput label="ACL Path" value={apiTokenForm.acl_path} onChange={(value) => setApiTokenForm((prev) => ({ ...prev, acl_path: value }))} />
-                    <TextInput label="Expiration Date" value={apiTokenForm.expiration_date} onChange={(value) => setApiTokenForm((prev) => ({ ...prev, expiration_date: value }))} placeholder="YYYY-MM-DD or RFC3339" />
-                    <TextInput label="Days Valid" value={apiTokenForm.days_valid} onChange={(value) => setApiTokenForm((prev) => ({ ...prev, days_valid: value }))} />
-                  </ResponsiveFieldGrid>
-                </SectionBlock>
-                <SectionBlock title="Behavior" description="Comments plus safety and convenience switches.">
-                  <TextareaField label="Comment" value={apiTokenForm.comment} onChange={(value) => setApiTokenForm((prev) => ({ ...prev, comment: value }))} />
-                  <CheckRow
-                    items={[
-                      { label: "Privsep", checked: apiTokenForm.privsep, onChange: (checked) => setApiTokenForm((prev) => ({ ...prev, privsep: checked })) },
-                      { label: "Force recreate", checked: apiTokenForm.force, onChange: (checked) => setApiTokenForm((prev) => ({ ...prev, force: checked })) },
-                      { label: "Verify", checked: apiTokenForm.verify, onChange: (checked) => setApiTokenForm((prev) => ({ ...prev, verify: checked })) },
-                      { label: "Store as user secret", checked: apiTokenForm.store_as_user_secret, onChange: (checked) => setApiTokenForm((prev) => ({ ...prev, store_as_user_secret: checked })) },
-                      { label: "YOLO", checked: apiTokenForm.yolo, onChange: (checked) => setApiTokenForm((prev) => ({ ...prev, yolo: checked })) },
-                    ]}
-                  />
-                </SectionBlock>
-                <PrimaryActionButton
-                  busy={busySection === "api-token"}
-                  idleLabel="Create API Token"
-                  onClick={() =>
-                    runSection(
-                      "api-token",
-                      () =>
-                        ProxmoxService.createProxmoxApiToken({
-                          host_server_id: hostServerId,
-                          username: apiTokenForm.yolo ? undefined : apiTokenForm.username.trim() || undefined,
-                          realm: apiTokenForm.yolo ? undefined : apiTokenForm.realm.trim() || undefined,
-                          userid: apiTokenForm.userid.trim() || undefined,
-                          token_id: apiTokenForm.token_id.trim() || undefined,
-                          role: apiTokenForm.yolo ? undefined : apiTokenForm.role.trim() || undefined,
-                          acl_path: apiTokenForm.yolo ? undefined : apiTokenForm.acl_path.trim() || undefined,
-                          expiration_date: apiTokenForm.expiration_date.trim() || undefined,
-                          days_valid: parseInteger(apiTokenForm.days_valid),
-                          comment: apiTokenForm.comment.trim() || undefined,
-                          privsep: apiTokenForm.privsep,
-                          force: apiTokenForm.force,
-                          verify: apiTokenForm.verify,
-                          store_as_user_secret: apiTokenForm.store_as_user_secret,
-                          yolo: apiTokenForm.yolo,
-                        }),
-                      "API token request finished"
-                    )
-                  }
-                />
-              </ActionCard>
-            </TabsContent>
-          </Tabs>
-
-          <Card className="border-border/70 bg-card/70 shadow-none">
-            <CardHeader>
-              <CardTitle>Last response</CardTitle>
-              <CardDescription>Latest payload returned from a Proxmox endpoint call.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <pre className="max-h-[260px] overflow-auto rounded-xl border border-border/70 bg-background/80 p-4 text-xs leading-6">
-                {JSON.stringify(apiResult, null, 2)}
-              </pre>
-            </CardContent>
-          </Card>
-        </div>
+              <section className="rounded-2xl border border-border/70 bg-card/30 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      Last API Response
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Latest payload returned from a workload action or inventory call.
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setApiResult(null)}>
+                    Clear
+                  </Button>
+                </div>
+                <pre className="mt-3 overflow-auto rounded-xl border border-border/60 bg-background/40 p-4 text-xs leading-6">
+                  {JSON.stringify(apiResult, null, 2)}
+                </pre>
+              </section>
+            </div>
+          </ScrollArea>
+        </main>
       </div>
+
+      {contextMenu.open && contextMenu.item ? (
+        <div
+          className="fixed z-50 min-w-48 rounded-xl border border-border/70 bg-popover/95 p-1.5 shadow-2xl backdrop-blur"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
+            onClick={() => handleContextAction("inspect", contextMenu.item!)}
+          >
+            <Info className="h-4 w-4" />
+            Inspect
+          </button>
+          {isRunning(contextMenu.item.status) ? (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
+              onClick={() => handleContextAction("stop", contextMenu.item!)}
+            >
+              <Power className="h-4 w-4" />
+              Stop
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
+              onClick={() => void handleContextAction("start", contextMenu.item!)}
+            >
+              <Play className="h-4 w-4" />
+              Start
+            </button>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function ActionCard({
+function TreeGroup({
   title,
-  description,
+  kind,
+  count,
+  open,
+  onToggle,
   children,
-}: React.PropsWithChildren<{ title: string; description: string }>) {
+}: React.PropsWithChildren<{
+  title: string;
+  kind: WorkloadKind;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+}>) {
   return (
-    <Card className="border-border/70 bg-card/70 shadow-none">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">{children}</CardContent>
-    </Card>
+    <div className="rounded-xl border border-border/50 bg-card/20">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between px-3 py-2 text-left"
+      >
+        <div className="flex items-center gap-2">
+          {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          {kind === "qemu" ? (
+            <Server className="h-4 w-4 text-sky-300" />
+          ) : (
+            <Boxes className="h-4 w-4 text-emerald-300" />
+          )}
+          <span className="text-sm font-medium">{title}</span>
+        </div>
+        <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px]">
+          {count}
+        </Badge>
+      </button>
+      {open ? <div className="space-y-1 px-2 pb-2">{children}</div> : null}
+    </div>
   );
 }
 
-function SectionBlock({
-  title,
-  description,
-  children,
-}: React.PropsWithChildren<{ title: string; description?: string }>) {
-  return (
-    <section className="space-y-4 rounded-xl border border-border/70 bg-muted/15 p-4">
-      <div className="space-y-1">
-        <h4 className="text-sm font-semibold tracking-tight">{title}</h4>
-        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function ResponsiveFieldGrid({ children }: React.PropsWithChildren) {
-  return <div className="grid gap-3 sm:grid-cols-2">{children}</div>;
-}
-
-function SummaryCard({
-  label,
-  value,
-  mono = false,
+function TreeWorkloadItem({
+  item,
+  selected,
+  busy,
+  onSelect,
+  onContextMenu,
 }: {
-  label: string;
-  value: string;
-  mono?: boolean;
+  item: ExplorerItem;
+  selected: boolean;
+  busy: boolean;
+  onSelect: () => void;
+  onContextMenu: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
-    <div className="rounded-xl border border-border/70 bg-background/70 p-4">
-      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
-      <div className={cn("mt-2 text-lg font-semibold tracking-tight", mono && "font-mono text-sm")}>
-        {value}
+    <button
+      type="button"
+      onClick={onSelect}
+      onContextMenu={onContextMenu}
+      className={cn(
+        "relative flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors",
+        selected ? "bg-primary/10 text-foreground" : "hover:bg-accent/50"
+      )}
+    >
+      <div className="mt-1 flex items-center gap-2">
+        <span className="h-px w-3 bg-border/70" />
+        <StatusDot running={isRunning(item.status)} busy={busy} />
       </div>
-    </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-medium">{item.label}</span>
+          <span className="font-mono text-[10px] text-muted-foreground">{item.vmid ?? "-"}</span>
+        </div>
+        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{item.node || "-"}</span>
+          <span>•</span>
+          <span>{item.kind.toUpperCase()}</span>
+          <span>•</span>
+          <span>{item.status || "unknown"}</span>
+        </div>
+      </div>
+    </button>
   );
 }
 
-function SummaryPill({
+function StatusDot({ running, busy = false }: { running: boolean; busy?: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-2.5 w-2.5 rounded-full",
+        running ? "bg-emerald-400" : "bg-zinc-500",
+        busy && "animate-pulse ring-4 ring-primary/20"
+      )}
+    />
+  );
+}
+
+function MiniStat({
   label,
   value,
   tone = "neutral",
 }: {
   label: string;
   value: string;
-  tone?: "neutral" | "success" | "warning" | "danger";
+  tone?: "neutral" | "success" | "warning";
 }) {
   return (
     <div
       className={cn(
-        "rounded-xl border px-4 py-3 text-left shadow-sm",
-        tone === "success" && "border-emerald-500/25 bg-emerald-500/10",
-        tone === "warning" && "border-amber-500/25 bg-amber-500/10",
-        tone === "danger" && "border-destructive/30 bg-destructive/10",
-        tone === "neutral" && "border-border/70 bg-card/70"
+        "rounded-xl border px-3 py-2",
+        tone === "neutral" && "border-border/60 bg-card/30",
+        tone === "success" && "border-emerald-500/20 bg-emerald-500/10",
+        tone === "warning" && "border-amber-500/20 bg-amber-500/10"
       )}
     >
-      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
-      <div className="mt-1 text-lg font-semibold tracking-tight">{value}</div>
+      <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-semibold">{value}</div>
     </div>
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function HeaderMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border/70 bg-background/40 p-4">
-      <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{label}</div>
-      <div className="mt-2 text-base font-semibold">{value}</div>
+    <div className="rounded-xl border border-border/60 bg-card/30 px-3 py-2">
+      <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-semibold">{value}</div>
     </div>
   );
 }
 
-function WorkloadTable({
+function DetailStat({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/30 p-4">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        <Icon className="h-4 w-4" />
+        {label}
+      </div>
+      <div className="mt-3 text-lg font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function SideNote({
   title,
-  description,
-  items,
-  kindLabel = false,
-  error,
+  lines,
 }: {
   title: string;
-  description?: string;
-  items: Array<ProxmoxWorkload | ProxmoxVM | ProxmoxContainer>;
-  kindLabel?: boolean;
-  error?: string;
+  lines: string[];
 }) {
   return (
-    <Card className="border-border/70 bg-card/70 shadow-none">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle>{title}</CardTitle>
-            {description ? <CardDescription>{description}</CardDescription> : null}
-          </div>
-          <Badge variant="outline" className="rounded-full px-2.5 py-1">
-            {items.length}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {error ? (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
-          </div>
-        ) : null}
-        <div className="overflow-x-auto rounded-xl border border-border/70">
-          <table className="w-full min-w-[680px] text-sm">
-            <thead className="bg-muted/50 text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em]">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em]">VMID</th>
-                {kindLabel ? <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em]">Kind</th> : null}
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em]">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em]">Node</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em]">CPU</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em]">Memory</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em]">Disk</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td className="px-4 py-8 text-center text-muted-foreground" colSpan={kindLabel ? 8 : 7}>
-                    No items returned.
-                  </td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={`${item.vmid}-${item.name}`} className="border-t border-border/60 bg-background/30">
-                    <td className="px-4 py-3 font-medium">{item.name || "-"}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{item.vmid ?? "-"}</td>
-                    {kindLabel ? <td className="px-4 py-3">{(item as ProxmoxWorkload).kind || "-"}</td> : null}
-                    <td className="px-4 py-3">{item.status || "-"}</td>
-                    <td className="px-4 py-3">{item.node || "-"}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{typeof item.cpu === "number" ? item.cpu.toFixed(2) : "-"}</td>
-                    <td className="px-4 py-3">{formatSize(item.mem, item.maxmem)}</td>
-                    <td className="px-4 py-3">{formatSize(getDiskUsed(item), item.maxdisk)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function formatSize(used?: number, total?: number) {
-  const formatter = (value?: number) => {
-    if (value === undefined || value === null) return "-";
-    if (value >= 1024 * 1024 * 1024) return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GiB`;
-    if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MiB`;
-    return String(value);
-  };
-
-  if (used === undefined && total === undefined) return "-";
-  return `${formatter(used)} / ${formatter(total)}`;
-}
-
-function formatBytesSafe(value?: number) {
-  if (!value) return "-";
-  if (value >= 1024 * 1024 * 1024) return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GiB`;
-  if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MiB`;
-  return String(value);
-}
-
-function getDiskUsed(item: ProxmoxWorkload | ProxmoxVM | ProxmoxContainer) {
-  if ("disk" in item && typeof item.disk === "number") {
-    return item.disk;
-  }
-  return undefined;
-}
-
-function TextInput({
-  label,
-  value,
-  onChange,
-  placeholder,
-  className,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  className?: string;
-}) {
-  return (
-    <div className={cn("space-y-2", className)}>
-      <Label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</Label>
-      <Input
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="border-border/70 bg-background/80"
-      />
+    <div className="rounded-2xl border border-border/70 bg-card/30 p-4">
+      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        {title}
+      </h3>
+      <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+        {lines.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </div>
     </div>
-  );
-}
-
-function TextareaField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  className,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  className?: string;
-}) {
-  return (
-    <div className={cn("space-y-2", className)}>
-      <Label className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</Label>
-      <Textarea
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="min-h-24 border-border/70 bg-background/80"
-      />
-    </div>
-  );
-}
-
-function InlineNumericFields({
-  fields,
-}: {
-  fields: Array<{ label: string; value: string; onChange: (value: string) => void }>;
-}) {
-  return (
-    <div className={`grid gap-3 ${fields.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-      {fields.map((field) => (
-        <TextInput key={field.label} label={field.label} value={field.value} onChange={field.onChange} />
-      ))}
-    </div>
-  );
-}
-
-function CheckRow({
-  items,
-}: {
-  items: Array<{ label: string; checked: boolean; onChange: (checked: boolean) => void }>;
-}) {
-  return (
-    <div className="flex flex-wrap gap-3 rounded-xl border border-border/70 bg-muted/20 p-3">
-      {items.map((item) => (
-        <label key={item.label} className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm">
-          <input type="checkbox" checked={item.checked} onChange={(e) => item.onChange(e.target.checked)} />
-          {item.label}
-        </label>
-      ))}
-    </div>
-  );
-}
-
-function PrimaryActionButton({
-  busy,
-  idleLabel,
-  onClick,
-  disabled = false,
-}: {
-  busy: boolean;
-  idleLabel: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <Button className="w-full sm:w-auto" disabled={busy || disabled} onClick={onClick}>
-      {busy ? "Submitting..." : idleLabel}
-    </Button>
   );
 }
