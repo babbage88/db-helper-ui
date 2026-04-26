@@ -6,6 +6,7 @@ const rootDir = process.cwd();
 const inputSpec = path.resolve(rootDir, "../go-infra/swagger.json");
 const sanitizedSpec = path.resolve(rootDir, ".openapi/swagger.sanitized.json");
 const outputDir = path.resolve(rootDir, "src/lib/api");
+const codegenBin = path.resolve(rootDir, "node_modules/openapi-typescript-codegen/bin/index.js");
 
 const preservedFiles = [
   path.resolve(rootDir, "src/lib/api/core/request.ts"),
@@ -26,7 +27,7 @@ try {
     stdio: "inherit",
   });
 
-  execFileSync("npx", ["openapi-typescript-codegen", "-i", sanitizedSpec, "-o", outputDir, "--client", "axios"], {
+  execFileSync("node", [codegenBin, "-i", sanitizedSpec, "-o", outputDir, "--client", "axios"], {
     cwd: rootDir,
     stdio: "inherit",
   });

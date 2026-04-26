@@ -73,6 +73,56 @@ export class ProxmoxService {
         });
     }
     /**
+     * Start a Proxmox LXC container.
+     * @param vmid VMID to start.
+     * @param body Request body.
+     * @returns ProxmoxVMStartResult (empty)
+     * @throws ApiError
+     */
+    public static startProxmoxContainer(
+        vmid: number,
+        body?: ProxmoxVMStartRequest,
+    ): CancelablePromise<ProxmoxVMStartResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/container/{vmid}/start',
+            path: {
+                'vmid': vmid,
+            },
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Stop a Proxmox LXC container.
+     * @param vmid VMID to stop.
+     * @param body Request body.
+     * @returns ProxmoxVMStartResult (empty)
+     * @throws ApiError
+     */
+    public static stopProxmoxContainer(
+        vmid: number,
+        body?: ProxmoxVMStartRequest,
+    ): CancelablePromise<ProxmoxVMStartResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/container/{vmid}/stop',
+            path: {
+                'vmid': vmid,
+            },
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
      * Create a Proxmox LXC container.
      * @param body
      * @returns ProxmoxLXCResult (empty)
@@ -197,6 +247,31 @@ export class ProxmoxService {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/proxmox/vm/{vmid}/start',
+            path: {
+                'vmid': vmid,
+            },
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Stop a Proxmox QEMU VM.
+     * @param vmid VMID to stop.
+     * @param body Request body.
+     * @returns ProxmoxVMStartResult (empty)
+     * @throws ApiError
+     */
+    public static stopProxmoxVm(
+        vmid: number,
+        body?: ProxmoxVMStartRequest,
+    ): CancelablePromise<ProxmoxVMStartResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/vm/{vmid}/stop',
             path: {
                 'vmid': vmid,
             },

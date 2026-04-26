@@ -18,6 +18,14 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { HostServersService } from "@/lib/api/services/HostServersService";
@@ -66,13 +74,6 @@ type ExplorerItem = {
   uptime?: number;
   tags?: string;
   raw: ProxmoxWorkload | ProxmoxVM | ProxmoxContainer;
-};
-
-type ContextMenuState = {
-  open: boolean;
-  x: number;
-  y: number;
-  item: ExplorerItem | null;
 };
 
 function parseErrorMessage(error: unknown) {
@@ -222,12 +223,6 @@ export default function ProxmoxManagerPage() {
     lxc: true,
   });
   const [actionBusyId, setActionBusyId] = React.useState<string | null>(null);
-  const [contextMenu, setContextMenu] = React.useState<ContextMenuState>({
-    open: false,
-    x: 0,
-    y: 0,
-    item: null,
-  });
 
   const hostServerId = node?.ID ?? nodeId ?? "";
   const hostLabel = node?.Hostname || node?.IpAddress || "Proxmox host";
@@ -372,21 +367,6 @@ export default function ProxmoxManagerPage() {
     }
   }, [explorerItems, selectedItemId]);
 
-  React.useEffect(() => {
-    const closeMenu = () => setContextMenu((prev) => ({ ...prev, open: false }));
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeMenu();
-    };
-    window.addEventListener("click", closeMenu);
-    window.addEventListener("contextmenu", closeMenu);
-    window.addEventListener("keydown", onEscape);
-    return () => {
-      window.removeEventListener("click", closeMenu);
-      window.removeEventListener("contextmenu", closeMenu);
-      window.removeEventListener("keydown", onEscape);
-    };
-  }, []);
-
   const selectedItem =
     selectedItemId === "host"
       ? null
@@ -398,20 +378,17 @@ export default function ProxmoxManagerPage() {
         showErrorToast("Cannot start workload", "This item is missing a VMID.");
         return;
       }
-      if (item.kind !== "qemu") {
-        showWarningToast(
-          "LXC start is not wired yet",
-          "The current generated client only exposes the Proxmox VM start endpoint."
-        );
-        return;
-      }
 
       setActionBusyId(item.id);
       try {
-        const result = await ProxmoxService.startProxmoxVm(item.vmid, {
+        const request = {
           host_server_id: hostServerId,
           vmid: item.vmid,
-        });
+        };
+        const result =
+          item.kind === "qemu"
+            ? await ProxmoxService.startProxmoxVm(item.vmid, request)
+            : await ProxmoxService.startProxmoxContainer(item.vmid, request);
         setApiResult(result);
         showSuccessToast(`Start requested for ${item.label}`, "Refreshing workload inventory.");
         await refreshInventory();
@@ -426,20 +403,39 @@ export default function ProxmoxManagerPage() {
     [hostServerId, refreshInventory]
   );
 
-  const handleStop = React.useCallback((item: ExplorerItem) => {
-    setApiResult({
-      error: "Stop action is not implemented in the current generated Proxmox API client.",
-      target: item.label,
-    });
-    showWarningToast(
-      "Stop action is not available yet",
-      "The backend/client wiring currently exposes start for QEMU VMs, but not stop."
-    );
-  }, []);
+  const handleStop = React.useCallback(
+    async (item: ExplorerItem) => {
+      if (!item.vmid) {
+        showErrorToast("Cannot stop workload", "This item is missing a VMID.");
+        return;
+      }
+
+      setActionBusyId(item.id);
+      try {
+        const request = {
+          host_server_id: hostServerId,
+          vmid: item.vmid,
+        };
+        const result =
+          item.kind === "qemu"
+            ? await ProxmoxService.stopProxmoxVm(item.vmid, request)
+            : await ProxmoxService.stopProxmoxContainer(item.vmid, request);
+        setApiResult(result);
+        showSuccessToast(`Stop requested for ${item.label}`, "Refreshing workload inventory.");
+        await refreshInventory();
+      } catch (error: unknown) {
+        const message = parseErrorMessage(error);
+        setApiResult({ error: message });
+        showErrorToast(`Failed to stop ${item.label}`, message);
+      } finally {
+        setActionBusyId(null);
+      }
+    },
+    [hostServerId, refreshInventory]
+  );
 
   const handleContextAction = React.useCallback(
     async (action: "start" | "stop" | "inspect", item: ExplorerItem) => {
-      setContextMenu((prev) => ({ ...prev, open: false }));
       if (action === "inspect") {
         setSelectedItemId(item.id);
         return;
@@ -587,16 +583,9 @@ export default function ProxmoxManagerPage() {
                     selected={selectedItemId === item.id}
                     busy={actionBusyId === item.id}
                     onSelect={() => setSelectedItemId(item.id)}
-                    onContextMenu={(event) => {
-                      event.preventDefault();
-                      setSelectedItemId(item.id);
-                      setContextMenu({
-                        open: true,
-                        x: event.clientX,
-                        y: event.clientY,
-                        item,
-                      });
-                    }}
+                    onInspect={() => handleContextAction("inspect", item)}
+                    onStart={() => void handleContextAction("start", item)}
+                    onStop={() => void handleContextAction("stop", item)}
                   />
                 ))}
               </TreeGroup>
@@ -617,16 +606,9 @@ export default function ProxmoxManagerPage() {
                     selected={selectedItemId === item.id}
                     busy={actionBusyId === item.id}
                     onSelect={() => setSelectedItemId(item.id)}
-                    onContextMenu={(event) => {
-                      event.preventDefault();
-                      setSelectedItemId(item.id);
-                      setContextMenu({
-                        open: true,
-                        x: event.clientX,
-                        y: event.clientY,
-                        item,
-                      });
-                    }}
+                    onInspect={() => handleContextAction("inspect", item)}
+                    onStart={() => void handleContextAction("start", item)}
+                    onStop={() => void handleContextAction("stop", item)}
                   />
                 ))}
               </TreeGroup>
@@ -731,19 +713,6 @@ export default function ProxmoxManagerPage() {
                             {actionBusyId === selectedItem.id ? "Starting..." : "Start"}
                           </Button>
                         )}
-                        <Button
-                          variant="outline"
-                          onClick={() =>
-                            setContextMenu({
-                              open: true,
-                              x: window.innerWidth / 2,
-                              y: 180,
-                              item: selectedItem,
-                            })
-                          }
-                        >
-                          More Actions
-                        </Button>
                       </div>
                     </div>
 
@@ -792,19 +761,10 @@ export default function ProxmoxManagerPage() {
                       lines={[
                         "Left-click selects the workload.",
                         "Right-click opens workload commands.",
-                        "Start is wired for QEMU VMs.",
-                        "Stop is shown, but backend/client support is still missing.",
+                        "Start and stop are available directly from the explorer.",
+                        "Use right-click in the explorer for workload actions.",
                       ]}
                     />
-                    {selectedItem.kind === "lxc" ? (
-                      <SideNote
-                        title="LXC note"
-                        lines={[
-                          "Container start/stop endpoints are not exposed by the generated client yet.",
-                          "Inventory and details still render normally.",
-                        ]}
-                      />
-                    ) : null}
                   </section>
                 </div>
               ) : (
@@ -879,41 +839,6 @@ export default function ProxmoxManagerPage() {
         </main>
       </div>
 
-      {contextMenu.open && contextMenu.item ? (
-        <div
-          className="fixed z-50 min-w-48 rounded-xl border border-border/70 bg-popover/95 p-1.5 shadow-2xl backdrop-blur"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
-            onClick={() => handleContextAction("inspect", contextMenu.item!)}
-          >
-            <Info className="h-4 w-4" />
-            Inspect
-          </button>
-          {isRunning(contextMenu.item.status) ? (
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
-              onClick={() => handleContextAction("stop", contextMenu.item!)}
-            >
-              <Power className="h-4 w-4" />
-              Stop
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-accent"
-              onClick={() => void handleContextAction("start", contextMenu.item!)}
-            >
-              <Play className="h-4 w-4" />
-              Start
-            </button>
-          )}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -962,42 +887,70 @@ function TreeWorkloadItem({
   selected,
   busy,
   onSelect,
-  onContextMenu,
+  onInspect,
+  onStart,
+  onStop,
 }: {
   item: ExplorerItem;
   selected: boolean;
   busy: boolean;
   onSelect: () => void;
-  onContextMenu: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onInspect: () => void;
+  onStart: () => void;
+  onStop: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      onContextMenu={onContextMenu}
-      className={cn(
-        "relative flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors",
-        selected ? "bg-primary/10 text-foreground" : "hover:bg-accent/50"
-      )}
-    >
-      <div className="mt-1 flex items-center gap-2">
-        <span className="h-px w-3 bg-border/70" />
-        <StatusDot running={isRunning(item.status)} busy={busy} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium">{item.label}</span>
-          <span className="font-mono text-[10px] text-muted-foreground">{item.vmid ?? "-"}</span>
-        </div>
-        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{item.node || "-"}</span>
-          <span>•</span>
-          <span>{item.kind.toUpperCase()}</span>
-          <span>•</span>
-          <span>{item.status || "unknown"}</span>
-        </div>
-      </div>
-    </button>
+    <ContextMenu onOpenChange={(open) => {
+      if (open) onSelect();
+    }}>
+      <ContextMenuTrigger asChild>
+        <button
+          type="button"
+          onClick={onSelect}
+          className={cn(
+            "relative flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors",
+            selected ? "bg-primary/10 text-foreground" : "hover:bg-accent/50"
+          )}
+        >
+          <div className="mt-1 flex items-center gap-2">
+            <span className="h-px w-3 bg-border/70" />
+            <StatusDot running={isRunning(item.status)} busy={busy} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="truncate text-sm font-medium">{item.label}</span>
+              <span className="font-mono text-[10px] text-muted-foreground">{item.vmid ?? "-"}</span>
+            </div>
+            <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+              <span>{item.node || "-"}</span>
+              <span>•</span>
+              <span>{item.kind.toUpperCase()}</span>
+              <span>•</span>
+              <span>{item.status || "unknown"}</span>
+            </div>
+          </div>
+        </button>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-52">
+        <ContextMenuLabel>{item.label}</ContextMenuLabel>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={onInspect}>
+          <Info className="h-4 w-4" />
+          Inspect
+        </ContextMenuItem>
+        {isRunning(item.status) ? (
+          <ContextMenuItem onSelect={onStop}>
+            <Power className="h-4 w-4" />
+            Stop
+          </ContextMenuItem>
+        ) : (
+          <ContextMenuItem onSelect={onStart}>
+            <Play className="h-4 w-4" />
+            Start
+          </ContextMenuItem>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 

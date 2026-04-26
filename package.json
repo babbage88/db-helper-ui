@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "ci": "npm ci",
     "gen-api": "node ./scripts/generate-api-client.mjs",
+    "verify-gen-api": "node ./scripts/verify-api-client.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
