@@ -273,13 +273,11 @@ function RenderWorkloadConsole({
   hostServerId,
   hostLabel,
   item,
-  node,
   onClose,
 }: {
   hostServerId: string;
   hostLabel: string;
   item: ExplorerItem;
-  node: Node;
   onClose: () => void;
 }) {
   if (!item.vmid) {
@@ -1065,8 +1063,8 @@ export default function ProxmoxManagerPage() {
             <h1 className="mt-2 text-xl font-semibold">{consoleItem.label}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {consoleItem.kind === "lxc"
-                ? "Attached shell via pct enter on the Proxmox host."
-                : "Attached serial console via qm terminal on the Proxmox host."}
+                ? "Connected through the Proxmox container console websocket."
+                : "Connected through the Proxmox VM display console websocket."}
             </p>
           </div>
 
@@ -1088,7 +1086,6 @@ export default function ProxmoxManagerPage() {
             hostServerId={hostServerId}
             hostLabel={hostLabel}
             item={consoleItem}
-            node={node}
             onClose={() => navigate(location.pathname, { replace: true })}
           />
         </div>
@@ -1425,7 +1422,6 @@ export default function ProxmoxManagerPage() {
                                 hostServerId={hostServerId}
                                 hostLabel={hostLabel}
                                 item={selectedItem}
-                                node={node}
                                 onClose={() => setConsoleItemId(null)}
                               />
                             </div>
