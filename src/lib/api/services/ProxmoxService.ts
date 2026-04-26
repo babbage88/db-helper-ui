@@ -73,6 +73,31 @@ export class ProxmoxService {
         });
     }
     /**
+     * Delete a Proxmox LXC container.
+     * @param vmid VMID to delete.
+     * @param body Request body.
+     * @returns ProxmoxVMStartResult (empty)
+     * @throws ApiError
+     */
+    public static deleteProxmoxContainer(
+        vmid: number,
+        body?: ProxmoxVMStartRequest,
+    ): CancelablePromise<ProxmoxVMStartResult> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v1/proxmox/container/{vmid}',
+            path: {
+                'vmid': vmid,
+            },
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
      * Start a Proxmox LXC container.
      * @param vmid VMID to start.
      * @param body Request body.
@@ -225,6 +250,31 @@ export class ProxmoxService {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/proxmox/vm/template',
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Delete a Proxmox QEMU VM.
+     * @param vmid VMID to delete.
+     * @param body Request body.
+     * @returns ProxmoxVMStartResult (empty)
+     * @throws ApiError
+     */
+    public static deleteProxmoxVm(
+        vmid: number,
+        body?: ProxmoxVMStartRequest,
+    ): CancelablePromise<ProxmoxVMStartResult> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v1/proxmox/vm/{vmid}',
+            path: {
+                'vmid': vmid,
+            },
             body: body,
             errors: {
                 400: `Invalid request`,

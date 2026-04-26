@@ -15,6 +15,7 @@ import {
   Power,
   RefreshCw,
   Server,
+  Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,14 @@ type HostSummary = {
   storageTotalBytes?: number;
   status?: string;
   error?: string;
+};
+
+type InventorySnapshot = {
+  workloads: ProxmoxWorkload[];
+  vms: ProxmoxVM[];
+  containers: ProxmoxContainer[];
+  errors: InventoryErrors;
+  hostSummary?: HostSummary | null;
 };
 
 type WorkloadKind = "qemu" | "lxc";
@@ -200,6 +209,18 @@ function isRunning(status?: string) {
   return status?.toLowerCase() === "running";
 }
 
+function sortExplorerItems(items: ExplorerItem[]) {
+  return [...items].sort((a, b) => {
+    const runningDelta = Number(isRunning(b.status)) - Number(isRunning(a.status));
+    if (runningDelta !== 0) return runningDelta;
+    return a.label.localeCompare(b.label);
+  });
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 export default function ProxmoxManagerPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -278,10 +299,19 @@ export default function ProxmoxManagerPage() {
     };
   }, [nodeId, seededNode]);
 
-  const refreshInventory = React.useCallback(async () => {
-    if (!hostServerId) return;
+  const applyInventorySnapshot = React.useCallback((snapshot: InventorySnapshot) => {
+    setWorkloads(snapshot.workloads);
+    setVms(snapshot.vms);
+    setContainers(snapshot.containers);
+    setInventoryErrors(snapshot.errors);
+    if (snapshot.hostSummary) {
+      setHostSummary(snapshot.hostSummary);
+    }
+  }, []);
 
-    setIsLoadingInventory(true);
+  const loadInventorySnapshot = React.useCallback(async (): Promise<InventorySnapshot | null> => {
+    if (!hostServerId) return null;
+
     const results = await Promise.allSettled([
       ProxmoxService.listProxmoxWorkloads(hostServerId, undefined, undefined, true),
       ProxmoxService.listProxmoxVMs(hostServerId, undefined, undefined, true),
@@ -292,49 +322,70 @@ export default function ProxmoxManagerPage() {
     const nextErrors: InventoryErrors = {};
 
     const workloadsResult = results[0];
+    let nextWorkloads: ProxmoxWorkload[] = [];
     if (workloadsResult.status === "fulfilled") {
-      setWorkloads(workloadsResult.value.workloads || []);
+      nextWorkloads = workloadsResult.value.workloads || [];
     } else {
-      setWorkloads([]);
       nextErrors.workloads = parseErrorMessage(workloadsResult.reason);
     }
 
     const vmsResult = results[1];
+    let nextVms: ProxmoxVM[] = [];
     if (vmsResult.status === "fulfilled") {
-      setVms(vmsResult.value.vms || []);
+      nextVms = vmsResult.value.vms || [];
     } else {
-      setVms([]);
       nextErrors.vms = parseErrorMessage(vmsResult.reason);
     }
 
     const containersResult = results[2];
+    let nextContainers: ProxmoxContainer[] = [];
     if (containersResult.status === "fulfilled") {
-      setContainers(containersResult.value.containers || []);
+      nextContainers = containersResult.value.containers || [];
     } else {
-      setContainers([]);
       nextErrors.containers = parseErrorMessage(containersResult.reason);
     }
 
     const statsResult = results[3];
+    let nextHostSummary: HostSummary | null | undefined;
     if (statsResult.status === "fulfilled" && statsResult.value) {
-      setHostSummary({
+      nextHostSummary = {
         cpuCores: statsResult.value.cpuCores,
         memoryTotalBytes: statsResult.value.memoryTotalBytes,
         storageTotalBytes: statsResult.value.storageTotalBytes,
         status: statsResult.value.status,
         error: statsResult.value.error,
-      });
+      };
     }
 
-    setInventoryErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) {
+    return {
+      workloads: nextWorkloads,
+      vms: nextVms,
+      containers: nextContainers,
+      errors: nextErrors,
+      hostSummary: nextHostSummary,
+    };
+  }, [hostServerId]);
+
+  const refreshInventory = React.useCallback(async (options?: { silent?: boolean }) => {
+    if (!hostServerId) return null;
+
+    setIsLoadingInventory(true);
+    const snapshot = await loadInventorySnapshot();
+    if (!snapshot) {
+      setIsLoadingInventory(false);
+      return null;
+    }
+
+    applyInventorySnapshot(snapshot);
+    if (!options?.silent && Object.keys(snapshot.errors).length > 0) {
       showWarningToast(
         "Some Proxmox inventory endpoints failed",
         "The explorer will keep rendering with whatever data is still available."
       );
     }
     setIsLoadingInventory(false);
-  }, [hostServerId]);
+    return snapshot;
+  }, [applyInventorySnapshot, hostServerId, loadInventorySnapshot]);
 
   React.useEffect(() => {
     if (!hostServerId) return;
@@ -342,12 +393,7 @@ export default function ProxmoxManagerPage() {
   }, [hostServerId, refreshInventory]);
 
   const explorerItems = React.useMemo(
-    () =>
-      toExplorerItems(workloads, vms, containers).sort((a, b) => {
-        const runningDelta = Number(isRunning(b.status)) - Number(isRunning(a.status));
-        if (runningDelta !== 0) return runningDelta;
-        return a.label.localeCompare(b.label);
-      }),
+    () => sortExplorerItems(toExplorerItems(workloads, vms, containers)),
     [containers, vms, workloads]
   );
 
@@ -372,6 +418,33 @@ export default function ProxmoxManagerPage() {
       ? null
       : explorerItems.find((item) => item.id === selectedItemId) ?? null;
 
+  const waitForInventoryCondition = React.useCallback(
+    async (
+      condition: (items: ExplorerItem[]) => boolean,
+      options?: { timeoutMs?: number; intervalMs?: number }
+    ) => {
+      const timeoutMs = options?.timeoutMs ?? 15000;
+      const intervalMs = options?.intervalMs ?? 1500;
+      const deadline = Date.now() + timeoutMs;
+
+      while (Date.now() < deadline) {
+        await sleep(intervalMs);
+        const snapshot = await refreshInventory({ silent: true });
+        if (!snapshot) return false;
+
+        const items = sortExplorerItems(
+          toExplorerItems(snapshot.workloads, snapshot.vms, snapshot.containers)
+        );
+        if (condition(items)) {
+          return true;
+        }
+      }
+
+      return false;
+    },
+    [refreshInventory]
+  );
+
   const handleStart = React.useCallback(
     async (item: ExplorerItem) => {
       if (!item.vmid) {
@@ -390,8 +463,14 @@ export default function ProxmoxManagerPage() {
             ? await ProxmoxService.startProxmoxVm(item.vmid, request)
             : await ProxmoxService.startProxmoxContainer(item.vmid, request);
         setApiResult(result);
-        showSuccessToast(`Start requested for ${item.label}`, "Refreshing workload inventory.");
-        await refreshInventory();
+        showSuccessToast(`Start requested for ${item.label}`, "Waiting for inventory to reflect the new state.");
+        const synced = await waitForInventoryCondition(
+          (items) => items.some((candidate) => candidate.id === item.id && isRunning(candidate.status))
+        );
+        if (!synced) {
+          showInfoToast("Start still processing", "The workload task was accepted, but Proxmox has not reported the running state yet.");
+          await refreshInventory({ silent: true });
+        }
       } catch (error: unknown) {
         const message = parseErrorMessage(error);
         setApiResult({ error: message });
@@ -400,7 +479,7 @@ export default function ProxmoxManagerPage() {
         setActionBusyId(null);
       }
     },
-    [hostServerId, refreshInventory]
+    [hostServerId, refreshInventory, waitForInventoryCondition]
   );
 
   const handleStop = React.useCallback(
@@ -421,8 +500,14 @@ export default function ProxmoxManagerPage() {
             ? await ProxmoxService.stopProxmoxVm(item.vmid, request)
             : await ProxmoxService.stopProxmoxContainer(item.vmid, request);
         setApiResult(result);
-        showSuccessToast(`Stop requested for ${item.label}`, "Refreshing workload inventory.");
-        await refreshInventory();
+        showSuccessToast(`Stop requested for ${item.label}`, "Waiting for inventory to reflect the new state.");
+        const synced = await waitForInventoryCondition(
+          (items) => items.some((candidate) => candidate.id === item.id && !isRunning(candidate.status))
+        );
+        if (!synced) {
+          showInfoToast("Stop still processing", "The workload task was accepted, but Proxmox has not reported the stopped state yet.");
+          await refreshInventory({ silent: true });
+        }
       } catch (error: unknown) {
         const message = parseErrorMessage(error);
         setApiResult({ error: message });
@@ -431,11 +516,54 @@ export default function ProxmoxManagerPage() {
         setActionBusyId(null);
       }
     },
-    [hostServerId, refreshInventory]
+    [hostServerId, refreshInventory, waitForInventoryCondition]
+  );
+
+  const handleDelete = React.useCallback(
+    async (item: ExplorerItem) => {
+      if (!item.vmid) {
+        showErrorToast("Cannot delete workload", "This item is missing a VMID.");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Delete ${item.label} (${item.kind.toUpperCase()} ${item.vmid})?\n\nThis action is destructive and cannot be undone.`
+      );
+      if (!confirmed) return;
+
+      setActionBusyId(item.id);
+      try {
+        const request = {
+          host_server_id: hostServerId,
+          vmid: item.vmid,
+        };
+        const result =
+          item.kind === "qemu"
+            ? await ProxmoxService.deleteProxmoxVm(item.vmid, request)
+            : await ProxmoxService.deleteProxmoxContainer(item.vmid, request);
+        setApiResult(result);
+        showSuccessToast(`Delete requested for ${item.label}`, "Waiting for the workload to disappear from inventory.");
+        const deleted = await waitForInventoryCondition(
+          (items) => !items.some((candidate) => candidate.id === item.id),
+          { timeoutMs: 20000 }
+        );
+        if (!deleted) {
+          showInfoToast("Delete still processing", "The delete task was accepted, but Proxmox still reports the workload.");
+          await refreshInventory({ silent: true });
+        }
+      } catch (error: unknown) {
+        const message = parseErrorMessage(error);
+        setApiResult({ error: message });
+        showErrorToast(`Failed to delete ${item.label}`, message);
+      } finally {
+        setActionBusyId(null);
+      }
+    },
+    [hostServerId, refreshInventory, waitForInventoryCondition]
   );
 
   const handleContextAction = React.useCallback(
-    async (action: "start" | "stop" | "inspect", item: ExplorerItem) => {
+    async (action: "start" | "stop" | "inspect" | "delete", item: ExplorerItem) => {
       if (action === "inspect") {
         setSelectedItemId(item.id);
         return;
@@ -444,9 +572,13 @@ export default function ProxmoxManagerPage() {
         await handleStart(item);
         return;
       }
-      handleStop(item);
+      if (action === "stop") {
+        await handleStop(item);
+        return;
+      }
+      await handleDelete(item);
     },
-    [handleStart, handleStop]
+    [handleDelete, handleStart, handleStop]
   );
 
   if (isLoadingNode) {
@@ -541,7 +673,9 @@ export default function ProxmoxManagerPage() {
                 variant="outline"
                 size="sm"
                 className="flex-1"
-                onClick={refreshInventory}
+                onClick={() => {
+                  void refreshInventory();
+                }}
                 disabled={isLoadingInventory}
               >
                 <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingInventory && "animate-spin")} />
@@ -586,6 +720,7 @@ export default function ProxmoxManagerPage() {
                     onInspect={() => handleContextAction("inspect", item)}
                     onStart={() => void handleContextAction("start", item)}
                     onStop={() => void handleContextAction("stop", item)}
+                    onDelete={() => void handleContextAction("delete", item)}
                   />
                 ))}
               </TreeGroup>
@@ -609,6 +744,7 @@ export default function ProxmoxManagerPage() {
                     onInspect={() => handleContextAction("inspect", item)}
                     onStart={() => void handleContextAction("start", item)}
                     onStop={() => void handleContextAction("stop", item)}
+                    onDelete={() => void handleContextAction("delete", item)}
                   />
                 ))}
               </TreeGroup>
@@ -695,6 +831,15 @@ export default function ProxmoxManagerPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => handleDelete(selectedItem)}
+                          disabled={actionBusyId === selectedItem.id}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </Button>
                         {isRunning(selectedItem.status) ? (
                           <Button
                             variant="outline"
@@ -890,6 +1035,7 @@ function TreeWorkloadItem({
   onInspect,
   onStart,
   onStop,
+  onDelete,
 }: {
   item: ExplorerItem;
   selected: boolean;
@@ -898,6 +1044,7 @@ function TreeWorkloadItem({
   onInspect: () => void;
   onStart: () => void;
   onStop: () => void;
+  onDelete: () => void;
 }) {
   return (
     <ContextMenu onOpenChange={(open) => {
@@ -949,6 +1096,11 @@ function TreeWorkloadItem({
             Start
           </ContextMenuItem>
         )}
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onSelect={onDelete}>
+          <Trash2 className="h-4 w-4" />
+          Delete
+        </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
   );
