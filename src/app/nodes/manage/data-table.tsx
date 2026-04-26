@@ -13,6 +13,7 @@ import {
   type RowSelectionState,
 } from "@tanstack/react-table";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +35,6 @@ import type { ProxmoxAPITokenCreateResult } from "@/lib/api/models/ProxmoxAPITok
 import { TerminalComponent } from "@/app/nodes/manage/terminal/terminal";
 import { formatBytes } from "@/lib/s3-admin-api";
 import { showErrorToast, showSuccessToast, showWarningToast } from "@/lib/toast-utils";
-import { ProxmoxManagerDialog } from "./proxmox-manager-dialog";
 import { isProxmoxHypervisorNode } from "./proxmox-utils";
 import ReactSelect from 'react-select';
 import type { MultiValue } from 'react-select';
@@ -86,7 +86,17 @@ const defaultProxmoxTokenFormState: ProxmoxTokenFormState = {
   yolo: false,
 };
 
+function toErrorMessage(error: unknown) {
+  if (typeof error === "object" && error !== null) {
+    const candidate = error as { body?: unknown; message?: unknown };
+    if (typeof candidate.body === "string" && candidate.body) return candidate.body;
+    if (typeof candidate.message === "string" && candidate.message) return candidate.message;
+  }
+  return "Request failed.";
+}
+
 export function DataTable({ data, onChange }: DataTableProps) {
+  const navigate = useNavigate();
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -101,7 +111,6 @@ export function DataTable({ data, onChange }: DataTableProps) {
   const [pingStatusMap, setPingStatusMap] = React.useState<Record<string, { success: boolean; latency: string; error?: string }>>({});
   const [isPinging, setIsPinging] = React.useState(false);
   const [terminalNode, setTerminalNode] = React.useState<Node | null>(null); // For Terminal modal
-  const [proxmoxManagerNode, setProxmoxManagerNode] = React.useState<Node | null>(null);
   const [isCreateTokenDialogOpen, setIsCreateTokenDialogOpen] = React.useState(false);
   const [isCreatingTokens, setIsCreatingTokens] = React.useState(false);
   const [proxmoxTokenForm, setProxmoxTokenForm] = React.useState<ProxmoxTokenFormState>(
@@ -127,7 +136,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
               error: pingResponse.error
             }
           }));
-        } catch (error) {
+        } catch {
           setPingStatusMap((prev) => ({
             ...prev,
             [node.ID]: {
@@ -179,7 +188,9 @@ export function DataTable({ data, onChange }: DataTableProps) {
   };
   const handleDelete = (node: Node) => setDeleteNode(node);
   const handleConnect = (node: Node) => setTerminalNode(node);
-  const handleManageProxmox = (node: Node) => setProxmoxManagerNode(node);
+  const handleManageProxmox = React.useCallback((node: Node) => {
+    navigate(`/nodes/manage/${node.ID}/proxmox`, { state: { node } });
+  }, [navigate]);
 
   const confirmDeleteMapping = async () => {
     if (!deleteNode || !deleteNode.mappingId) return;
@@ -216,7 +227,7 @@ export function DataTable({ data, onChange }: DataTableProps) {
     onConnect: handleConnect,
     onManageProxmox: handleManageProxmox,
     pingStatusMap, // pass the map for use in columns
-  }), [pingStatusMap]);
+  }), [handleManageProxmox, pingStatusMap]);
 
   const table = useReactTable({
     data, // always use the original data
@@ -333,11 +344,9 @@ export function DataTable({ data, onChange }: DataTableProps) {
               host_server_id: node.ID,
             });
             return { node, result } satisfies ProxmoxTokenRunResult;
-          } catch (error: any) {
-            const message =
-              error?.body ||
-              error?.message ||
-              `Failed to create token on ${node.Hostname || node.IpAddress || node.ID}.`;
+          } catch (error: unknown) {
+            const message = toErrorMessage(error)
+              || `Failed to create token on ${node.Hostname || node.IpAddress || node.ID}.`;
             return { node, error: String(message) } satisfies ProxmoxTokenRunResult;
           }
         })
@@ -362,9 +371,9 @@ export function DataTable({ data, onChange }: DataTableProps) {
       }
 
       onChange?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message =
-        error?.message || "Failed to create Proxmox API tokens for the selected nodes.";
+        toErrorMessage(error) || "Failed to create Proxmox API tokens for the selected nodes.";
       setProxmoxTokenError(message);
       showErrorToast("Failed to create Proxmox API tokens", message);
     } finally {
@@ -852,16 +861,6 @@ export function DataTable({ data, onChange }: DataTableProps) {
         />
       )}
 
-      <ProxmoxManagerDialog
-        node={proxmoxManagerNode}
-        open={!!proxmoxManagerNode}
-        onOpenChange={(open) => {
-          if (!open) {
-            setProxmoxManagerNode(null);
-            onChange?.();
-          }
-        }}
-      />
     </div>
   );
 }
@@ -1239,8 +1238,8 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
         )
       );
       onSuccess();
-    } catch (e: any) {
-      setError(e?.message || "Failed to update node");
+    } catch (e: unknown) {
+      setError(toErrorMessage(e) || "Failed to update node");
     } finally {
       setIsSaving(false);
     }
@@ -1289,7 +1288,7 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
             options={hostServerTypes.map(type => ({ value: type.id, label: type.name }))}
             value={hostServerTypes
               .filter(type => form.hostServerTypeIds.includes(type.id))
-              .map(type => ({ value: type.id, label: type.name })) as any}
+              .map(type => ({ value: type.id, label: type.name }))}
             onChange={(selected: MultiValue<{ value: string; label: string }>) =>
               setForm(prev => ({ ...prev, hostServerTypeIds: selected.map(option => option.value) }))
             }
@@ -1351,7 +1350,7 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
             options={platformTypes.map(type => ({ value: type.id, label: type.name }))}
             value={platformTypes
               .filter(type => form.platformTypeIds.includes(type.id))
-              .map(type => ({ value: type.id, label: type.name })) as any}
+              .map(type => ({ value: type.id, label: type.name }))}
             onChange={(selected: MultiValue<{ value: string; label: string }>) =>
               setForm(prev => ({ ...prev, platformTypeIds: selected.map(option => option.value) }))
             }
@@ -1453,4 +1452,4 @@ function EditNodeForm({ node, onCancel, onSuccess }: {
       </div>
     </form>
   );
-} 
+}
