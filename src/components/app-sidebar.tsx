@@ -89,6 +89,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             title: "Manage",
             url: "/nodes/manage",
           },
+          {
+            title: "Proxmox Explorer",
+            url: "/nodes/proxmox",
+          },
         ],
       },
       {

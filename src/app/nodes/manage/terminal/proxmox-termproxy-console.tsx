@@ -88,6 +88,7 @@ export function ProxmoxTermProxyConsole({
       setState("connected");
       terminal.clear();
       ws.send(encodeTerminalResizeFrame(terminal.cols, terminal.rows));
+      terminal.focus();
     };
 
     ws.onmessage = (event) => {

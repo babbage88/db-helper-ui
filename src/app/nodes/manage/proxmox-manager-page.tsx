@@ -7,17 +7,26 @@ import {
   Boxes,
   ChevronDown,
   ChevronRight,
+  CircleDot,
+  Cloud,
+  CopyPlus,
   Cpu,
+  Disc3,
   ExternalLink,
+  FileText,
   HardDrive,
   Info,
   LoaderCircle,
+  MemoryStick,
   Network,
   PencilLine,
   Play,
+  Plus,
   Power,
   RefreshCw,
+  Router,
   Server,
+  Settings,
   SquareTerminal,
   Trash2,
 } from "lucide-react";
@@ -42,11 +51,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { ProxmoxContainer } from "@/lib/api/models/ProxmoxContainer";
 import type { ProxmoxLXCResourcesResult } from "@/lib/api/models/ProxmoxLXCResourcesResult";
 import type { ProxmoxLXCResourcesUpdateRequest } from "@/lib/api/models/ProxmoxLXCResourcesUpdateRequest";
 import type { ProxmoxVM } from "@/lib/api/models/ProxmoxVM";
+import type { ProxmoxVMCreateRequest } from "@/lib/api/models/ProxmoxVMCreateRequest";
 import type { ProxmoxVMHardwareResult } from "@/lib/api/models/ProxmoxVMHardwareResult";
 import type { ProxmoxVMHardwareUpdateRequest } from "@/lib/api/models/ProxmoxVMHardwareUpdateRequest";
 import type { ProxmoxWorkload } from "@/lib/api/models/ProxmoxWorkload";
@@ -102,7 +121,30 @@ type ExplorerItem = {
   maxdisk?: number;
   uptime?: number;
   tags?: string;
+  template?: number;
   raw: ProxmoxWorkload | ProxmoxVM | ProxmoxContainer;
+};
+
+type CloneVmState = {
+  open: boolean;
+  templateId: string;
+  vmid: string;
+  name: string;
+  storage: string;
+  memoryMb: string;
+  sockets: string;
+  cores: string;
+  fullClone: boolean;
+  start: boolean;
+  ciUser: string;
+  ciPassword: string;
+  sshPublicKeys: string;
+  ipconfig0: string;
+  nameserver: string;
+  searchDomain: string;
+  ciSnippetsStorage: string;
+  ciCustomScript: string;
+  description: string;
 };
 
 type EditorState =
@@ -193,6 +235,7 @@ function toExplorerItems(
           maxdisk: item.maxdisk,
           uptime: item.uptime,
           tags: item.tags,
+          template: item.template,
           raw: item,
         } satisfies ExplorerItem;
       })
@@ -213,6 +256,7 @@ function toExplorerItems(
     maxdisk: item.maxdisk,
     uptime: item.uptime,
     tags: item.tags,
+    template: item.template,
     raw: item,
   }));
 
@@ -230,6 +274,7 @@ function toExplorerItems(
     maxdisk: item.maxdisk,
     uptime: item.uptime,
     tags: item.tags,
+    template: item.template,
     raw: item,
   }));
 
@@ -317,10 +362,45 @@ function RenderWorkloadConsole({
 
 function sortExplorerItems(items: ExplorerItem[]) {
   return [...items].sort((a, b) => {
+    const templateDelta = Number(isTemplate(a)) - Number(isTemplate(b));
+    if (templateDelta !== 0) return templateDelta;
     const runningDelta = Number(isRunning(b.status)) - Number(isRunning(a.status));
     if (runningDelta !== 0) return runningDelta;
     return a.label.localeCompare(b.label);
   });
+}
+
+function isTemplate(item?: ExplorerItem | null) {
+  return item?.kind === "qemu" && Number(item.template || 0) > 0;
+}
+
+function isProxmoxNodeCandidate(node: Node) {
+  const names = [...node.platformTypeNames, ...node.hostServerTypeNames].join(" ").toLowerCase();
+  return names.includes("proxmox");
+}
+
+function defaultCloneState(template?: ExplorerItem | null): CloneVmState {
+  return {
+    open: false,
+    templateId: template?.id || "",
+    vmid: "",
+    name: template ? `${template.label.replace(/template|cloudinit/gi, "").replace(/[-_]+$/g, "") || "vm"}-clone` : "",
+    storage: "",
+    memoryMb: "2048",
+    sockets: "1",
+    cores: "2",
+    fullClone: true,
+    start: false,
+    ciUser: "",
+    ciPassword: "",
+    sshPublicKeys: "",
+    ipconfig0: "ip=dhcp",
+    nameserver: "",
+    searchDomain: "",
+    ciSnippetsStorage: "",
+    ciCustomScript: "",
+    description: "",
+  };
 }
 
 function sleep(ms: number) {
@@ -348,6 +428,35 @@ function formatVlanTag(value?: string) {
   return `VLAN ${value}`;
 }
 
+function parseStringList(value: string) {
+  return value
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function extractBridgeNames(...records: Array<Record<string, string> | undefined>) {
+  const bridges = new Set<string>();
+  records.forEach((record) => {
+    Object.values(record || {}).forEach((value) => {
+      const match = value.match(/(?:^|,)bridge=([^,]+)/);
+      if (match?.[1]) bridges.add(match[1]);
+    });
+  });
+  return [...bridges].sort();
+}
+
+function parseIsoAttachments(raw?: Record<string, string>) {
+  return Object.entries(raw || {})
+    .filter(([, value]) => value.includes("media=cdrom") || value.toLowerCase().includes(".iso"))
+    .map(([key, value]) => ({ key, value }));
+}
+
+function percent(value?: number, max?: number) {
+  if (!value || !max) return 0;
+  return Math.max(0, Math.min(100, (value / max) * 100));
+}
+
 export default function ProxmoxManagerPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -361,6 +470,8 @@ export default function ProxmoxManagerPage() {
   const [node, setNode] = React.useState<Node | null>(seededNode);
   const [isLoadingNode, setIsLoadingNode] = React.useState(!seededNode);
   const [nodeError, setNodeError] = React.useState<string | null>(null);
+  const [availableNodes, setAvailableNodes] = React.useState<Node[]>(seededNode ? [seededNode] : []);
+  const [isLoadingAvailableNodes, setIsLoadingAvailableNodes] = React.useState(!seededNode);
 
   const [isLoadingInventory, setIsLoadingInventory] = React.useState(false);
   const [inventoryErrors, setInventoryErrors] = React.useState<InventoryErrors>({});
@@ -382,6 +493,8 @@ export default function ProxmoxManagerPage() {
   const [lxcResources, setLxcResources] = React.useState<ProxmoxLXCResourcesResult | null>(null);
   const [editorState, setEditorState] = React.useState<EditorState>(null);
   const [isSubmittingEditor, setIsSubmittingEditor] = React.useState(false);
+  const [cloneState, setCloneState] = React.useState<CloneVmState>(() => defaultCloneState());
+  const [isSubmittingClone, setIsSubmittingClone] = React.useState(false);
   const [consoleItemId, setConsoleItemId] = React.useState<string | null>(popoutConsoleId);
   const [consoleSessionKey, setConsoleSessionKey] = React.useState(0);
   const requestFullscreen = React.useCallback(async () => {
@@ -398,8 +511,36 @@ export default function ProxmoxManagerPage() {
   const managerPath = hostServerId ? `/nodes/manage/${hostServerId}/proxmox` : "/nodes/manage";
 
   React.useEffect(() => {
+    let cancelled = false;
+    setIsLoadingAvailableNodes(true);
+    HostServersService.getAllHostServers()
+      .then((servers) => {
+        if (cancelled) return;
+        const proxmoxNodes = servers
+          .map(mapHostServerToNode)
+          .filter((candidate) => candidate.ID && isProxmoxNodeCandidate(candidate));
+        setAvailableNodes(proxmoxNodes);
+        if (!nodeId && proxmoxNodes[0]) {
+          navigate(`/nodes/manage/${proxmoxNodes[0].ID}/proxmox`, {
+            replace: true,
+            state: { node: proxmoxNodes[0] },
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled && seededNode) setAvailableNodes([seededNode]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingAvailableNodes(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, nodeId, seededNode]);
+
+  React.useEffect(() => {
     if (!nodeId) {
-      setNodeError("Missing node id.");
+      setNodeError(null);
       setIsLoadingNode(false);
       return;
     }
@@ -553,9 +694,24 @@ export default function ProxmoxManagerPage() {
     () => explorerItems.filter((item) => item.kind === "qemu"),
     [explorerItems]
   );
+  const templateItems = React.useMemo(
+    () => vmItems.filter((item) => isTemplate(item)),
+    [vmItems]
+  );
   const lxcItems = React.useMemo(
     () => explorerItems.filter((item) => item.kind === "lxc"),
     [explorerItems]
+  );
+  const bridgeOptions = React.useMemo(() => {
+    const bridges = new Set(["vmbr0"]);
+    extractBridgeNames(vmHardware?.raw, lxcResources?.raw).forEach((bridge) => bridges.add(bridge));
+    if (vmHardware?.bridge) bridges.add(vmHardware.bridge);
+    if (lxcResources?.bridge) bridges.add(lxcResources.bridge);
+    return [...bridges].sort();
+  }, [lxcResources, vmHardware]);
+  const isoAttachments = React.useMemo(
+    () => parseIsoAttachments(vmHardware?.raw),
+    [vmHardware]
   );
 
   React.useEffect(() => {
@@ -832,9 +988,13 @@ export default function ProxmoxManagerPage() {
   );
 
   const handleContextAction = React.useCallback(
-    async (action: "start" | "stop" | "inspect" | "delete", item: ExplorerItem) => {
+    async (action: "start" | "stop" | "inspect" | "delete" | "clone", item: ExplorerItem) => {
       if (action === "inspect") {
         setSelectedItemId(item.id);
+        return;
+      }
+      if (action === "clone") {
+        setCloneState({ ...defaultCloneState(item), open: true });
         return;
       }
       if (action === "start") {
@@ -849,6 +1009,59 @@ export default function ProxmoxManagerPage() {
     },
     [handleDelete, handleStart, handleStop]
   );
+
+  const submitClone = React.useCallback(async () => {
+    const template = templateItems.find((item) => item.id === cloneState.templateId);
+    if (!template?.vmid) {
+      showErrorToast("Select a template", "Choose a QEMU VM template to clone from.");
+      return;
+    }
+    if (!cloneState.name.trim()) {
+      showErrorToast("Name is required", "Give the new VM a name before cloning.");
+      return;
+    }
+
+    setIsSubmittingClone(true);
+    try {
+      const body: ProxmoxVMCreateRequest = {
+        host_server_id: hostServerId,
+        node: template.node || node?.Hostname || undefined,
+        template_vmid: template.vmid,
+        vmid: parseOptionalInt(cloneState.vmid),
+        name: cloneState.name.trim(),
+        storage: cloneState.storage.trim() || undefined,
+        memory_mb: parseOptionalInt(cloneState.memoryMb),
+        sockets: parseOptionalInt(cloneState.sockets),
+        cores: parseOptionalInt(cloneState.cores),
+        full_clone: cloneState.fullClone,
+        start: cloneState.start,
+        ci_user: cloneState.ciUser.trim() || undefined,
+        ci_password: cloneState.ciPassword.trim() || undefined,
+        ssh_public_keys: parseStringList(cloneState.sshPublicKeys),
+        ipconfig0: cloneState.ipconfig0.trim() || undefined,
+        nameserver: cloneState.nameserver.trim() || undefined,
+        search_domain: cloneState.searchDomain.trim() || undefined,
+        ci_snippets_storage: cloneState.ciSnippetsStorage.trim() || undefined,
+        ci_custom_script: cloneState.ciCustomScript.trim() || undefined,
+        description: cloneState.description.trim() || undefined,
+      };
+      const result = await ProxmoxService.createProxmoxVm(body);
+      setApiResult(result);
+      setCloneState(defaultCloneState());
+      showSuccessToast("VM clone requested", "Refreshing Proxmox inventory for the new guest.");
+      await waitForInventoryCondition(
+        (items) => items.some((item) => item.kind === "qemu" && item.label === body.name),
+        { timeoutMs: 20000 }
+      );
+      await refreshInventory({ silent: true });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : parseErrorMessage(error);
+      setApiResult({ error: message });
+      showErrorToast("Failed to clone VM", message);
+    } finally {
+      setIsSubmittingClone(false);
+    }
+  }, [cloneState, hostServerId, node?.Hostname, refreshInventory, templateItems, waitForInventoryCondition]);
 
   const openEditor = React.useCallback(
     (mode: Exclude<EditorState, null>["type"]) => {
@@ -1009,7 +1222,7 @@ export default function ProxmoxManagerPage() {
     }
   }, [editorState, hostServerId, refreshInventory, refreshSelectedConfig, selectedItem]);
 
-  if (isLoadingNode) {
+  if (isLoadingNode || (!nodeId && !node && isLoadingAvailableNodes)) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
         Loading Proxmox explorer...
@@ -1109,6 +1322,32 @@ export default function ProxmoxManagerPage() {
                 Back to Managed Nodes
               </Button>
 
+              <div className="space-y-2 rounded-xl border border-border/60 bg-card/30 p-3">
+                <Label className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Proxmox node
+                </Label>
+                <Select
+                  value={hostServerId}
+                  onValueChange={(value) => {
+                    const nextNode = availableNodes.find((candidate) => candidate.ID === value);
+                    navigate(`/nodes/manage/${value}/proxmox`, {
+                      state: nextNode ? { node: nextNode } : undefined,
+                    });
+                  }}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select a Proxmox node" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableNodes.map((candidate) => (
+                      <SelectItem key={candidate.ID} value={candidate.ID}>
+                        {candidate.Hostname || candidate.IpAddress}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setSelectedItemId("host")}
@@ -1207,6 +1446,7 @@ export default function ProxmoxManagerPage() {
                       onInspect={() => setSelectedItemId(item.id)}
                       onStart={() => void handleContextAction("start", item)}
                       onStop={() => void handleContextAction("stop", item)}
+                      onClone={() => void handleContextAction("clone", item)}
                       onDelete={() => void handleContextAction("delete", item)}
                     />
                   ))}
@@ -1229,6 +1469,7 @@ export default function ProxmoxManagerPage() {
                       onInspect={() => setSelectedItemId(item.id)}
                       onStart={() => void handleContextAction("start", item)}
                       onStop={() => void handleContextAction("stop", item)}
+                      onClone={() => void handleContextAction("clone", item)}
                       onDelete={() => void handleContextAction("delete", item)}
                     />
                   ))}
@@ -1314,6 +1555,11 @@ export default function ProxmoxManagerPage() {
                                 <Badge variant="secondary" className="rounded-full px-2.5 uppercase">
                                   {selectedItem.kind}
                                 </Badge>
+                                {isTemplate(selectedItem) ? (
+                                  <Badge variant="outline" className="rounded-full border-amber-500/30 bg-amber-500/10 px-2.5 text-amber-200">
+                                    VM template
+                                  </Badge>
+                                ) : null}
                               </div>
                               <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
                                 <span>VMID {selectedItem.vmid ?? "-"}</span>
@@ -1327,7 +1573,7 @@ export default function ProxmoxManagerPage() {
                             <Button
                               variant={consoleItemId === selectedItem.id ? "secondary" : "outline"}
                               onClick={() => openConsoleInPanel(selectedItem)}
-                              disabled={!selectedItem.vmid}
+                              disabled={!selectedItem.vmid || isTemplate(selectedItem)}
                             >
                               <SquareTerminal className="mr-2 h-4 w-4" />
                               {consoleItemId === selectedItem.id ? "Console Open" : "Open Console"}
@@ -1335,7 +1581,7 @@ export default function ProxmoxManagerPage() {
                             <Button
                               variant="outline"
                               onClick={() => openConsoleInWindow(selectedItem)}
-                              disabled={!selectedItem.vmid}
+                              disabled={!selectedItem.vmid || isTemplate(selectedItem)}
                             >
                               <ExternalLink className="mr-2 h-4 w-4" />
                               Pop Out
@@ -1349,7 +1595,12 @@ export default function ProxmoxManagerPage() {
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete
                             </Button>
-                            {isRunning(selectedItem.status) ? (
+                            {isTemplate(selectedItem) ? (
+                              <Button onClick={() => setCloneState({ ...defaultCloneState(selectedItem), open: true })}>
+                                <CopyPlus className="mr-2 h-4 w-4" />
+                                Clone VM
+                              </Button>
+                            ) : isRunning(selectedItem.status) ? (
                               <Button
                                 variant="outline"
                                 onClick={() => void handleStop(selectedItem)}
@@ -1375,6 +1626,14 @@ export default function ProxmoxManagerPage() {
                         </div>
                       </div>
 
+                      <GuestSummaryPanel
+                        item={selectedItem}
+                        vmHardware={vmHardware}
+                        lxcResources={lxcResources}
+                        hostLabel={hostLabel}
+                      />
+
+                      {!isTemplate(selectedItem) ? (
                       <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/40">
                         <div className="flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3">
                           <div>
@@ -1438,6 +1697,7 @@ export default function ProxmoxManagerPage() {
                           </div>
                         )}
                       </div>
+                      ) : null}
 
                       <div className="rounded-2xl border border-border/70 bg-card/40">
                         <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
@@ -1551,6 +1811,14 @@ export default function ProxmoxManagerPage() {
                           </div>
                         )}
                       </div>
+
+                      {selectedItem.kind === "qemu" ? (
+                        <HardwareCatalogPanel
+                          isoAttachments={isoAttachments}
+                          onCloneTemplate={() => setCloneState({ ...defaultCloneState(selectedItem), open: true })}
+                          isTemplate={isTemplate(selectedItem)}
+                        />
+                      ) : null}
                     </section>
 
                     <section className="space-y-4">
@@ -1673,9 +1941,18 @@ export default function ProxmoxManagerPage() {
       <ConfigEditorDialog
         state={editorState}
         busy={isSubmittingEditor}
+        bridgeOptions={bridgeOptions}
         onClose={() => setEditorState(null)}
         onSubmit={() => void submitEditor()}
         onChange={(next) => setEditorState(next)}
+      />
+      <CloneVmDialog
+        state={cloneState}
+        templates={templateItems}
+        busy={isSubmittingClone}
+        onClose={() => setCloneState(defaultCloneState())}
+        onSubmit={() => void submitClone()}
+        onChange={(next) => setCloneState(next)}
       />
     </>
   );
@@ -1728,6 +2005,7 @@ function TreeWorkloadItem({
   onInspect,
   onStart,
   onStop,
+  onClone,
   onDelete,
 }: {
   item: ExplorerItem;
@@ -1737,8 +2015,10 @@ function TreeWorkloadItem({
   onInspect: () => void;
   onStart: () => void;
   onStop: () => void;
+  onClone: () => void;
   onDelete: () => void;
 }) {
+  const template = isTemplate(item);
   return (
     <ContextMenu
       onOpenChange={(open) => {
@@ -1751,7 +2031,8 @@ function TreeWorkloadItem({
           onClick={onSelect}
           className={cn(
             "relative flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors",
-            selected ? "bg-primary/10 text-foreground" : "hover:bg-accent/50"
+            selected ? "bg-primary/10 text-foreground" : template ? "hover:bg-amber-500/10" : "hover:bg-accent/50",
+            template && "border border-amber-500/25 bg-amber-500/5"
           )}
         >
           <div className="mt-1 flex items-center gap-2">
@@ -1762,6 +2043,11 @@ function TreeWorkloadItem({
             <div className="flex items-center gap-2">
               <span className="truncate text-sm font-medium">{item.label}</span>
               <span className="font-mono text-[10px] text-muted-foreground">{item.vmid ?? "-"}</span>
+              {template ? (
+                <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] text-amber-200">
+                  template
+                </Badge>
+              ) : null}
             </div>
             <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
               <span>{item.node || "-"}</span>
@@ -1780,17 +2066,22 @@ function TreeWorkloadItem({
           <Info className="h-4 w-4" />
           Inspect
         </ContextMenuItem>
-        {isRunning(item.status) ? (
-          <ContextMenuItem onSelect={onStop}>
-            <Power className="h-4 w-4" />
-            Stop
+        {template ? (
+          <ContextMenuItem onSelect={onClone}>
+            <CopyPlus className="h-4 w-4" />
+            Clone VM
           </ContextMenuItem>
-        ) : (
-          <ContextMenuItem onSelect={onStart}>
-            <Play className="h-4 w-4" />
-            Start
-          </ContextMenuItem>
-        )}
+        ) : isRunning(item.status) ? (
+            <ContextMenuItem onSelect={onStop}>
+              <Power className="h-4 w-4" />
+              Stop
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem onSelect={onStart}>
+              <Play className="h-4 w-4" />
+              Start
+            </ContextMenuItem>
+          )}
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onSelect={onDelete}>
           <Trash2 className="h-4 w-4" />
@@ -1834,12 +2125,14 @@ function ConfigRow({
 function ConfigEditorDialog({
   state,
   busy,
+  bridgeOptions,
   onClose,
   onSubmit,
   onChange,
 }: {
   state: EditorState;
   busy: boolean;
+  bridgeOptions: string[];
   onClose: () => void;
   onSubmit: () => void;
   onChange: (state: EditorState) => void;
@@ -1883,10 +2176,10 @@ function ConfigEditorDialog({
         {state?.type === "vm-network" ? (
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Bridge">
-              <Input
+              <BridgeSelect
                 value={state.bridge}
-                onChange={(event) => onChange({ ...state, bridge: event.target.value })}
-                placeholder="vmbr0"
+                options={bridgeOptions}
+                onChange={(bridge) => onChange({ ...state, bridge })}
               />
             </Field>
             <Field label="VLAN Tag">
@@ -1939,10 +2232,10 @@ function ConfigEditorDialog({
         {state?.type === "lxc-network" ? (
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Bridge">
-              <Input
+              <BridgeSelect
                 value={state.bridge}
-                onChange={(event) => onChange({ ...state, bridge: event.target.value })}
-                placeholder="vmbr0"
+                options={bridgeOptions}
+                onChange={(bridge) => onChange({ ...state, bridge })}
               />
             </Field>
             <Field label="VLAN Tag">
@@ -1979,6 +2272,283 @@ function ConfigEditorDialog({
             ) : (
               "Save Changes"
             )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function GuestSummaryPanel({
+  item,
+  vmHardware,
+  lxcResources,
+  hostLabel,
+}: {
+  item: ExplorerItem;
+  vmHardware: ProxmoxVMHardwareResult | null;
+  lxcResources: ProxmoxLXCResourcesResult | null;
+  hostLabel: string;
+}) {
+  const notes = item.kind === "qemu" ? vmHardware?.raw?.description : lxcResources?.raw?.description;
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <section className="rounded-2xl border border-border/70 bg-card/40 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold">Guest Summary</h3>
+          <Badge variant="outline" className="rounded-full">
+            {isTemplate(item) ? "template" : item.status || "unknown"}
+          </Badge>
+        </div>
+        <div className="mt-4 space-y-3">
+          <SummaryLine icon={CircleDot} label="Status" value={item.status || "unknown"} />
+          <SummaryLine icon={Server} label="Node" value={item.node || hostLabel} />
+          <SummaryMeter icon={Cpu} label="CPU usage" value={`${((item.cpu || 0) * 100).toFixed(2)}%`} amount={(item.cpu || 0) * 100} />
+          <SummaryMeter icon={MemoryStick} label="Memory usage" value={formatUsage(item.mem, item.maxmem)} amount={percent(item.mem, item.maxmem)} />
+          <SummaryLine icon={HardDrive} label="Bootdisk size" value={item.kind === "qemu" ? vmHardware?.disk_size || formatBytesSafe(item.maxdisk) : lxcResources?.rootfs_size || formatBytesSafe(item.maxdisk)} />
+          <SummaryLine icon={Router} label="Network" value={item.kind === "qemu" ? `${vmHardware?.bridge || "no bridge"} / ${formatVlanTag(vmHardware?.vlan_tag)}` : `${lxcResources?.bridge || "no bridge"} / ${formatVlanTag(lxcResources?.vlan_tag)}`} />
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border/70 bg-card/40 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold">Notes</h3>
+          <FileText className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <div className="mt-4 min-h-36 rounded-xl border border-border/60 bg-background/30 p-3 text-sm text-muted-foreground">
+          {notes || "No guest notes reported by Proxmox."}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function SummaryLine({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="grid grid-cols-[24px_150px_minmax(0,1fr)] items-center gap-2 text-sm">
+      <Icon className="h-4 w-4 text-muted-foreground" />
+      <span className="text-muted-foreground">{label}</span>
+      <span className="truncate text-right font-medium">{value}</span>
+    </div>
+  );
+}
+
+function SummaryMeter({
+  icon,
+  label,
+  value,
+  amount,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  amount: number;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <SummaryLine icon={icon} label={label} value={value} />
+      <div className="ml-8 h-2 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(2, Math.min(100, amount))}%` }} />
+      </div>
+    </div>
+  );
+}
+
+const hardwareOptions = [
+  { label: "Hard Disk", icon: HardDrive, active: true },
+  { label: "CD/DVD Drive", icon: Disc3, active: false },
+  { label: "Network Device", icon: Network, active: true },
+  { label: "EFI Disk", icon: HardDrive, active: false },
+  { label: "TPM State", icon: Settings, active: false },
+  { label: "USB Device", icon: Plus, active: false },
+  { label: "PCI Device", icon: Plus, active: false },
+  { label: "Serial Port", icon: SquareTerminal, active: false },
+  { label: "CloudInit Drive", icon: Cloud, active: false },
+];
+
+function HardwareCatalogPanel({
+  isoAttachments,
+  onCloneTemplate,
+  isTemplate,
+}: {
+  isoAttachments: Array<{ key: string; value: string }>;
+  onCloneTemplate: () => void;
+  isTemplate: boolean;
+}) {
+  return (
+    <section className="rounded-2xl border border-border/70 bg-card/40">
+      <div className="flex flex-col gap-3 border-b border-border/60 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">Hardware & Media</h3>
+          <p className="text-sm text-muted-foreground">
+            PVE hardware categories are visible here; enabled actions match the endpoints currently available.
+          </p>
+        </div>
+        {isTemplate ? (
+          <Button onClick={onCloneTemplate}>
+            <CopyPlus className="mr-2 h-4 w-4" />
+            Clone from Template
+          </Button>
+        ) : null}
+      </div>
+      <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+        {hardwareOptions.map((option) => (
+          <div key={option.label} className="rounded-xl border border-border/60 bg-background/30 p-3">
+            <div className="flex items-center gap-2">
+              <option.icon className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">{option.label}</span>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {option.active ? "Editable in this workspace." : "Visible for parity with PVE; backend mutation is not exposed yet."}
+            </p>
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-border/60 px-4 py-3">
+        <h4 className="text-sm font-medium">Attached ISOs</h4>
+        <div className="mt-3 space-y-2">
+          {isoAttachments.length > 0 ? (
+            isoAttachments.map((iso) => (
+              <div key={iso.key} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/30 px-3 py-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{iso.key}</div>
+                  <div className="truncate text-xs text-muted-foreground">{iso.value}</div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => showInfoToast("ISO editing needs a backend endpoint", "The current Proxmox API client exposes this media as read-only.")}
+                >
+                  <Disc3 className="mr-2 h-4 w-4" />
+                  Edit ISO
+                </Button>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">No attached ISO media reported for this VM.</p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CloneVmDialog({
+  state,
+  templates,
+  busy,
+  onClose,
+  onSubmit,
+  onChange,
+}: {
+  state: CloneVmState;
+  templates: ExplorerItem[];
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+  onChange: (state: CloneVmState) => void;
+}) {
+  return (
+    <Dialog open={state.open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Clone VM From Template</DialogTitle>
+          <DialogDescription>
+            Create a new QEMU guest and apply cloud-init settings through the Proxmox clone endpoint.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid max-h-[70vh] gap-4 overflow-y-auto pr-1 md:grid-cols-2">
+          <Field label="Template">
+            <Select value={state.templateId} onValueChange={(templateId) => onChange({ ...state, templateId })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select template" />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((template) => (
+                  <SelectItem key={template.id} value={template.id}>
+                    {template.label} ({template.vmid})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="New VMID">
+            <Input value={state.vmid} onChange={(event) => onChange({ ...state, vmid: event.target.value })} inputMode="numeric" placeholder="Auto" />
+          </Field>
+          <Field label="Name">
+            <Input value={state.name} onChange={(event) => onChange({ ...state, name: event.target.value })} />
+          </Field>
+          <Field label="Target Storage">
+            <Input value={state.storage} onChange={(event) => onChange({ ...state, storage: event.target.value })} placeholder="Template default" />
+          </Field>
+          <Field label="Memory (MiB)">
+            <Input value={state.memoryMb} onChange={(event) => onChange({ ...state, memoryMb: event.target.value })} inputMode="numeric" />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Sockets">
+              <Input value={state.sockets} onChange={(event) => onChange({ ...state, sockets: event.target.value })} inputMode="numeric" />
+            </Field>
+            <Field label="Cores">
+              <Input value={state.cores} onChange={(event) => onChange({ ...state, cores: event.target.value })} inputMode="numeric" />
+            </Field>
+          </div>
+          <Field label="Cloud-init User">
+            <Input value={state.ciUser} onChange={(event) => onChange({ ...state, ciUser: event.target.value })} />
+          </Field>
+          <Field label="Cloud-init Password">
+            <Input value={state.ciPassword} onChange={(event) => onChange({ ...state, ciPassword: event.target.value })} type="password" />
+          </Field>
+          <Field label="IP Config">
+            <Input value={state.ipconfig0} onChange={(event) => onChange({ ...state, ipconfig0: event.target.value })} placeholder="ip=dhcp" />
+          </Field>
+          <Field label="DNS">
+            <Input value={state.nameserver} onChange={(event) => onChange({ ...state, nameserver: event.target.value })} placeholder="1.1.1.1" />
+          </Field>
+          <Field label="Search Domain">
+            <Input value={state.searchDomain} onChange={(event) => onChange({ ...state, searchDomain: event.target.value })} />
+          </Field>
+          <Field label="Snippets Storage">
+            <Input value={state.ciSnippetsStorage} onChange={(event) => onChange({ ...state, ciSnippetsStorage: event.target.value })} placeholder="local" />
+          </Field>
+          <div className="md:col-span-2">
+            <Field label="SSH Public Keys">
+              <Textarea value={state.sshPublicKeys} onChange={(event) => onChange({ ...state, sshPublicKeys: event.target.value })} placeholder="One key per line" />
+            </Field>
+          </div>
+          <div className="md:col-span-2">
+            <Field label="Cloud-init Custom Script">
+              <Textarea value={state.ciCustomScript} onChange={(event) => onChange({ ...state, ciCustomScript: event.target.value })} />
+            </Field>
+          </div>
+          <div className="md:col-span-2">
+            <Field label="Description">
+              <Textarea value={state.description} onChange={(event) => onChange({ ...state, description: event.target.value })} />
+            </Field>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={state.fullClone} onCheckedChange={(checked) => onChange({ ...state, fullClone: checked === true })} />
+            Full clone
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={state.start} onCheckedChange={(checked) => onChange({ ...state, start: checked === true })} />
+            Start after clone
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button onClick={onSubmit} disabled={busy || templates.length === 0}>
+            {busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <CopyPlus className="mr-2 h-4 w-4" />}
+            Clone VM
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -2033,6 +2603,37 @@ function Field({
       <Label>{label}</Label>
       {children}
     </div>
+  );
+}
+
+function BridgeSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const normalizedOptions = React.useMemo(() => {
+    const next = new Set(options.length ? options : ["vmbr0"]);
+    if (value) next.add(value);
+    return [...next].sort();
+  }, [options, value]);
+
+  return (
+    <Select value={value || normalizedOptions[0]} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue placeholder="Select bridge" />
+      </SelectTrigger>
+      <SelectContent>
+        {normalizedOptions.map((bridge) => (
+          <SelectItem key={bridge} value={bridge}>
+            {bridge}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

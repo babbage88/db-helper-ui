@@ -134,6 +134,7 @@ export default function App() {
                 <Route path="/docs" element={<DocsMarkdown />} />
                 <Route path="/cert-renew" element={<CertificateRequestForm />} />
                 <Route path="/nodes/manage" element={<ManageNodesPage />} />
+                <Route path="/nodes/proxmox" element={<ProxmoxManagerPage />} />
                 <Route path="/nodes/manage/:nodeId/proxmox" element={<ProxmoxManagerPage />} />
                 <Route path="/keys/manage" element={<ManageSshKeysPage />} />
                 <Route path="/secrets/manage" element={<ManageUserSecretsPage />} />
