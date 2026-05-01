@@ -2475,20 +2475,27 @@ const hardwareOptions = [
 
 function HardwareCatalogPanel({
   isoAttachments,
+  nodeOptions,
+  vmHardware,
+  onHardwareAction,
   onCloneTemplate,
   isTemplate,
 }: {
   isoAttachments: Array<{ key: string; value: string }>;
+  nodeOptions: ProxmoxNodeOptionsResult | null;
+  vmHardware: ProxmoxVMHardwareResult | null;
+  onHardwareAction: (state: Partial<HardwareActionState>) => void;
   onCloneTemplate: () => void;
   isTemplate: boolean;
 }) {
+  const isoImages = nodeOptions?.iso_images || [];
   return (
     <section className="rounded-2xl border border-border/70 bg-card/40">
       <div className="flex flex-col gap-3 border-b border-border/60 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-lg font-semibold">Hardware & Media</h3>
           <p className="text-sm text-muted-foreground">
-            PVE hardware categories are visible here; enabled actions match the endpoints currently available.
+            Apply QEMU hardware config changes through Proxmox config endpoints.
           </p>
         </div>
         {isTemplate ? (
@@ -2506,8 +2513,21 @@ function HardwareCatalogPanel({
               <span className="text-sm font-medium">{option.label}</span>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              {option.active ? "Editable in this workspace." : "Visible for parity with PVE; backend mutation is not exposed yet."}
+              {option.helper}
             </p>
+            <Button
+              className="mt-3 w-full"
+              variant="outline"
+              size="sm"
+              onClick={() => onHardwareAction({
+                title: `Add ${option.label}`,
+                device: option.device,
+                value: option.value,
+              })}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add
+            </Button>
           </div>
         ))}
       </div>
@@ -2524,7 +2544,11 @@ function HardwareCatalogPanel({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => showInfoToast("ISO editing needs a backend endpoint", "The current Proxmox API client exposes this media as read-only.")}
+                  onClick={() => onHardwareAction({
+                    title: `Edit ${iso.key}`,
+                    device: iso.key,
+                    value: iso.value,
+                  })}
                 >
                   <Disc3 className="mr-2 h-4 w-4" />
                   Edit ISO
@@ -2534,6 +2558,43 @@ function HardwareCatalogPanel({
           ) : (
             <p className="text-sm text-muted-foreground">No attached ISO media reported for this VM.</p>
           )}
+          {isoImages.length > 0 ? (
+            <div className="rounded-xl border border-border/60 bg-background/30 p-3">
+              <div className="text-sm font-medium">Attach ISO</div>
+              <div className="mt-2 grid gap-2 md:grid-cols-[160px_minmax(0,1fr)]">
+                <Select
+                  defaultValue={vmHardware?.raw?.ide2 ? "ide2" : "ide2"}
+                  onValueChange={() => undefined}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ide2">ide2</SelectItem>
+                    <SelectItem value="sata2">sata2</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  onValueChange={(volid) => onHardwareAction({
+                    title: "Attach ISO",
+                    device: "ide2",
+                    value: `${volid},media=cdrom`,
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select ISO image" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isoImages.map((iso) => (
+                      <SelectItem key={iso.volid} value={iso.volid || ""}>
+                        {iso.volid}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
