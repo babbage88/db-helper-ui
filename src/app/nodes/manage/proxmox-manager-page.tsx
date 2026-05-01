@@ -2462,15 +2462,15 @@ function SummaryMeter({
 }
 
 const hardwareOptions = [
-  { label: "Hard Disk", icon: HardDrive, active: true },
-  { label: "CD/DVD Drive", icon: Disc3, active: false },
-  { label: "Network Device", icon: Network, active: true },
-  { label: "EFI Disk", icon: HardDrive, active: false },
-  { label: "TPM State", icon: Settings, active: false },
-  { label: "USB Device", icon: Plus, active: false },
-  { label: "PCI Device", icon: Plus, active: false },
-  { label: "Serial Port", icon: SquareTerminal, active: false },
-  { label: "CloudInit Drive", icon: Cloud, active: false },
+  { label: "Hard Disk", icon: HardDrive, device: "scsi1", value: "local-lvm:32,discard=on,ssd=1", helper: "Creates or updates a virtual disk slot." },
+  { label: "CD/DVD Drive", icon: Disc3, device: "ide2", value: "none,media=cdrom", helper: "Attach, change, or clear ISO media." },
+  { label: "Network Device", icon: Network, device: "net1", value: "virtio,bridge=vmbr0", helper: "Adds another virtual NIC." },
+  { label: "EFI Disk", icon: HardDrive, device: "efidisk0", value: "local-lvm:1,efitype=4m,pre-enrolled-keys=1", helper: "Adds or updates UEFI variable storage." },
+  { label: "TPM State", icon: Settings, device: "tpmstate0", value: "local-lvm:1,version=v2.0", helper: "Adds TPM 2.0 state storage." },
+  { label: "USB Device", icon: Plus, device: "usb0", value: "host=auto", helper: "Adds a USB mapping." },
+  { label: "PCI Device", icon: Plus, device: "hostpci0", value: "host=0000:00:00.0", helper: "Adds PCI passthrough config." },
+  { label: "Serial Port", icon: SquareTerminal, device: "serial0", value: "socket", helper: "Adds a serial socket." },
+  { label: "CloudInit Drive", icon: Cloud, device: "ide2", value: "local-lvm:cloudinit", helper: "Adds or moves the cloud-init drive." },
 ];
 
 function HardwareCatalogPanel({
@@ -2709,6 +2709,67 @@ function CloneVmDialog({
           <Button onClick={onSubmit} disabled={busy || templates.length === 0}>
             {busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <CopyPlus className="mr-2 h-4 w-4" />}
             Clone VM
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function HardwareActionDialog({
+  state,
+  busy,
+  onClose,
+  onSubmit,
+  onChange,
+}: {
+  state: HardwareActionState;
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+  onChange: (state: HardwareActionState) => void;
+}) {
+  return (
+    <Dialog open={state.open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{state.title || "Apply Hardware Change"}</DialogTitle>
+          <DialogDescription>
+            This writes directly to the Proxmox QEMU config endpoint. Use Proxmox device keys like scsi1, net1, ide2, efidisk0, tpmstate0, serial0, usb0, or hostpci0.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Device Key">
+              <Input
+                value={state.device}
+                onChange={(event) => onChange({ ...state, device: event.target.value, delete: "" })}
+                placeholder="scsi1"
+              />
+            </Field>
+            <Field label="Delete Key">
+              <Input
+                value={state.delete}
+                onChange={(event) => onChange({ ...state, delete: event.target.value, device: "", value: "" })}
+                placeholder="ide2"
+              />
+            </Field>
+          </div>
+          <Field label="Value">
+            <Textarea
+              value={state.value}
+              onChange={(event) => onChange({ ...state, value: event.target.value })}
+              placeholder="local-lvm:32,discard=on,ssd=1"
+            />
+          </Field>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button onClick={onSubmit} disabled={busy || (!state.delete.trim() && (!state.device.trim() || !state.value.trim()))}>
+            {busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Settings className="mr-2 h-4 w-4" />}
+            Apply
           </Button>
         </DialogFooter>
       </DialogContent>
