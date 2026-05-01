@@ -7223,7 +7223,7 @@
           "x-go-name": "User"
         }
       },
-      "x-go-package": "github.com/babbage88/go-infra/webutils/deployment"
+      "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
     },
     "SoftDeleteRoleByIdRequest": {
       "type": "object",
