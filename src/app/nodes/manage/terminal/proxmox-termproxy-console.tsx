@@ -1,11 +1,14 @@
 "use client";
 
 import * as React from "react";
+import { X } from "lucide-react";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import "./terminal-overrides.css";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type ProxmoxTermProxyConsoleProps = {
@@ -14,15 +17,25 @@ type ProxmoxTermProxyConsoleProps = {
   node: string;
   title: string;
   onClose: () => void;
+  variant?: "embedded" | "focused";
 };
 
 function buildConsoleSocketUrl(hostServerId: string, vmid: number, node: string) {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const apiBase = new URL(import.meta.env.VITE_API_WEB_INFRA_URL);
+  const protocol = apiBase.protocol === "https:" ? "wss:" : "ws:";
   const query = new URLSearchParams({
     host_server_id: hostServerId,
     node,
   });
-  return `${protocol}//${window.location.host}/api/v1/proxmox/container/${vmid}/console/websocket?${query.toString()}`;
+  return `${protocol}//${apiBase.host}/api/v1/proxmox/container/${vmid}/console/websocket?${query.toString()}`;
+}
+
+function encodeTerminalDataFrame(data: string) {
+  return `0:${new TextEncoder().encode(data).length}:${data}`;
+}
+
+function encodeTerminalResizeFrame(cols: number, rows: number) {
+  return `1:${cols}:${rows}:`;
 }
 
 export function ProxmoxTermProxyConsole({
@@ -31,6 +44,7 @@ export function ProxmoxTermProxyConsole({
   node,
   title,
   onClose,
+  variant = "embedded",
 }: ProxmoxTermProxyConsoleProps) {
   const terminalRef = React.useRef<HTMLDivElement>(null);
   const termRef = React.useRef<Terminal | null>(null);
@@ -38,6 +52,8 @@ export function ProxmoxTermProxyConsole({
   const wsRef = React.useRef<WebSocket | null>(null);
   const [state, setState] = React.useState<"connecting" | "connected" | "disconnected">("connecting");
   const [error, setError] = React.useState<string | null>(null);
+  const isFocused = variant === "focused";
+  const [showNotice, setShowNotice] = React.useState(isFocused);
 
   React.useEffect(() => {
     if (!terminalRef.current) return;
@@ -65,12 +81,13 @@ export function ProxmoxTermProxyConsole({
     terminal.writeln("Connecting to Proxmox container console...");
     terminal.writeln("");
 
-    const ws = new WebSocket(buildConsoleSocketUrl(hostServerId, vmid, node));
+    const ws = new WebSocket(buildConsoleSocketUrl(hostServerId, vmid, node), "binary");
     ws.binaryType = "arraybuffer";
 
     ws.onopen = () => {
       setState("connected");
       terminal.clear();
+      ws.send(encodeTerminalResizeFrame(terminal.cols, terminal.rows));
     };
 
     ws.onmessage = (event) => {
@@ -93,11 +110,16 @@ export function ProxmoxTermProxyConsole({
 
     terminal.onData((data) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
+        ws.send(encodeTerminalDataFrame(data));
       }
     });
 
-    const resize = () => fit.fit();
+    const resize = () => {
+      fit.fit();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(encodeTerminalResizeFrame(terminal.cols, terminal.rows));
+      }
+    };
     const observer = new ResizeObserver(resize);
     observer.observe(terminalRef.current);
     window.addEventListener("resize", resize);
@@ -114,14 +136,48 @@ export function ProxmoxTermProxyConsole({
 
   if (error) {
     return (
-      <div className="flex h-full items-center justify-center rounded-2xl border border-border/70 bg-black/60 p-6 text-sm text-red-300">
+      <div
+        className={cn(
+          "flex h-full w-full items-center justify-center bg-black/60 p-6 text-sm text-red-300",
+          !isFocused && "rounded-2xl border border-border/70"
+        )}
+      >
         {error}
       </div>
     );
   }
 
+  if (isFocused) {
+    return (
+      <div className="relative h-screen w-screen overflow-hidden bg-black">
+        {showNotice ? (
+          <Alert className="absolute right-4 top-20 z-10 w-[360px] border-white/10 bg-black/80 text-white shadow-xl backdrop-blur-md">
+            <div className="absolute right-3 top-3">
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-neutral-400 hover:bg-white/10 hover:text-white"
+                onClick={() => setShowNotice(false)}
+                aria-label="Dismiss console notice"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <AlertTitle className="pr-8">{title}</AlertTitle>
+            <AlertDescription>
+              <p>Status: {state === "connecting" ? "Connecting..." : state === "connected" ? "Connected" : "Disconnected"}</p>
+              <p>The console is active in this focused popout window.</p>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <div ref={terminalRef} className="h-screen w-screen" />
+      </div>
+    );
+  }
+
   return (
-    <div className={cn("bg-black flex h-full min-h-[360px] flex-col rounded-2xl border border-border/70")}>
+    <div className="relative flex h-full w-full min-h-[360px] flex-col rounded-2xl border border-border/70 bg-black">
       <div className="db-terminal-header">
         <div className="window-controls">
           <div className="red" />

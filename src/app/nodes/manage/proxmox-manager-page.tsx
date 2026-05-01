@@ -274,11 +274,13 @@ function RenderWorkloadConsole({
   hostLabel,
   item,
   onClose,
+  variant = "embedded",
 }: {
   hostServerId: string;
   hostLabel: string;
   item: ExplorerItem;
   onClose: () => void;
+  variant?: "embedded" | "focused";
 }) {
   if (!item.vmid) {
     return (
@@ -296,6 +298,7 @@ function RenderWorkloadConsole({
         node={item.node || hostLabel}
         title={buildConsoleTitle(item)}
         onClose={onClose}
+        variant={variant}
       />
     );
   }
@@ -307,6 +310,7 @@ function RenderWorkloadConsole({
       node={item.node || hostLabel}
       title={buildConsoleTitle(item)}
       onClose={onClose}
+      variant={variant}
     />
   );
 }
@@ -351,7 +355,8 @@ export default function ProxmoxManagerPage() {
   const seededNode = (location.state as { node?: Node } | null)?.node ?? null;
   const searchParams = React.useMemo(() => new URLSearchParams(location.search), [location.search]);
   const popoutConsoleId = searchParams.get("console");
-  const isConsolePopout = searchParams.get("popout") === "1" && !!popoutConsoleId;
+  const isConsoleWindowRoute = location.pathname.startsWith("/console/proxmox/");
+  const isConsolePopout = isConsoleWindowRoute && !!popoutConsoleId;
 
   const [node, setNode] = React.useState<Node | null>(seededNode);
   const [isLoadingNode, setIsLoadingNode] = React.useState(!seededNode);
@@ -379,9 +384,18 @@ export default function ProxmoxManagerPage() {
   const [isSubmittingEditor, setIsSubmittingEditor] = React.useState(false);
   const [consoleItemId, setConsoleItemId] = React.useState<string | null>(popoutConsoleId);
   const [consoleSessionKey, setConsoleSessionKey] = React.useState(0);
+  const requestFullscreen = React.useCallback(async () => {
+    const element = document.documentElement;
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+    await element.requestFullscreen();
+  }, []);
 
   const hostServerId = node?.ID ?? nodeId ?? "";
   const hostLabel = node?.Hostname || node?.IpAddress || "Proxmox host";
+  const managerPath = hostServerId ? `/nodes/manage/${hostServerId}/proxmox` : "/nodes/manage";
 
   React.useEffect(() => {
     if (!nodeId) {
@@ -588,7 +602,7 @@ export default function ProxmoxManagerPage() {
 
   const openConsoleInWindow = React.useCallback(
     (item: ExplorerItem) => {
-      const url = `${window.location.origin}${location.pathname}?console=${encodeURIComponent(item.id)}&popout=1`;
+      const url = `${window.location.origin}/console/proxmox/${encodeURIComponent(hostServerId)}?console=${encodeURIComponent(item.id)}`;
       const openedWindow = window.open(
         url,
         "_blank",
@@ -601,7 +615,7 @@ export default function ProxmoxManagerPage() {
         );
       }
     },
-    [location.pathname]
+    [hostServerId]
   );
 
   const loadSelectedConfig = React.useCallback(
@@ -1006,7 +1020,7 @@ export default function ProxmoxManagerPage() {
   if (!node || nodeError) {
     return (
       <div className="mx-auto max-w-3xl space-y-4 py-10">
-        <Button variant="outline" onClick={() => navigate("/nodes/manage")}>
+          <Button variant="outline" onClick={() => navigate("/nodes/manage")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Managed Nodes
         </Button>
@@ -1049,44 +1063,30 @@ export default function ProxmoxManagerPage() {
     }
 
     return (
-      <div className="flex h-screen flex-col bg-background">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
-                Proxmox Console
-              </Badge>
-              <Badge variant="secondary" className="uppercase">
-                {consoleItem.kind}
-              </Badge>
-            </div>
-            <h1 className="mt-2 text-xl font-semibold">{consoleItem.label}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {consoleItem.kind === "lxc"
-                ? "Connected through the Proxmox container console websocket."
-                : "Connected through the Proxmox VM display console websocket."}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => navigate(location.pathname, { replace: true })}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Full Manager
-            </Button>
-            <Button variant="outline" onClick={() => setConsoleSessionKey((prev) => prev + 1)}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Reconnect
-            </Button>
-          </div>
+      <div className="h-screen bg-black text-foreground">
+        <div className="absolute right-4 top-4 z-20 flex flex-wrap gap-2">
+          <Button variant="secondary" className="bg-black/70 text-white hover:bg-black/85" onClick={() => void requestFullscreen()}>
+            <SquareTerminal className="mr-2 h-4 w-4" />
+            Fullscreen
+          </Button>
+          <Button variant="secondary" className="bg-black/70 text-white hover:bg-black/85" onClick={() => navigate(managerPath, { replace: true })}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Full Manager
+          </Button>
+          <Button variant="secondary" className="bg-black/70 text-white hover:bg-black/85" onClick={() => setConsoleSessionKey((prev) => prev + 1)}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Reconnect
+          </Button>
         </div>
 
-        <div className="flex-1 p-4">
+        <div className="h-full p-0">
           <RenderWorkloadConsole
             key={`${consoleItem.id}-${consoleSessionKey}`}
             hostServerId={hostServerId}
             hostLabel={hostLabel}
             item={consoleItem}
-            onClose={() => navigate(location.pathname, { replace: true })}
+            onClose={() => navigate(managerPath, { replace: true })}
+            variant="focused"
           />
         </div>
       </div>
@@ -1423,6 +1423,7 @@ export default function ProxmoxManagerPage() {
                                 hostLabel={hostLabel}
                                 item={selectedItem}
                                 onClose={() => setConsoleItemId(null)}
+                                variant="embedded"
                               />
                             </div>
                             <div className="border-t border-border/60 px-4 py-3 text-xs text-muted-foreground">

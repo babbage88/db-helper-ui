@@ -101,12 +101,22 @@ export default function App() {
         <div className="hidden data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground" />
         <Router>
           <SidebarProvider>
+            <Toaster />
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/login/github/callback" element={<LoginGithubCallbackPage />} />
               <Route path="/auth/github/callback" element={<LoginGithubCallbackPage />} />
               <Route path="/logout" element={<LogoutPage />} />
+
+              <Route
+                path="/console/proxmox/:nodeId"
+                element={
+                  <ProtectedRoute>
+                    <ProxmoxManagerPage />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Protected layout route */}
               <Route
@@ -177,7 +187,6 @@ function SidebarResponsiveLayout() {
           <Outlet />
         </main>
       </div>
-      <Toaster />
     </div>
   );
 }
