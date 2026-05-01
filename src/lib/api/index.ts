@@ -58,6 +58,7 @@ export type { HostServerIDResponse } from './models/HostServerIDResponse';
 export type { HostServerResponse } from './models/HostServerResponse';
 export type { HostServersResponse } from './models/HostServersResponse';
 export type { HostServerType } from './models/HostServerType';
+export type { JsonInt } from './models/JsonInt';
 export type { LoginResponseInfo } from './models/LoginResponseInfo';
 export type { MariaDBInstallRequest } from './models/MariaDBInstallRequest';
 export type { MariaDBInstallResult } from './models/MariaDBInstallResult';

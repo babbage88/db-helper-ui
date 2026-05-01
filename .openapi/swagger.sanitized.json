@@ -5291,6 +5291,11 @@
       },
       "x-go-package": "github.com/babbage88/go-infra/services/user_crud_svc"
     },
+    "JsonInt": {
+      "type": "integer",
+      "format": "int64",
+      "x-go-package": "github.com/babbage88/infra-core/proxmox"
+    },
     "LoginResponseInfo": {
       "type": "object",
       "properties": {
@@ -5955,9 +5960,7 @@
           "x-go-name": "IPAddressType"
         },
         "prefix": {
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "Prefix"
+          "$ref": "#/definitions/JsonInt"
         }
       },
       "x-go-package": "github.com/babbage88/go-infra/services/proxmox"
