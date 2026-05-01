@@ -62,10 +62,13 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { ProxmoxContainer } from "@/lib/api/models/ProxmoxContainer";
+import type { ProxmoxGuestSummaryResult } from "@/lib/api/models/ProxmoxGuestSummaryResult";
 import type { ProxmoxLXCResourcesResult } from "@/lib/api/models/ProxmoxLXCResourcesResult";
 import type { ProxmoxLXCResourcesUpdateRequest } from "@/lib/api/models/ProxmoxLXCResourcesUpdateRequest";
+import type { ProxmoxNodeOptionsResult } from "@/lib/api/models/ProxmoxNodeOptionsResult";
 import type { ProxmoxVM } from "@/lib/api/models/ProxmoxVM";
 import type { ProxmoxVMCreateRequest } from "@/lib/api/models/ProxmoxVMCreateRequest";
+import type { ProxmoxVMHardwareActionRequest } from "@/lib/api/models/ProxmoxVMHardwareActionRequest";
 import type { ProxmoxVMHardwareResult } from "@/lib/api/models/ProxmoxVMHardwareResult";
 import type { ProxmoxVMHardwareUpdateRequest } from "@/lib/api/models/ProxmoxVMHardwareUpdateRequest";
 import type { ProxmoxWorkload } from "@/lib/api/models/ProxmoxWorkload";
@@ -145,6 +148,14 @@ type CloneVmState = {
   ciSnippetsStorage: string;
   ciCustomScript: string;
   description: string;
+};
+
+type HardwareActionState = {
+  open: boolean;
+  title: string;
+  device: string;
+  value: string;
+  delete: string;
 };
 
 type EditorState =
@@ -491,10 +502,20 @@ export default function ProxmoxManagerPage() {
   const [configError, setConfigError] = React.useState<string | null>(null);
   const [vmHardware, setVmHardware] = React.useState<ProxmoxVMHardwareResult | null>(null);
   const [lxcResources, setLxcResources] = React.useState<ProxmoxLXCResourcesResult | null>(null);
+  const [guestSummary, setGuestSummary] = React.useState<ProxmoxGuestSummaryResult | null>(null);
+  const [nodeOptions, setNodeOptions] = React.useState<ProxmoxNodeOptionsResult | null>(null);
   const [editorState, setEditorState] = React.useState<EditorState>(null);
   const [isSubmittingEditor, setIsSubmittingEditor] = React.useState(false);
   const [cloneState, setCloneState] = React.useState<CloneVmState>(() => defaultCloneState());
   const [isSubmittingClone, setIsSubmittingClone] = React.useState(false);
+  const [hardwareAction, setHardwareAction] = React.useState<HardwareActionState>({
+    open: false,
+    title: "",
+    device: "",
+    value: "",
+    delete: "",
+  });
+  const [isSubmittingHardwareAction, setIsSubmittingHardwareAction] = React.useState(false);
   const [consoleItemId, setConsoleItemId] = React.useState<string | null>(popoutConsoleId);
   const [consoleSessionKey, setConsoleSessionKey] = React.useState(0);
   const requestFullscreen = React.useCallback(async () => {
@@ -683,6 +704,9 @@ export default function ProxmoxManagerPage() {
   React.useEffect(() => {
     if (!hostServerId) return;
     void refreshInventory();
+    ProxmoxService.getProxmoxNodeOptions(hostServerId)
+      .then(setNodeOptions)
+      .catch(() => setNodeOptions(null));
   }, [hostServerId, refreshInventory]);
 
   const explorerItems = React.useMemo(
@@ -704,11 +728,14 @@ export default function ProxmoxManagerPage() {
   );
   const bridgeOptions = React.useMemo(() => {
     const bridges = new Set(["vmbr0"]);
+    nodeOptions?.bridges?.forEach((bridge) => {
+      if (bridge.name) bridges.add(bridge.name);
+    });
     extractBridgeNames(vmHardware?.raw, lxcResources?.raw).forEach((bridge) => bridges.add(bridge));
     if (vmHardware?.bridge) bridges.add(vmHardware.bridge);
     if (lxcResources?.bridge) bridges.add(lxcResources.bridge);
     return [...bridges].sort();
-  }, [lxcResources, vmHardware]);
+  }, [lxcResources, nodeOptions, vmHardware]);
   const isoAttachments = React.useMemo(
     () => parseIsoAttachments(vmHardware?.raw),
     [vmHardware]
@@ -779,6 +806,7 @@ export default function ProxmoxManagerPage() {
       if (!item?.vmid || !hostServerId) {
         setVmHardware(null);
         setLxcResources(null);
+        setGuestSummary(null);
         setConfigError(null);
         setIsLoadingConfig(false);
         return null;
@@ -788,23 +816,41 @@ export default function ProxmoxManagerPage() {
       setConfigError(null);
       try {
         if (item.kind === "qemu") {
-          const result = await ProxmoxService.getProxmoxVmHardware(
-            item.vmid,
-            hostServerId,
-            undefined,
-            item.node
-          );
+          const [result, summary] = await Promise.all([
+            ProxmoxService.getProxmoxVmHardware(
+              item.vmid,
+              hostServerId,
+              undefined,
+              item.node
+            ),
+            ProxmoxService.getProxmoxVmGuestSummary(
+              item.vmid,
+              hostServerId,
+              undefined,
+              item.node
+            ),
+          ]);
+          setGuestSummary(summary);
           setVmHardware(result);
           setLxcResources(null);
           return result;
         }
 
-        const result = await ProxmoxService.getProxmoxLxcResources(
-          item.vmid,
-          hostServerId,
-          undefined,
-          item.node
-        );
+        const [result, summary] = await Promise.all([
+          ProxmoxService.getProxmoxLxcResources(
+            item.vmid,
+            hostServerId,
+            undefined,
+            item.node
+          ),
+          ProxmoxService.getProxmoxContainerGuestSummary(
+            item.vmid,
+            hostServerId,
+            undefined,
+            item.node
+          ),
+        ]);
+        setGuestSummary(summary);
         setLxcResources(result);
         setVmHardware(null);
         return result;
@@ -813,6 +859,7 @@ export default function ProxmoxManagerPage() {
         setConfigError(message);
         setVmHardware(null);
         setLxcResources(null);
+        setGuestSummary(null);
         if (!options?.silent) {
           showErrorToast("Failed to load configured hardware", message);
         }
@@ -1062,6 +1109,43 @@ export default function ProxmoxManagerPage() {
       setIsSubmittingClone(false);
     }
   }, [cloneState, hostServerId, node?.Hostname, refreshInventory, templateItems, waitForInventoryCondition]);
+
+  const openHardwareAction = React.useCallback((next: Partial<HardwareActionState>) => {
+    setHardwareAction({
+      open: true,
+      title: next.title || "Apply Hardware Change",
+      device: next.device || "",
+      value: next.value || "",
+      delete: next.delete || "",
+    });
+  }, []);
+
+  const submitHardwareAction = React.useCallback(async () => {
+    if (!selectedItem?.vmid || selectedItem.kind !== "qemu") return;
+    setIsSubmittingHardwareAction(true);
+    try {
+      const body: ProxmoxVMHardwareActionRequest = {
+        host_server_id: hostServerId,
+        node: selectedItem.node,
+        vmid: selectedItem.vmid,
+        device: hardwareAction.device.trim() || undefined,
+        value: hardwareAction.value.trim() || undefined,
+        delete: hardwareAction.delete.trim() || undefined,
+      };
+      const result = await ProxmoxService.applyProxmoxVmHardwareAction(selectedItem.vmid, body);
+      setVmHardware(result);
+      setApiResult(result);
+      setHardwareAction({ open: false, title: "", device: "", value: "", delete: "" });
+      showSuccessToast("VM hardware updated", "The Proxmox hardware action was applied.");
+      await refreshSelectedConfig();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : parseErrorMessage(error);
+      setApiResult({ error: message });
+      showErrorToast("Failed to apply hardware action", message);
+    } finally {
+      setIsSubmittingHardwareAction(false);
+    }
+  }, [hardwareAction, hostServerId, refreshSelectedConfig, selectedItem]);
 
   const openEditor = React.useCallback(
     (mode: Exclude<EditorState, null>["type"]) => {
@@ -1630,6 +1714,7 @@ export default function ProxmoxManagerPage() {
                         item={selectedItem}
                         vmHardware={vmHardware}
                         lxcResources={lxcResources}
+                        guestSummary={guestSummary}
                         hostLabel={hostLabel}
                       />
 
@@ -1815,6 +1900,9 @@ export default function ProxmoxManagerPage() {
                       {selectedItem.kind === "qemu" ? (
                         <HardwareCatalogPanel
                           isoAttachments={isoAttachments}
+                          nodeOptions={nodeOptions}
+                          vmHardware={vmHardware}
+                          onHardwareAction={openHardwareAction}
                           onCloneTemplate={() => setCloneState({ ...defaultCloneState(selectedItem), open: true })}
                           isTemplate={isTemplate(selectedItem)}
                         />
@@ -1953,6 +2041,13 @@ export default function ProxmoxManagerPage() {
         onClose={() => setCloneState(defaultCloneState())}
         onSubmit={() => void submitClone()}
         onChange={(next) => setCloneState(next)}
+      />
+      <HardwareActionDialog
+        state={hardwareAction}
+        busy={isSubmittingHardwareAction}
+        onClose={() => setHardwareAction({ open: false, title: "", device: "", value: "", delete: "" })}
+        onSubmit={() => void submitHardwareAction()}
+        onChange={setHardwareAction}
       />
     </>
   );
@@ -2283,14 +2378,17 @@ function GuestSummaryPanel({
   item,
   vmHardware,
   lxcResources,
+  guestSummary,
   hostLabel,
 }: {
   item: ExplorerItem;
   vmHardware: ProxmoxVMHardwareResult | null;
   lxcResources: ProxmoxLXCResourcesResult | null;
+  guestSummary: ProxmoxGuestSummaryResult | null;
   hostLabel: string;
 }) {
   const notes = item.kind === "qemu" ? vmHardware?.raw?.description : lxcResources?.raw?.description;
+  const ips = guestSummary?.ip_addresses || [];
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <section className="rounded-2xl border border-border/70 bg-card/40 p-4">
@@ -2306,6 +2404,7 @@ function GuestSummaryPanel({
           <SummaryMeter icon={Cpu} label="CPU usage" value={`${((item.cpu || 0) * 100).toFixed(2)}%`} amount={(item.cpu || 0) * 100} />
           <SummaryMeter icon={MemoryStick} label="Memory usage" value={formatUsage(item.mem, item.maxmem)} amount={percent(item.mem, item.maxmem)} />
           <SummaryLine icon={HardDrive} label="Bootdisk size" value={item.kind === "qemu" ? vmHardware?.disk_size || formatBytesSafe(item.maxdisk) : lxcResources?.rootfs_size || formatBytesSafe(item.maxdisk)} />
+          <SummaryLine icon={Router} label="IPs" value={ips.length ? ips.join(", ") : guestSummary?.error ? "Guest agent unavailable" : "No IPs reported"} />
           <SummaryLine icon={Router} label="Network" value={item.kind === "qemu" ? `${vmHardware?.bridge || "no bridge"} / ${formatVlanTag(vmHardware?.vlan_tag)}` : `${lxcResources?.bridge || "no bridge"} / ${formatVlanTag(lxcResources?.vlan_tag)}`} />
         </div>
       </section>

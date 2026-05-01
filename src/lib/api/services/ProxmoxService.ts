@@ -5,14 +5,17 @@
 import type { ProxmoxAPITokenCreateRequest } from '../models/ProxmoxAPITokenCreateRequest';
 import type { ProxmoxAPITokenCreateResult } from '../models/ProxmoxAPITokenCreateResult';
 import type { ProxmoxContainerListResult } from '../models/ProxmoxContainerListResult';
+import type { ProxmoxGuestSummaryResult } from '../models/ProxmoxGuestSummaryResult';
 import type { ProxmoxLXCRequest } from '../models/ProxmoxLXCRequest';
 import type { ProxmoxLXCResourcesResult } from '../models/ProxmoxLXCResourcesResult';
 import type { ProxmoxLXCResourcesUpdateRequest } from '../models/ProxmoxLXCResourcesUpdateRequest';
 import type { ProxmoxLXCResult } from '../models/ProxmoxLXCResult';
+import type { ProxmoxNodeOptionsResult } from '../models/ProxmoxNodeOptionsResult';
 import type { ProxmoxPVEUserCreateRequest } from '../models/ProxmoxPVEUserCreateRequest';
 import type { ProxmoxPVEUserCreateResult } from '../models/ProxmoxPVEUserCreateResult';
 import type { ProxmoxVMCreateRequest } from '../models/ProxmoxVMCreateRequest';
 import type { ProxmoxVMCreateResult } from '../models/ProxmoxVMCreateResult';
+import type { ProxmoxVMHardwareActionRequest } from '../models/ProxmoxVMHardwareActionRequest';
 import type { ProxmoxVMHardwareResult } from '../models/ProxmoxVMHardwareResult';
 import type { ProxmoxVMHardwareUpdateRequest } from '../models/ProxmoxVMHardwareUpdateRequest';
 import type { ProxmoxVMListResult } from '../models/ProxmoxVMListResult';
@@ -102,48 +105,31 @@ export class ProxmoxService {
         });
     }
     /**
-     * Start a Proxmox LXC container.
-     * @param vmid VMID to start.
-     * @param body Request body.
-     * @returns ProxmoxVMStartResult (empty)
+     * Get guest network summary for a Proxmox LXC container.
+     * @param vmid VMID to inspect.
+     * @param hostServerId Host server ID for a Proxmox VE node.
+     * @param proxmoxSecretId Optional stored Proxmox secret ID to use for this host.
+     * @param node Proxmox node name.
+     * @returns ProxmoxGuestSummaryResult (empty)
      * @throws ApiError
      */
-    public static startProxmoxContainer(
+    public static getProxmoxContainerGuestSummary(
         vmid: number,
-        body?: ProxmoxVMStartRequest,
-    ): CancelablePromise<ProxmoxVMStartResult> {
+        hostServerId?: string,
+        proxmoxSecretId?: string,
+        node?: string,
+    ): CancelablePromise<ProxmoxGuestSummaryResult> {
         return __request(OpenAPI, {
-            method: 'POST',
-            url: '/api/v1/proxmox/container/{vmid}/start',
+            method: 'GET',
+            url: '/api/v1/proxmox/container/{vmid}/guest-summary',
             path: {
                 'vmid': vmid,
             },
-            body: body,
-            errors: {
-                400: `Invalid request`,
-                401: `Unauthorized`,
-                500: `Internal Server Error`,
+            query: {
+                'host_server_id': hostServerId,
+                'proxmox_secret_id': proxmoxSecretId,
+                'node': node,
             },
-        });
-    }
-    /**
-     * Stop a Proxmox LXC container.
-     * @param vmid VMID to stop.
-     * @param body Request body.
-     * @returns ProxmoxVMStartResult (empty)
-     * @throws ApiError
-     */
-    public static stopProxmoxContainer(
-        vmid: number,
-        body?: ProxmoxVMStartRequest,
-    ): CancelablePromise<ProxmoxVMStartResult> {
-        return __request(OpenAPI, {
-            method: 'POST',
-            url: '/api/v1/proxmox/container/{vmid}/stop',
-            path: {
-                'vmid': vmid,
-            },
-            body: body,
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,
@@ -210,6 +196,56 @@ export class ProxmoxService {
         });
     }
     /**
+     * Start a Proxmox LXC container.
+     * @param vmid VMID to start.
+     * @param body Request body.
+     * @returns ProxmoxVMStartResult (empty)
+     * @throws ApiError
+     */
+    public static startProxmoxContainer(
+        vmid: number,
+        body?: ProxmoxVMStartRequest,
+    ): CancelablePromise<ProxmoxVMStartResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/container/{vmid}/start',
+            path: {
+                'vmid': vmid,
+            },
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Stop a Proxmox LXC container.
+     * @param vmid VMID to stop.
+     * @param body Request body.
+     * @returns ProxmoxVMStartResult (empty)
+     * @throws ApiError
+     */
+    public static stopProxmoxContainer(
+        vmid: number,
+        body?: ProxmoxVMStartRequest,
+    ): CancelablePromise<ProxmoxVMStartResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/container/{vmid}/stop',
+            path: {
+                'vmid': vmid,
+            },
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
      * Create a Proxmox LXC container.
      * @param body
      * @returns ProxmoxLXCResult (empty)
@@ -222,6 +258,34 @@ export class ProxmoxService {
             method: 'POST',
             url: '/api/v1/proxmox/lxc',
             body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * List Proxmox node bridges, storage, and ISO media options.
+     * @param hostServerId Host server ID for a Proxmox VE node.
+     * @param proxmoxSecretId Optional stored Proxmox secret ID to use for this host.
+     * @param node Proxmox node name.
+     * @returns ProxmoxNodeOptionsResult (empty)
+     * @throws ApiError
+     */
+    public static getProxmoxNodeOptions(
+        hostServerId?: string,
+        proxmoxSecretId?: string,
+        node?: string,
+    ): CancelablePromise<ProxmoxNodeOptionsResult> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/proxmox/node/options',
+            query: {
+                'host_server_id': hostServerId,
+                'proxmox_secret_id': proxmoxSecretId,
+                'node': node,
+            },
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,
@@ -346,48 +410,31 @@ export class ProxmoxService {
         });
     }
     /**
-     * Start a Proxmox QEMU VM.
-     * @param vmid VMID to start.
-     * @param body Request body.
-     * @returns ProxmoxVMStartResult (empty)
+     * Get guest-agent network summary for a Proxmox QEMU VM.
+     * @param vmid VMID to inspect.
+     * @param hostServerId Host server ID for a Proxmox VE node.
+     * @param proxmoxSecretId Optional stored Proxmox secret ID to use for this host.
+     * @param node Proxmox node name.
+     * @returns ProxmoxGuestSummaryResult (empty)
      * @throws ApiError
      */
-    public static startProxmoxVm(
+    public static getProxmoxVmGuestSummary(
         vmid: number,
-        body?: ProxmoxVMStartRequest,
-    ): CancelablePromise<ProxmoxVMStartResult> {
+        hostServerId?: string,
+        proxmoxSecretId?: string,
+        node?: string,
+    ): CancelablePromise<ProxmoxGuestSummaryResult> {
         return __request(OpenAPI, {
-            method: 'POST',
-            url: '/api/v1/proxmox/vm/{vmid}/start',
+            method: 'GET',
+            url: '/api/v1/proxmox/vm/{vmid}/guest-summary',
             path: {
                 'vmid': vmid,
             },
-            body: body,
-            errors: {
-                400: `Invalid request`,
-                401: `Unauthorized`,
-                500: `Internal Server Error`,
+            query: {
+                'host_server_id': hostServerId,
+                'proxmox_secret_id': proxmoxSecretId,
+                'node': node,
             },
-        });
-    }
-    /**
-     * Stop a Proxmox QEMU VM.
-     * @param vmid VMID to stop.
-     * @param body Request body.
-     * @returns ProxmoxVMStartResult (empty)
-     * @throws ApiError
-     */
-    public static stopProxmoxVm(
-        vmid: number,
-        body?: ProxmoxVMStartRequest,
-    ): CancelablePromise<ProxmoxVMStartResult> {
-        return __request(OpenAPI, {
-            method: 'POST',
-            url: '/api/v1/proxmox/vm/{vmid}/stop',
-            path: {
-                'vmid': vmid,
-            },
-            body: body,
             errors: {
                 400: `Invalid request`,
                 401: `Unauthorized`,
@@ -442,6 +489,81 @@ export class ProxmoxService {
         return __request(OpenAPI, {
             method: 'PUT',
             url: '/api/v1/proxmox/vm/{vmid}/hardware',
+            path: {
+                'vmid': vmid,
+            },
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Apply an arbitrary Proxmox QEMU hardware config action.
+     * @param vmid VMID to update.
+     * @param body Request body.
+     * @returns ProxmoxVMHardwareResult (empty)
+     * @throws ApiError
+     */
+    public static applyProxmoxVmHardwareAction(
+        vmid: number,
+        body?: ProxmoxVMHardwareActionRequest,
+    ): CancelablePromise<ProxmoxVMHardwareResult> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/v1/proxmox/vm/{vmid}/hardware/action',
+            path: {
+                'vmid': vmid,
+            },
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Start a Proxmox QEMU VM.
+     * @param vmid VMID to start.
+     * @param body Request body.
+     * @returns ProxmoxVMStartResult (empty)
+     * @throws ApiError
+     */
+    public static startProxmoxVm(
+        vmid: number,
+        body?: ProxmoxVMStartRequest,
+    ): CancelablePromise<ProxmoxVMStartResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/vm/{vmid}/start',
+            path: {
+                'vmid': vmid,
+            },
+            body: body,
+            errors: {
+                400: `Invalid request`,
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Stop a Proxmox QEMU VM.
+     * @param vmid VMID to stop.
+     * @param body Request body.
+     * @returns ProxmoxVMStartResult (empty)
+     * @throws ApiError
+     */
+    public static stopProxmoxVm(
+        vmid: number,
+        body?: ProxmoxVMStartRequest,
+    ): CancelablePromise<ProxmoxVMStartResult> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox/vm/{vmid}/stop',
             path: {
                 'vmid': vmid,
             },
