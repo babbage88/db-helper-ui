@@ -17,6 +17,7 @@ import {
   HardDrive,
   Users,
   Shield,
+  Boxes,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -220,6 +221,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           {
             title: "Manage Buckets",
             url: "/storage/manage",
+          },
+        ],
+      },
+      {
+        title: "Applications",
+        url: "/applications/manage",
+        icon: Boxes,
+        items: [
+          {
+            title: "Manage",
+            url: "/applications/manage",
           },
         ],
       },

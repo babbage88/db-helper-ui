@@ -102,7 +102,9 @@ import {
 import {
   buildCloneNet0Value,
   type CloneVmState,
+  type CloneVmValidationErrors,
   defaultCloneState,
+  validateCloneVmState,
 } from "./clone-vm-dialog-state";
 import type { Node } from "./columns";
 import { BridgeSelect, Field } from "./proxmox-form-controls";
@@ -220,6 +222,43 @@ function parseErrorMessage(error: unknown) {
     if (typeof candidate.message === "string" && candidate.message) return candidate.message;
   }
   return "Request failed.";
+}
+
+function parseCloneApiErrors(error: unknown): CloneVmValidationErrors {
+  const result: CloneVmValidationErrors = {};
+  const maybeError = error as { body?: unknown; message?: unknown } | null;
+  const bodyValue = typeof maybeError?.body === "string" ? maybeError.body : typeof maybeError?.message === "string" ? maybeError.message : "";
+
+  if (!bodyValue) return result;
+
+  const jsonMatch = bodyValue.match(/body=(\{.*\})$/);
+  const payloadText = jsonMatch?.[1] ?? bodyValue;
+
+  try {
+    const parsed = JSON.parse(payloadText) as { errors?: Record<string, string> };
+    const errors = parsed.errors || {};
+
+    if (errors.sshkeys) {
+      result.sshPublicKeys = errors.sshkeys.includes("invalid urlencoded string")
+        ? "SSH public keys must be valid OpenSSH public key lines. We also re-encode them for Proxmox automatically, so try submitting again after confirming one key per line."
+        : errors.sshkeys;
+    }
+    if (errors.vmid) {
+      result.vmid = errors.vmid;
+    }
+    if (errors.name) {
+      result.name = errors.name;
+    }
+
+    const remainingErrors = Object.entries(errors).filter(([key]) => !["sshkeys", "vmid", "name"].includes(key));
+    if (remainingErrors.length > 0) {
+      result.form = remainingErrors.map(([key, value]) => `${key}: ${value}`).join(" ");
+    }
+  } catch {
+    // Ignore parse failures and let the generic error handling message win.
+  }
+
+  return result;
 }
 
 function mapHostStatsToSummary(stats: Awaited<ReturnType<typeof hostStatsApi.getHostStats>> | null): HostSummary | null {
@@ -445,6 +484,39 @@ function parseOptionalInt(value: string) {
   return parsed;
 }
 
+function pickNextAvailableVmid(
+  workloads: ProxmoxWorkload[],
+  vms: ProxmoxVM[],
+  containers: ProxmoxContainer[]
+) {
+  const usedVmids = new Set<number>();
+
+  for (const item of workloads) {
+    if (Number.isFinite(item.vmid) && (item.vmid ?? 0) > 0) {
+      usedVmids.add(item.vmid as number);
+    }
+  }
+
+  for (const item of vms) {
+    if (Number.isFinite(item.vmid) && (item.vmid ?? 0) > 0) {
+      usedVmids.add(item.vmid as number);
+    }
+  }
+
+  for (const item of containers) {
+    if (Number.isFinite(item.vmid) && (item.vmid ?? 0) > 0) {
+      usedVmids.add(item.vmid as number);
+    }
+  }
+
+  let candidate = 100;
+  while (usedVmids.has(candidate)) {
+    candidate += 1;
+  }
+
+  return candidate;
+}
+
 function formatCapacityMb(value?: number) {
   if (!value) return "-";
   if (value >= 1024) return `${(value / 1024).toFixed(value % 1024 === 0 ? 0 : 1)} GiB`;
@@ -463,9 +535,9 @@ function formatVlanTag(value?: string) {
   return `VLAN ${value}`;
 }
 
-function parseStringList(value: string) {
+function parseSshPublicKeys(value: string) {
   return value
-    .split(/\n|,/)
+    .split("\n")
     .map((item) => item.trim())
     .filter(Boolean);
 }
@@ -704,6 +776,7 @@ export default function ProxmoxManagerPage() {
   const [editorState, setEditorState] = React.useState<EditorState>(null);
   const [isSubmittingEditor, setIsSubmittingEditor] = React.useState(false);
   const [cloneState, setCloneState] = React.useState<CloneVmState>(() => defaultCloneState());
+  const [cloneErrors, setCloneErrors] = React.useState<CloneVmValidationErrors>({});
   const [isSubmittingClone, setIsSubmittingClone] = React.useState(false);
   const [hardwareAction, setHardwareAction] = React.useState<HardwareActionState>({
     open: false,
@@ -941,6 +1014,7 @@ export default function ProxmoxManagerPage() {
   const openCloneDialog = React.useCallback(
     (template?: ExplorerItem | null) => {
       const fallbackTemplate = template ?? templateItems[0] ?? null;
+      setCloneErrors({});
       setCloneState({ ...defaultCloneState(fallbackTemplate), open: true });
     },
     [templateItems]
@@ -1293,21 +1367,27 @@ export default function ProxmoxManagerPage() {
   const submitClone = React.useCallback(async () => {
     const template = templateItems.find((item) => item.id === cloneState.templateId);
     if (!template?.vmid) {
+      const nextErrors: CloneVmValidationErrors = { templateId: "Select a template." };
+      setCloneErrors(nextErrors);
       showErrorToast("Select a template", "Choose a QEMU VM template to clone from.");
       return;
     }
-    if (!cloneState.name.trim()) {
-      showErrorToast("Name is required", "Give the new VM a name before cloning.");
+    const validation = validateCloneVmState(cloneState);
+    if (!validation.success) {
+      setCloneErrors(validation.errors);
+      showErrorToast("Fix the highlighted fields", "The clone form has validation errors.");
       return;
     }
 
+    setCloneErrors({});
     setIsSubmittingClone(true);
     try {
+      const resolvedVmid = parseOptionalInt(cloneState.vmid) ?? pickNextAvailableVmid(workloads, vms, containers);
       const body: ProxmoxVMCreateRequest = {
         host_server_id: hostServerId,
         node: template.node || node?.Hostname || undefined,
         template_vmid: template.vmid,
-        vmid: parseOptionalInt(cloneState.vmid),
+        vmid: resolvedVmid,
         name: cloneState.name.trim(),
         storage: cloneState.storage.trim() || undefined,
         memory_mb: parseOptionalInt(cloneState.memoryMb),
@@ -1329,7 +1409,7 @@ export default function ProxmoxManagerPage() {
             ? undefined
             : cloneState.agentMode === "enabled",
         net0: buildCloneNet0Value(cloneState),
-        ssh_public_keys: parseStringList(cloneState.sshPublicKeys),
+        ssh_public_keys: parseSshPublicKeys(cloneState.sshPublicKeys),
         ipconfig0: cloneState.ipconfig0.trim() || undefined,
         nameserver: cloneState.nameserver.trim() || undefined,
         search_domain: cloneState.searchDomain.trim() || undefined,
@@ -1338,6 +1418,7 @@ export default function ProxmoxManagerPage() {
         description: cloneState.description.trim() || undefined,
       };
       await ProxmoxService.createProxmoxVm(body);
+      setCloneErrors({});
       setCloneState(defaultCloneState());
       showSuccessToast("VM clone requested", "Refreshing Proxmox inventory for the new guest.");
       await waitForInventoryCondition(
@@ -1347,11 +1428,15 @@ export default function ProxmoxManagerPage() {
       await refreshInventory({ silent: true });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : parseErrorMessage(error);
+      const fieldErrors = parseCloneApiErrors(error);
+      if (Object.keys(fieldErrors).length > 0) {
+        setCloneErrors(fieldErrors);
+      }
       showErrorToast("Failed to clone VM", message);
     } finally {
       setIsSubmittingClone(false);
     }
-  }, [cloneState, hostServerId, node?.Hostname, refreshInventory, templateItems, waitForInventoryCondition]);
+  }, [cloneState, containers, hostServerId, node?.Hostname, refreshInventory, templateItems, vms, waitForInventoryCondition, workloads]);
 
   const openHardwareAction = React.useCallback((next: Partial<HardwareActionState>) => {
     setHardwareAction({
@@ -2346,9 +2431,16 @@ export default function ProxmoxManagerPage() {
         targetStorageOptions={cloneTargetStorageOptions}
         snippetStorageOptions={cloneSnippetStorageOptions}
         busy={isSubmittingClone}
-        onClose={() => setCloneState(defaultCloneState())}
+        errors={cloneErrors}
+        onClose={() => {
+          setCloneErrors({});
+          setCloneState(defaultCloneState());
+        }}
         onSubmit={() => void submitClone()}
-        onChange={(next) => setCloneState(next)}
+        onChange={(next) => {
+          setCloneErrors({});
+          setCloneState(next);
+        }}
       />
       <HardwareActionDialog
         state={hardwareAction}
