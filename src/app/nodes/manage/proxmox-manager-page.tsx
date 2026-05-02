@@ -1882,8 +1882,8 @@ export default function ProxmoxManagerPage() {
                                   className={cn(
                                     "rounded-full px-2.5",
                                     isRunning(selectedItem.status)
-                                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-                                      : "border-zinc-500/30 bg-zinc-500/10 text-zinc-200"
+                                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+                                      : "border-zinc-500/30 bg-zinc-500/10 text-zinc-700 dark:text-zinc-200"
                                   )}
                                 >
                                   {selectedItem.status || "unknown"}
@@ -1892,7 +1892,8 @@ export default function ProxmoxManagerPage() {
                                   {selectedItem.kind}
                                 </Badge>
                                 {isTemplate(selectedItem) ? (
-                                  <Badge variant="outline" className="rounded-full border-amber-500/30 bg-amber-500/10 px-2.5 text-amber-200">
+                                  <Badge variant="outline" className="gap-1 rounded-full border-sky-500/30 bg-sky-500/10 px-2.5 text-sky-700 dark:text-sky-200">
+                                    <FileText className="h-3 w-3" />
                                     VM template
                                   </Badge>
                                 ) : null}
@@ -2347,10 +2348,11 @@ function TreeWorkloadItem({
           onClick={onSelect}
           className={cn(
             "relative flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors",
-            selected ? "bg-primary/10 text-foreground" : template ? "hover:bg-amber-500/10" : "hover:bg-accent/50",
-            template && "border border-amber-500/25 bg-amber-500/5"
+            selected ? "bg-primary/10 text-foreground" : "hover:bg-accent/50",
+            template && "bg-muted/25 pl-4"
           )}
         >
+          {template ? <span aria-hidden="true" className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-sky-400/70" /> : null}
           <div className="mt-1 flex items-center gap-2">
             <span className="h-px w-3 bg-border/70" />
             <StatusDot running={isRunning(item.status)} busy={busy} />
@@ -2360,7 +2362,8 @@ function TreeWorkloadItem({
               <span className="truncate text-sm font-medium">{item.label}</span>
               <span className="font-mono text-[10px] text-muted-foreground">{item.vmid ?? "-"}</span>
               {template ? (
-                <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] text-amber-200">
+                <Badge variant="outline" className="gap-1 border-sky-500/30 bg-sky-500/10 px-1.5 py-0 text-[9px] text-sky-700 dark:text-sky-200">
+                  <FileText className="h-2.5 w-2.5" />
                   template
                 </Badge>
               ) : null}
