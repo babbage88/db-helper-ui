@@ -31,10 +31,14 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { isProxmoxHostNodeTypeNames } from "@/app/nodes/manage/proxmox-utils";
+import { SshKeyHostMappingsService } from "@/lib/api/services/SshKeyHostMappingsService";
+import { HostServersService } from "@/lib/api/services/HostServersService";
 import { useAuth } from "@/lib/auth-context";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user: sessionUser } = useAuth();
+  const [hasAssignedProxmoxNode, setHasAssignedProxmoxNode] = React.useState(false);
 
   const user = React.useMemo(() => ({
     name: sessionUser?.userName || "Anonymous",
@@ -42,6 +46,78 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     avatar: "",
     userId: sessionUser?.user_id || "",
   }), [sessionUser]);
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    async function loadAssignedProxmoxAccess() {
+      if (!sessionUser?.user_id) {
+        if (isMounted) {
+          setHasAssignedProxmoxNode(false);
+        }
+        return;
+      }
+
+      try {
+        const [allServers, userMappings] = await Promise.all([
+          HostServersService.getAllHostServers(),
+          SshKeyHostMappingsService.getSshKeyHostMappingsByUserId(sessionUser.user_id),
+        ]);
+
+        const assignedHostIds = new Set(
+          userMappings.map((mapping) => mapping.hostServerId).filter(Boolean)
+        );
+
+        const hasProxmoxNode = allServers.some((server) => {
+          if (!server.id || !assignedHostIds.has(server.id)) {
+            return false;
+          }
+
+          const platformTypeNames = Array.isArray(server.platform_types)
+            ? server.platform_types.map((type) => type.name || "")
+            : [];
+          const hostServerTypeNames = Array.isArray(server.host_server_types)
+            ? server.host_server_types.map((type) => type.name || "")
+            : [];
+
+          return isProxmoxHostNodeTypeNames(platformTypeNames, hostServerTypeNames);
+        });
+
+        if (isMounted) {
+          setHasAssignedProxmoxNode(hasProxmoxNode);
+        }
+      } catch (error) {
+        console.error("Failed to determine Proxmox Explorer visibility:", error);
+        if (isMounted) {
+          setHasAssignedProxmoxNode(false);
+        }
+      }
+    }
+
+    loadAssignedProxmoxAccess();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [sessionUser?.user_id]);
+
+  const nodeItems = React.useMemo(() => {
+    const items = [
+      {
+        title: "Manage",
+        url: "/nodes/manage",
+      },
+    ];
+
+    if (hasAssignedProxmoxNode) {
+      items.push({
+        title: "Proxmox Explorer",
+        url: "/nodes/proxmox",
+      });
+    }
+
+    return items;
+  }, [hasAssignedProxmoxNode]);
 
   const data = {
     user,
@@ -84,16 +160,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: "Nodes",
         url: "/nodes/manage",
         icon: Server,
-        items: [
-          {
-            title: "Manage",
-            url: "/nodes/manage",
-          },
-          {
-            title: "Proxmox Explorer",
-            url: "/nodes/proxmox",
-          },
-        ],
+        items: nodeItems,
       },
       {
         title: "Users",

@@ -35,6 +35,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
@@ -102,7 +109,10 @@ type InventoryErrors = {
 type HostSummary = {
   cpuCores?: number;
   memoryTotalBytes?: number;
+  memoryAvailableBytes?: number;
   storageTotalBytes?: number;
+  storageAvailableBytes?: number;
+  collectedAt?: string;
   status?: string;
   error?: string;
 };
@@ -225,6 +235,20 @@ function parseErrorMessage(error: unknown) {
   return "Request failed.";
 }
 
+function mapHostStatsToSummary(stats: Awaited<ReturnType<typeof hostStatsApi.getHostStats>> | null): HostSummary | null {
+  if (!stats) return null;
+  return {
+    cpuCores: stats.cpuCores,
+    memoryTotalBytes: stats.memoryTotalBytes,
+    memoryAvailableBytes: stats.memoryAvailableBytes,
+    storageTotalBytes: stats.storageTotalBytes,
+    storageAvailableBytes: stats.storageAvailableBytes,
+    collectedAt: stats.collectedAt,
+    status: stats.status,
+    error: stats.error,
+  };
+}
+
 function mapHostServerToNode(server: Awaited<ReturnType<typeof HostServersService.getHostServer>>): Node {
   return {
     ID: server.id || "",
@@ -327,6 +351,11 @@ function formatBytesSafe(value?: number) {
 function formatUsage(used?: number, total?: number) {
   if (used === undefined && total === undefined) return "-";
   return `${formatBytesSafe(used)} / ${formatBytesSafe(total)}`;
+}
+
+function formatPercent(value?: number) {
+  if (value === undefined || value === null || !Number.isFinite(value)) return "-";
+  return `${value.toFixed(value >= 10 ? 1 : 2)}%`;
 }
 
 function formatUptime(value?: number) {
@@ -694,7 +723,6 @@ export default function ProxmoxManagerPage() {
   const [workloads, setWorkloads] = React.useState<ProxmoxWorkload[]>([]);
   const [vms, setVms] = React.useState<ProxmoxVM[]>([]);
   const [containers, setContainers] = React.useState<ProxmoxContainer[]>([]);
-  const [apiResult, setApiResult] = React.useState<unknown>(null);
   const [hostSummary, setHostSummary] = React.useState<HostSummary | null>(null);
   const [selectedItemId, setSelectedItemId] = React.useState<string>("host");
   const [expandedGroups, setExpandedGroups] = React.useState<Record<WorkloadKind, boolean>>({
@@ -790,17 +818,7 @@ export default function ProxmoxManagerPage() {
         const mappedNode = mapHostServerToNode(server);
         mappedNode.stats = stats ?? undefined;
         setNode(mappedNode);
-        setHostSummary(
-          stats
-            ? {
-                cpuCores: stats.cpuCores,
-                memoryTotalBytes: stats.memoryTotalBytes,
-                storageTotalBytes: stats.storageTotalBytes,
-                status: stats.status,
-                error: stats.error,
-              }
-            : null
-        );
+        setHostSummary(mapHostStatsToSummary(stats));
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -820,7 +838,7 @@ export default function ProxmoxManagerPage() {
     setVms(snapshot.vms);
     setContainers(snapshot.containers);
     setInventoryErrors(snapshot.errors);
-    if (snapshot.hostSummary) {
+    if (snapshot.hostSummary !== undefined) {
       setHostSummary(snapshot.hostSummary);
     }
   }, []);
@@ -862,16 +880,8 @@ export default function ProxmoxManagerPage() {
     }
 
     const statsResult = results[3];
-    let nextHostSummary: HostSummary | null | undefined;
-    if (statsResult.status === "fulfilled" && statsResult.value) {
-      nextHostSummary = {
-        cpuCores: statsResult.value.cpuCores,
-        memoryTotalBytes: statsResult.value.memoryTotalBytes,
-        storageTotalBytes: statsResult.value.storageTotalBytes,
-        status: statsResult.value.status,
-        error: statsResult.value.error,
-      };
-    }
+    const nextHostSummary =
+      statsResult.status === "fulfilled" ? mapHostStatsToSummary(statsResult.value) : null;
 
     return {
       workloads: nextWorkloads,
@@ -974,6 +984,7 @@ export default function ProxmoxManagerPage() {
     selectedItemId === "host"
       ? null
       : explorerItems.find((item) => item.id === selectedItemId) ?? null;
+  const isHostSelected = selectedItemId === "host";
   const selectedItemIsRunning = selectedItem ? isRunning(selectedItem.status) : false;
   const selectedItemIsTemplate = selectedItem ? isTemplate(selectedItem) : false;
   const consoleItem =
@@ -1091,7 +1102,10 @@ export default function ProxmoxManagerPage() {
   }, [loadSelectedConfig, selectedItem]);
 
   React.useEffect(() => {
-    if (!selectedItem?.vmid || !selectedItemIsRunning || selectedItemIsTemplate) {
+    const shouldRefresh =
+      !!selectedItem?.vmid && selectedItemIsRunning && !selectedItemIsTemplate;
+
+    if (!shouldRefresh) {
       return;
     }
 
@@ -1101,6 +1115,19 @@ export default function ProxmoxManagerPage() {
 
     return () => window.clearInterval(intervalId);
   }, [refreshInventory, selectedItem?.id, selectedItem?.vmid, selectedItemIsRunning, selectedItemIsTemplate]);
+
+  React.useEffect(() => {
+    if (!isHostSelected || !hostServerId) return;
+
+    void refreshInventory({ silent: true });
+    const intervalId = window.setInterval(() => {
+      void refreshInventory({ silent: true });
+    }, 5000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [hostServerId, isHostSelected, refreshInventory]);
 
   const waitForInventoryCondition = React.useCallback(
     async (
@@ -1148,11 +1175,11 @@ export default function ProxmoxManagerPage() {
           node: item.node,
           vmid: item.vmid,
         };
-        const result =
-          item.kind === "qemu"
-            ? await ProxmoxService.startProxmoxVm(item.vmid, request)
-            : await ProxmoxService.startProxmoxContainer(item.vmid, request);
-        setApiResult(result);
+        if (item.kind === "qemu") {
+          await ProxmoxService.startProxmoxVm(item.vmid, request);
+        } else {
+          await ProxmoxService.startProxmoxContainer(item.vmid, request);
+        }
         showSuccessToast(`Start requested for ${item.label}`, "Waiting for inventory to reflect the new state.");
         const synced = await waitForInventoryCondition(
           (items) => items.some((candidate) => candidate.id === item.id && isRunning(candidate.status))
@@ -1163,7 +1190,6 @@ export default function ProxmoxManagerPage() {
         }
       } catch (error: unknown) {
         const message = parseErrorMessage(error);
-        setApiResult({ error: message });
         showErrorToast(`Failed to start ${item.label}`, message);
       } finally {
         setActionBusyId(null);
@@ -1186,11 +1212,11 @@ export default function ProxmoxManagerPage() {
           node: item.node,
           vmid: item.vmid,
         };
-        const result =
-          item.kind === "qemu"
-            ? await ProxmoxService.stopProxmoxVm(item.vmid, request)
-            : await ProxmoxService.stopProxmoxContainer(item.vmid, request);
-        setApiResult(result);
+        if (item.kind === "qemu") {
+          await ProxmoxService.stopProxmoxVm(item.vmid, request);
+        } else {
+          await ProxmoxService.stopProxmoxContainer(item.vmid, request);
+        }
         showSuccessToast(`Stop requested for ${item.label}`, "Waiting for inventory to reflect the new state.");
         const synced = await waitForInventoryCondition(
           (items) => items.some((candidate) => candidate.id === item.id && !isRunning(candidate.status))
@@ -1201,7 +1227,6 @@ export default function ProxmoxManagerPage() {
         }
       } catch (error: unknown) {
         const message = parseErrorMessage(error);
-        setApiResult({ error: message });
         showErrorToast(`Failed to stop ${item.label}`, message);
       } finally {
         setActionBusyId(null);
@@ -1229,11 +1254,11 @@ export default function ProxmoxManagerPage() {
           node: item.node,
           vmid: item.vmid,
         };
-        const result =
-          item.kind === "qemu"
-            ? await ProxmoxService.deleteProxmoxVm(item.vmid, request)
-            : await ProxmoxService.deleteProxmoxContainer(item.vmid, request);
-        setApiResult(result);
+        if (item.kind === "qemu") {
+          await ProxmoxService.deleteProxmoxVm(item.vmid, request);
+        } else {
+          await ProxmoxService.deleteProxmoxContainer(item.vmid, request);
+        }
         showSuccessToast(`Delete requested for ${item.label}`, "Waiting for the workload to disappear from inventory.");
         const deleted = await waitForInventoryCondition(
           (items) => !items.some((candidate) => candidate.id === item.id),
@@ -1245,7 +1270,6 @@ export default function ProxmoxManagerPage() {
         }
       } catch (error: unknown) {
         const message = parseErrorMessage(error);
-        setApiResult({ error: message });
         showErrorToast(`Failed to delete ${item.label}`, message);
       } finally {
         setActionBusyId(null);
@@ -1312,8 +1336,7 @@ export default function ProxmoxManagerPage() {
         ci_custom_script: cloneState.ciCustomScript.trim() || undefined,
         description: cloneState.description.trim() || undefined,
       };
-      const result = await ProxmoxService.createProxmoxVm(body);
-      setApiResult(result);
+      await ProxmoxService.createProxmoxVm(body);
       setCloneState(defaultCloneState());
       showSuccessToast("VM clone requested", "Refreshing Proxmox inventory for the new guest.");
       await waitForInventoryCondition(
@@ -1323,7 +1346,6 @@ export default function ProxmoxManagerPage() {
       await refreshInventory({ silent: true });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : parseErrorMessage(error);
-      setApiResult({ error: message });
       showErrorToast("Failed to clone VM", message);
     } finally {
       setIsSubmittingClone(false);
@@ -1354,13 +1376,11 @@ export default function ProxmoxManagerPage() {
       };
       const result = await ProxmoxService.applyProxmoxVmHardwareAction(selectedItem.vmid, body);
       setVmHardware(result);
-      setApiResult(result);
       setHardwareAction({ open: false, title: "", device: "", value: "", delete: "" });
       showSuccessToast("VM hardware updated", "The Proxmox hardware action was applied.");
       await refreshSelectedConfig();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : parseErrorMessage(error);
-      setApiResult({ error: message });
       showErrorToast("Failed to apply hardware action", message);
     } finally {
       setIsSubmittingHardwareAction(false);
@@ -1475,7 +1495,6 @@ export default function ProxmoxManagerPage() {
         };
         const result = await ProxmoxService.applyProxmoxVmHardwareAction(selectedItem.vmid, body);
         setVmHardware(result);
-        setApiResult(result);
       } else if (editorState.type === "vm-network") {
         const bridge = editorState.bridge.trim();
         if (!bridge) {
@@ -1490,7 +1509,6 @@ export default function ProxmoxManagerPage() {
         };
         const result = await ProxmoxService.updateProxmoxVmHardware(selectedItem.vmid, body);
         setVmHardware(result);
-        setApiResult(result);
       } else if (editorState.type === "vm-disk") {
         const body: ProxmoxVMHardwareUpdateRequest = {
           host_server_id: hostServerId,
@@ -1500,7 +1518,6 @@ export default function ProxmoxManagerPage() {
         };
         const result = await ProxmoxService.updateProxmoxVmHardware(selectedItem.vmid, body);
         setVmHardware(result);
-        setApiResult(result);
       } else if (editorState.type === "lxc-resources") {
         const body: ProxmoxLXCResourcesUpdateRequest = {
           host_server_id: hostServerId,
@@ -1512,7 +1529,6 @@ export default function ProxmoxManagerPage() {
         };
         const result = await ProxmoxService.updateProxmoxLxcResources(selectedItem.vmid, body);
         setLxcResources(result);
-        setApiResult(result);
       } else if (editorState.type === "lxc-network") {
         const bridge = editorState.bridge.trim();
         if (!bridge) {
@@ -1527,7 +1543,6 @@ export default function ProxmoxManagerPage() {
         };
         const result = await ProxmoxService.updateProxmoxLxcResources(selectedItem.vmid, body);
         setLxcResources(result);
-        setApiResult(result);
       } else {
         const body: ProxmoxLXCResourcesUpdateRequest = {
           host_server_id: hostServerId,
@@ -1537,7 +1552,6 @@ export default function ProxmoxManagerPage() {
         };
         const result = await ProxmoxService.updateProxmoxLxcResources(selectedItem.vmid, body);
         setLxcResources(result);
-        setApiResult(result);
       }
 
       setEditorState(null);
@@ -1551,7 +1565,6 @@ export default function ProxmoxManagerPage() {
       ]);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : parseErrorMessage(error);
-      setApiResult({ error: message });
       showErrorToast("Failed to update Proxmox configuration", message);
     } finally {
       setIsSubmittingEditor(false);
@@ -1658,7 +1671,7 @@ export default function ProxmoxManagerPage() {
                 Back to Managed Nodes
               </Button>
 
-              <div className="space-y-2 rounded-xl border border-border/60 bg-card/30 p-3">
+              <div className="space-y-2 px-1 py-1">
                 <Label className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                   Proxmox node
                 </Label>
@@ -1690,8 +1703,8 @@ export default function ProxmoxManagerPage() {
                 className={cn(
                   "flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors",
                   selectedItemId === "host"
-                    ? "border-primary/40 bg-primary/10"
-                    : "border-border/60 bg-card/30 hover:bg-card/60"
+                    ? "border-primary/30 bg-primary/10"
+                    : "border-transparent bg-muted/30 hover:border-border/50 hover:bg-muted/50"
                 )}
               >
                 <div className="mt-0.5 rounded-lg bg-primary/15 p-2 text-primary">
@@ -1857,111 +1870,113 @@ export default function ProxmoxManagerPage() {
                 {selectedItem ? (
                   <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
                     <section className="space-y-4">
-                      <div className="rounded-2xl border border-border/70 bg-card/40 p-4">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={cn(
-                                "rounded-xl p-3",
-                                selectedItem.kind === "qemu"
-                                  ? "bg-sky-500/12 text-sky-300"
-                                  : "bg-emerald-500/12 text-emerald-300"
-                              )}
-                            >
-                              {selectedItem.kind === "qemu" ? (
-                                <Server className="h-5 w-5" />
-                              ) : (
-                                <Boxes className="h-5 w-5" />
-                              )}
-                            </div>
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h2 className="text-xl font-semibold">{selectedItem.label}</h2>
-                                <Badge
-                                  variant="outline"
-                                  className={cn(
-                                    "rounded-full px-2.5",
-                                    isRunning(selectedItem.status)
-                                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
-                                      : "border-zinc-500/30 bg-zinc-500/10 text-zinc-700 dark:text-zinc-200"
-                                  )}
-                                >
-                                  {selectedItem.status || "unknown"}
-                                </Badge>
-                                <Badge variant="secondary" className="rounded-full px-2.5 uppercase">
-                                  {selectedItem.kind}
-                                </Badge>
-                                {isTemplate(selectedItem) ? (
-                                  <Badge variant="outline" className="gap-1 rounded-full border-sky-500/30 bg-sky-500/10 px-2.5 text-sky-700 dark:text-sky-200">
-                                    <FileText className="h-3 w-3" />
-                                    VM template
+                      <Card className="gap-0 border-0 bg-transparent py-0 shadow-none">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={cn(
+                                  "rounded-xl p-3",
+                                  selectedItem.kind === "qemu"
+                                    ? "bg-sky-500/12 text-sky-300"
+                                    : "bg-emerald-500/12 text-emerald-300"
+                                )}
+                              >
+                                {selectedItem.kind === "qemu" ? (
+                                  <Server className="h-5 w-5" />
+                                ) : (
+                                  <Boxes className="h-5 w-5" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h2 className="text-xl font-semibold">{selectedItem.label}</h2>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "rounded-full px-2.5",
+                                      isRunning(selectedItem.status)
+                                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+                                        : "border-zinc-500/30 bg-zinc-500/10 text-zinc-700 dark:text-zinc-200"
+                                    )}
+                                  >
+                                    {selectedItem.status || "unknown"}
                                   </Badge>
-                                ) : null}
-                              </div>
-                              <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                <span>VMID {selectedItem.vmid ?? "-"}</span>
-                                <span>Node {selectedItem.node || hostLabel}</span>
-                                <span>Uptime {formatUptime(selectedItem.uptime)}</span>
+                                  <Badge variant="secondary" className="rounded-full px-2.5 uppercase">
+                                    {selectedItem.kind}
+                                  </Badge>
+                                  {isTemplate(selectedItem) ? (
+                                    <Badge variant="outline" className="gap-1 rounded-full border-sky-500/30 bg-sky-500/10 px-2.5 text-sky-700 dark:text-sky-200">
+                                      <FileText className="h-3 w-3" />
+                                      VM template
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                  <span>VMID {selectedItem.vmid ?? "-"}</span>
+                                  <span>Node {selectedItem.node || hostLabel}</span>
+                                  <span>Uptime {formatUptime(selectedItem.uptime)}</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
 
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              variant={consoleItemId === selectedItem.id ? "secondary" : "outline"}
-                              onClick={() => openConsoleInPanel(selectedItem)}
-                              disabled={!selectedItem.vmid || isTemplate(selectedItem)}
-                            >
-                              <SquareTerminal className="mr-2 h-4 w-4" />
-                              {consoleItemId === selectedItem.id ? "Console Open" : "Open Console"}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() => openConsoleInWindow(selectedItem)}
-                              disabled={!selectedItem.vmid || isTemplate(selectedItem)}
-                            >
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              Pop Out
-                            </Button>
-                            <Button
-                              variant="outline"
-                              className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              onClick={() => void handleDelete(selectedItem)}
-                              disabled={actionBusyId === selectedItem.id}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </Button>
-                            {isTemplate(selectedItem) ? (
-                              <Button onClick={() => setCloneState({ ...defaultCloneState(selectedItem), open: true })}>
-                                <CopyPlus className="mr-2 h-4 w-4" />
-                                Clone VM
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                variant={consoleItemId === selectedItem.id ? "secondary" : "outline"}
+                                onClick={() => openConsoleInPanel(selectedItem)}
+                                disabled={!selectedItem.vmid || isTemplate(selectedItem)}
+                              >
+                                <SquareTerminal className="mr-2 h-4 w-4" />
+                                {consoleItemId === selectedItem.id ? "Console Open" : "Open Console"}
                               </Button>
-                            ) : isRunning(selectedItem.status) ? (
                               <Button
                                 variant="outline"
-                                onClick={() => void handleStop(selectedItem)}
+                                onClick={() => openConsoleInWindow(selectedItem)}
+                                disabled={!selectedItem.vmid || isTemplate(selectedItem)}
+                              >
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Pop Out
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => void handleDelete(selectedItem)}
                                 disabled={actionBusyId === selectedItem.id}
                               >
-                                <Power className="mr-2 h-4 w-4" />
-                                Stop
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
                               </Button>
-                            ) : (
-                              <Button onClick={() => void handleStart(selectedItem)} disabled={actionBusyId === selectedItem.id}>
-                                <Play className="mr-2 h-4 w-4" />
-                                {actionBusyId === selectedItem.id ? "Starting..." : "Start"}
-                              </Button>
-                            )}
+                              {isTemplate(selectedItem) ? (
+                                <Button onClick={() => setCloneState({ ...defaultCloneState(selectedItem), open: true })}>
+                                  <CopyPlus className="mr-2 h-4 w-4" />
+                                  Clone VM
+                                </Button>
+                              ) : isRunning(selectedItem.status) ? (
+                                <Button
+                                  variant="outline"
+                                  onClick={() => void handleStop(selectedItem)}
+                                  disabled={actionBusyId === selectedItem.id}
+                                >
+                                  <Power className="mr-2 h-4 w-4" />
+                                  Stop
+                                </Button>
+                              ) : (
+                                <Button onClick={() => void handleStart(selectedItem)} disabled={actionBusyId === selectedItem.id}>
+                                  <Play className="mr-2 h-4 w-4" />
+                                  {actionBusyId === selectedItem.id ? "Starting..." : "Start"}
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                          <DetailStat icon={Cpu} label="CPU Usage" value={typeof selectedItem.cpu === "number" ? selectedItem.cpu.toFixed(2) : "-"} />
-                          <DetailStat icon={Network} label="Memory" value={formatUsage(selectedItem.mem, selectedItem.maxmem)} />
-                          <DetailStat icon={HardDrive} label="Disk" value={formatUsage(selectedItem.disk, selectedItem.maxdisk)} />
-                          <DetailStat icon={Server} label="Runtime" value={formatUptime(selectedItem.uptime)} />
-                        </div>
-                      </div>
+                          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            <DetailStat icon={Cpu} label="CPU Usage" value={typeof selectedItem.cpu === "number" ? selectedItem.cpu.toFixed(2) : "-"} />
+                            <DetailStat icon={Network} label="Memory" value={formatUsage(selectedItem.mem, selectedItem.maxmem)} />
+                            <DetailStat icon={HardDrive} label="Disk" value={formatUsage(selectedItem.disk, selectedItem.maxdisk)} />
+                            <DetailStat icon={Server} label="Runtime" value={formatUptime(selectedItem.uptime)} />
+                          </div>
+                        </CardContent>
+                      </Card>
 
                       <GuestSummaryPanel
                         item={selectedItem}
@@ -1972,15 +1987,15 @@ export default function ProxmoxManagerPage() {
                       />
 
                       {!isTemplate(selectedItem) ? (
-                      <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/40">
-                        <div className="flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3">
+                      <Card className="gap-0 border-0 bg-transparent py-0 shadow-none">
+                        <CardHeader className="flex flex-col gap-3 border-b border-border/60 px-0 py-3 lg:flex-row lg:items-start lg:justify-between">
                           <div>
-                            <h3 className="text-lg font-semibold">Console</h3>
-                            <p className="text-sm text-muted-foreground">
+                            <CardTitle className="text-lg">Console</CardTitle>
+                            <CardDescription>
                               {selectedItem.kind === "lxc"
                                 ? "Open the container console through Proxmox in the main workspace."
                                 : "Open the VM display console through Proxmox in the main workspace."}
-                            </p>
+                            </CardDescription>
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {consoleItemId === selectedItem.id ? (
@@ -2009,11 +2024,11 @@ export default function ProxmoxManagerPage() {
                               </Button>
                             )}
                           </div>
-                        </div>
+                        </CardHeader>
 
                         {consoleItemId === selectedItem.id ? (
                           <>
-                            <div className="h-[580px] p-3">
+                            <CardContent className="h-[580px] px-0 py-3">
                               <RenderWorkloadConsole
                                 key={`${selectedItem.id}-${consoleSessionKey}`}
                                 hostServerId={hostServerId}
@@ -2022,7 +2037,7 @@ export default function ProxmoxManagerPage() {
                                 onClose={() => setConsoleItemId(null)}
                                 variant="embedded"
                               />
-                            </div>
+                            </CardContent>
                             <div className="border-t border-border/60 px-4 py-3 text-xs text-muted-foreground">
                               {selectedItem.kind === "qemu"
                                 ? "This console is proxied from the Proxmox VM display websocket."
@@ -2030,21 +2045,21 @@ export default function ProxmoxManagerPage() {
                             </div>
                           </>
                         ) : (
-                          <div className="px-4 py-8 text-sm text-muted-foreground">
+                          <CardContent className="px-0 py-8 text-sm text-muted-foreground">
                             Open the workload console here, or pop it out into a separate window for a larger terminal.
-                          </div>
+                          </CardContent>
                         )}
-                      </div>
+                      </Card>
                       ) : null}
 
                       {selectedItem.kind === "lxc" ? (
-                      <div className="rounded-2xl border border-border/70 bg-card/40">
-                        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+                      <Card className="gap-0 border-0 bg-transparent py-0 shadow-none">
+                        <CardHeader className="flex flex-col gap-3 border-b border-border/60 px-0 py-3 lg:flex-row lg:items-center lg:justify-between">
                           <div>
-                            <h3 className="text-lg font-semibold">Resources</h3>
-                            <p className="text-sm text-muted-foreground">
+                            <CardTitle className="text-lg">Resources</CardTitle>
+                            <CardDescription>
                               Configured container values for memory, swap, cores, rootfs size, and primary NIC.
-                            </p>
+                            </CardDescription>
                           </div>
                           <Button
                             variant="outline"
@@ -2055,17 +2070,17 @@ export default function ProxmoxManagerPage() {
                             <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingConfig && "animate-spin")} />
                             Refresh Config
                           </Button>
-                        </div>
+                        </CardHeader>
 
                         {isLoadingConfig ? (
-                          <div className="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
+                          <CardContent className="flex items-center gap-2 px-0 py-6 text-sm text-muted-foreground">
                             <LoaderCircle className="h-4 w-4 animate-spin" />
                             Loading configured values from Proxmox...
-                          </div>
+                          </CardContent>
                         ) : configError ? (
-                          <div className="px-4 py-6 text-sm text-destructive">{configError}</div>
+                          <CardContent className="px-0 py-6 text-sm text-destructive">{configError}</CardContent>
                         ) : selectedItem.kind === "lxc" && lxcResources ? (
-                          <div className="divide-y divide-border/50">
+                          <CardContent className="divide-y divide-border/50 p-0">
                             <ConfigRow
                               title="Memory"
                               subtitle="Configured container memory limit"
@@ -2104,13 +2119,13 @@ export default function ProxmoxManagerPage() {
                               actionLabel="Edit network"
                               onAction={() => openEditor("lxc-network")}
                             />
-                          </div>
+                          </CardContent>
                         ) : (
-                          <div className="px-4 py-6 text-sm text-muted-foreground">
+                          <CardContent className="px-0 py-6 text-sm text-muted-foreground">
                             No configured values were returned for this workload.
-                          </div>
+                          </CardContent>
                         )}
-                      </div>
+                      </Card>
                       ) : null}
 
                       {selectedItem.kind === "qemu" ? (
@@ -2176,70 +2191,102 @@ export default function ProxmoxManagerPage() {
                   </div>
                 ) : (
                   <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-                    <section className="rounded-2xl border border-border/70 bg-card/40 p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                          <Server className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-semibold">{hostLabel}</h2>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            Select a VM or LXC from the tree to inspect its live state and edit its configured hardware or resources.
-                          </p>
-                        </div>
-                      </div>
+                    <section className="space-y-4">
+                      <Card className="gap-0 border-0 bg-transparent py-0 shadow-none">
+                        <CardContent className="p-4">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="flex items-start gap-3">
+                              <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                                <Server className="h-5 w-5" />
+                              </div>
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h2 className="text-xl font-semibold">{hostLabel}</h2>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "rounded-full px-2.5",
+                                      hostSummary?.status === "ok"
+                                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+                                        : "border-zinc-500/30 bg-zinc-500/10 text-zinc-700 dark:text-zinc-200"
+                                    )}
+                                  >
+                                    {hostSummary?.status || "unknown"}
+                                  </Badge>
+                                  <Badge variant="secondary" className="rounded-full px-2.5">
+                                    Proxmox PVE
+                                  </Badge>
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                  <span>{node.IpAddress || "No management IP"}</span>
+                                  <span>{explorerItems.length} workloads</span>
+                                  <span>{explorerItems.filter((item) => isRunning(item.status)).length} running</span>
+                                </div>
+                              </div>
+                            </div>
 
-                      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                        <DetailStat icon={Cpu} label="CPU Cores" value={hostSummary?.cpuCores ? String(hostSummary.cpuCores) : "-"} />
-                        <DetailStat icon={Network} label="Memory" value={formatBytesSafe(hostSummary?.memoryTotalBytes)} />
-                        <DetailStat icon={HardDrive} label="Storage" value={formatBytesSafe(hostSummary?.storageTotalBytes)} />
-                        <DetailStat icon={Server} label="Agent Status" value={hostSummary?.status || "-"} />
-                      </div>
+                            <Button
+                              variant="outline"
+                              onClick={() => void refreshInventory()}
+                              disabled={isLoadingInventory}
+                            >
+                              <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingInventory && "animate-spin")} />
+                              Refresh
+                            </Button>
+                          </div>
 
-                      {hasInventoryErrors ? (
-                        <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-                          <div className="font-medium">Inventory issues detected</div>
-                          <ul className="mt-2 space-y-1 text-amber-50/90">
-                            {inventoryErrors.workloads ? <li>Workloads: {inventoryErrors.workloads}</li> : null}
-                            {inventoryErrors.vms ? <li>VMs: {inventoryErrors.vms}</li> : null}
-                            {inventoryErrors.containers ? <li>Containers: {inventoryErrors.containers}</li> : null}
-                          </ul>
-                        </div>
-                      ) : null}
+                          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            <DetailStat icon={Cpu} label="CPU Cores" value={hostSummary?.cpuCores ? String(hostSummary.cpuCores) : "-"} />
+                            <DetailStat icon={MemoryStick} label="Memory" value={formatUsage(hostSummary?.memoryTotalBytes && hostSummary?.memoryAvailableBytes !== undefined ? Math.max(hostSummary.memoryTotalBytes - hostSummary.memoryAvailableBytes, 0) : undefined, hostSummary?.memoryTotalBytes)} />
+                            <DetailStat icon={HardDrive} label="Storage" value={formatUsage(hostSummary?.storageTotalBytes && hostSummary?.storageAvailableBytes !== undefined ? Math.max(hostSummary.storageTotalBytes - hostSummary.storageAvailableBytes, 0) : undefined, hostSummary?.storageTotalBytes)} />
+                            <DetailStat icon={Server} label="Runtime Status" value={hostSummary?.error || hostSummary?.status || "-"} />
+                          </div>
+
+                          {hasInventoryErrors ? (
+                            <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-100">
+                              <div className="font-medium">Inventory issues detected</div>
+                              <ul className="mt-2 space-y-1">
+                                {inventoryErrors.workloads ? <li>Workloads: {inventoryErrors.workloads}</li> : null}
+                                {inventoryErrors.vms ? <li>VMs: {inventoryErrors.vms}</li> : null}
+                                {inventoryErrors.containers ? <li>Containers: {inventoryErrors.containers}</li> : null}
+                              </ul>
+                            </div>
+                          ) : null}
+                        </CardContent>
+                      </Card>
+
+                      <ProxmoxNodeSummaryPanel
+                        node={node}
+                        hostLabel={hostLabel}
+                        hostSummary={hostSummary}
+                        explorerItems={explorerItems}
+                        vmCount={vmItems.length}
+                        lxcCount={lxcItems.length}
+                      />
                     </section>
 
                     <section className="space-y-4">
                       <SideNote
-                        title="Explorer usage"
+                        title="Node context"
                         lines={[
-                          "The left tree is the primary workload navigator.",
-                          "Right-click a node for lifecycle commands.",
-                          "Selecting a workload opens its hardware or resources view here.",
-                          "Disk, CPU, memory, bridge, and VLAN changes now live in this pane.",
+                          `Host: ${hostLabel}`,
+                          `Address: ${node.IpAddress || "-"}`,
+                          `Types: ${node.hostServerTypeNames.concat(node.platformTypeNames).join(", ") || "-"}`,
+                          `Stats: ${hostSummary?.collectedAt ? new Date(hostSummary.collectedAt).toLocaleString() : "not collected"}`,
+                        ]}
+                      />
+                      <SideNote
+                        title="Workload mix"
+                        lines={[
+                          `Virtual machines: ${vmItems.length}`,
+                          `Containers: ${lxcItems.length}`,
+                          `Running: ${explorerItems.filter((item) => isRunning(item.status)).length}`,
+                          `Templates: ${explorerItems.filter(isTemplate).length}`,
                         ]}
                       />
                     </section>
                   </div>
                 )}
-
-                <section className="rounded-2xl border border-border/70 bg-card/30 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        Last API Response
-                      </h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Latest payload returned from a workload action or hardware/resource update.
-                      </p>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => setApiResult(null)}>
-                      Clear
-                    </Button>
-                  </div>
-                  <pre className="mt-3 overflow-auto rounded-xl border border-border/60 bg-background/40 p-4 text-xs leading-6">
-                    {JSON.stringify(apiResult, null, 2)}
-                  </pre>
-                </section>
               </div>
             </ScrollArea>
           </main>
@@ -2290,7 +2337,7 @@ function TreeGroup({
   onToggle: () => void;
 }>) {
   return (
-    <div className="rounded-xl border border-border/50 bg-card/20">
+    <div className="rounded-lg bg-muted/20">
       <button
         type="button"
         onClick={onToggle}
@@ -2430,7 +2477,7 @@ function ConfigRow({
         <div className="text-sm font-medium">{title}</div>
         <div className="mt-1 text-xs text-muted-foreground">{subtitle}</div>
       </div>
-      <div className="rounded-lg border border-border/50 bg-background/30 px-3 py-2 text-sm font-medium">
+      <div className="rounded-md bg-muted/35 px-3 py-2 text-sm font-medium">
         {value}
       </div>
       <Button variant="outline" size="sm" onClick={onAction}>
@@ -2652,14 +2699,14 @@ function GuestSummaryPanel({
   const ips = guestSummary?.ip_addresses || [];
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <section className="rounded-2xl border border-border/70 bg-card/40 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold">Guest Summary</h3>
+      <Card className="gap-0 border-0 bg-transparent py-0 shadow-none">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border/60 px-0 py-3">
+          <CardTitle className="text-lg">Guest Summary</CardTitle>
           <Badge variant="outline" className="rounded-full">
             {isTemplate(item) ? "template" : item.status || "unknown"}
           </Badge>
-        </div>
-        <div className="mt-4 space-y-3">
+        </CardHeader>
+        <CardContent className="space-y-3 px-0 pb-4 pt-3">
           <SummaryLine icon={CircleDot} label="Status" value={item.status || "unknown"} />
           <SummaryLine icon={Server} label="Node" value={item.node || hostLabel} />
           <SummaryMeter icon={Cpu} label="CPU usage" value={`${((item.cpu || 0) * 100).toFixed(2)}%`} amount={(item.cpu || 0) * 100} />
@@ -2667,18 +2714,97 @@ function GuestSummaryPanel({
           <SummaryLine icon={HardDrive} label="Bootdisk size" value={item.kind === "qemu" ? vmHardware?.disk_size || formatBytesSafe(item.maxdisk) : lxcResources?.rootfs_size || formatBytesSafe(item.maxdisk)} />
           <SummaryLine icon={Router} label="Network" value={item.kind === "qemu" ? `${vmHardware?.bridge || "no bridge"} / ${formatVlanTag(vmHardware?.vlan_tag)}` : `${lxcResources?.bridge || "no bridge"} / ${formatVlanTag(lxcResources?.vlan_tag)}`} />
           <SummaryIpList ips={ips} fallback={guestSummary?.error ? "Guest agent unavailable" : "No IPs reported"} />
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
-      <section className="rounded-2xl border border-border/70 bg-card/40 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold">Notes</h3>
+      <Card className="gap-0 border-0 bg-transparent py-0 shadow-none">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border/60 px-0 py-3">
+          <CardTitle className="text-lg">Notes</CardTitle>
           <FileText className="h-4 w-4 text-muted-foreground" />
-        </div>
-        <div className="mt-4 min-h-36 rounded-xl border border-border/60 bg-background/30 p-3 text-sm text-muted-foreground">
-          {notes || "No guest notes reported by Proxmox."}
-        </div>
-      </section>
+        </CardHeader>
+        <CardContent className="px-0 pb-4 pt-3">
+          <div className="min-h-36 rounded-lg bg-muted/30 p-3 text-sm text-muted-foreground">
+            {notes || "No guest notes reported by Proxmox."}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ProxmoxNodeSummaryPanel({
+  node,
+  hostLabel,
+  hostSummary,
+  explorerItems,
+  vmCount,
+  lxcCount,
+}: {
+  node: Node;
+  hostLabel: string;
+  hostSummary: HostSummary | null;
+  explorerItems: ExplorerItem[];
+  vmCount: number;
+  lxcCount: number;
+}) {
+  const runningCount = explorerItems.filter((item) => isRunning(item.status)).length;
+  const templateCount = explorerItems.filter(isTemplate).length;
+  const workloadCpuPercent = explorerItems.reduce((total, item) => total + (item.cpu || 0), 0) * 100;
+  const workloadMemoryUsed = explorerItems.reduce((total, item) => total + (item.mem || 0), 0);
+  const workloadMemoryAllocated = explorerItems.reduce((total, item) => total + (item.maxmem || 0), 0);
+  const workloadDiskUsed = explorerItems.reduce((total, item) => total + (item.disk || 0), 0);
+  const workloadDiskAllocated = explorerItems.reduce((total, item) => total + (item.maxdisk || 0), 0);
+  const hostMemoryUsed =
+    hostSummary?.memoryTotalBytes !== undefined && hostSummary.memoryAvailableBytes !== undefined
+      ? Math.max(hostSummary.memoryTotalBytes - hostSummary.memoryAvailableBytes, 0)
+      : undefined;
+  const hostStorageUsed =
+    hostSummary?.storageTotalBytes !== undefined && hostSummary.storageAvailableBytes !== undefined
+      ? Math.max(hostSummary.storageTotalBytes - hostSummary.storageAvailableBytes, 0)
+      : undefined;
+  const typeNames = node.hostServerTypeNames.concat(node.platformTypeNames);
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card className="gap-0 border-0 bg-transparent py-0 shadow-none">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border/60 px-0 py-3">
+          <CardTitle className="text-lg">Node Summary</CardTitle>
+          <Badge variant="outline" className="rounded-full">
+            {hostSummary?.status || "unknown"}
+          </Badge>
+        </CardHeader>
+        <CardContent className="space-y-3 px-0 pb-4 pt-3">
+          <SummaryLine icon={CircleDot} label="Status" value={hostSummary?.error || hostSummary?.status || "unknown"} />
+          <SummaryLine icon={Server} label="Host" value={hostLabel} />
+          <SummaryIpList ips={node.IpAddress ? [node.IpAddress] : []} fallback="No management IP reported" />
+          <SummaryLine icon={Boxes} label="Workloads" value={`${explorerItems.length} total / ${runningCount} running`} />
+          <SummaryLine icon={FileText} label="Templates" value={String(templateCount)} />
+          <SummaryMeter icon={Cpu} label="Guest CPU usage" value={formatPercent(workloadCpuPercent)} amount={workloadCpuPercent} />
+          <SummaryMeter icon={MemoryStick} label="Host memory" value={formatUsage(hostMemoryUsed, hostSummary?.memoryTotalBytes)} amount={percent(hostMemoryUsed, hostSummary?.memoryTotalBytes)} />
+          <SummaryMeter icon={HardDrive} label="Host storage" value={formatUsage(hostStorageUsed, hostSummary?.storageTotalBytes)} amount={percent(hostStorageUsed, hostSummary?.storageTotalBytes)} />
+        </CardContent>
+      </Card>
+
+      <Card className="gap-0 border-0 bg-transparent py-0 shadow-none">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border/60 px-0 py-3">
+          <CardTitle className="text-lg">Workload Usage</CardTitle>
+          <Badge variant="outline" className="rounded-full">
+            {vmCount} VM / {lxcCount} LXC
+          </Badge>
+        </CardHeader>
+        <CardContent className="space-y-3 px-0 pb-4 pt-3">
+          <SummaryLine icon={Server} label="Virtual machines" value={String(vmCount)} />
+          <SummaryLine icon={Boxes} label="Containers" value={String(lxcCount)} />
+          <SummaryMeter icon={MemoryStick} label="Guest memory" value={formatUsage(workloadMemoryUsed, workloadMemoryAllocated)} amount={percent(workloadMemoryUsed, workloadMemoryAllocated)} />
+          <SummaryMeter icon={HardDrive} label="Guest disk" value={formatUsage(workloadDiskUsed, workloadDiskAllocated)} amount={percent(workloadDiskUsed, workloadDiskAllocated)} />
+          <SummaryLine icon={Router} label="Inventory node" value={typeNames.join(" / ") || "Proxmox PVE"} />
+          <SummaryLine
+            icon={RefreshCw}
+            label="Stats collected"
+            value={hostSummary?.collectedAt ? new Date(hostSummary.collectedAt).toLocaleString() : "not collected"}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -2937,13 +3063,13 @@ function HardwareCatalogPanel({
     return `${prefix}0`;
   };
   return (
-    <section className="rounded-2xl border border-border/70 bg-card/40">
-      <div className="flex flex-col gap-3 border-b border-border/60 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+    <Card className="gap-0 border-0 bg-transparent py-0 shadow-none">
+      <CardHeader className="flex flex-col gap-3 border-b border-border/60 px-0 py-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Hardware & Media</h3>
-          <p className="text-sm text-muted-foreground">
+          <CardTitle className="text-lg">Hardware & Media</CardTitle>
+          <CardDescription>
             Current QEMU hardware configuration from Proxmox.
-          </p>
+          </CardDescription>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={onRefresh} disabled={isLoadingConfig}>
@@ -2978,8 +3104,8 @@ function HardwareCatalogPanel({
             </Button>
           ) : null}
         </div>
-      </div>
-      <div className="divide-y divide-border/50">
+      </CardHeader>
+      <CardContent className="divide-y divide-border/50 p-0">
         {rows.length > 0 ? (
           rows.map((row) => (
             <div key={row.key} className="grid gap-3 px-4 py-3 lg:grid-cols-[260px_minmax(0,1fr)_auto] lg:items-center">
@@ -2990,7 +3116,7 @@ function HardwareCatalogPanel({
                   <div className="font-mono text-[11px] text-muted-foreground">{row.key}</div>
                 </div>
               </div>
-              <div className="min-w-0 rounded-lg border border-border/50 bg-background/30 px-3 py-2 font-mono text-xs text-muted-foreground">
+              <div className="min-w-0 rounded-md bg-muted/35 px-3 py-2 font-mono text-xs text-muted-foreground">
                 <span className="block truncate">{row.value}</span>
               </div>
               <div className="flex justify-end gap-2">
@@ -3036,12 +3162,12 @@ function HardwareCatalogPanel({
         ) : (
           <div className="px-4 py-6 text-sm text-muted-foreground">No hardware configuration was returned by Proxmox.</div>
         )}
-      </div>
-      <div className="border-t border-border/60 px-4 py-3">
+      </CardContent>
+      <CardContent className="border-t border-border/60 px-0 py-3">
         <h4 className="text-sm font-medium">ISO Media</h4>
         <div className="mt-3 space-y-2">
           {isoImages.length > 0 ? (
-            <div className="rounded-xl border border-border/60 bg-background/30 p-3">
+            <div className="rounded-lg bg-muted/30 p-3">
               <div className="text-sm font-medium">Attach ISO</div>
               <div className="mt-2 grid gap-2 md:grid-cols-[160px_minmax(0,1fr)]">
                 <Select
@@ -3078,8 +3204,8 @@ function HardwareCatalogPanel({
             </div>
           ) : null}
         </div>
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -3389,10 +3515,10 @@ function MiniStat({
   return (
     <div
       className={cn(
-        "rounded-xl border px-3 py-2",
-        tone === "neutral" && "border-border/60 bg-card/30",
-        tone === "success" && "border-emerald-500/20 bg-emerald-500/10",
-        tone === "warning" && "border-amber-500/20 bg-amber-500/10"
+        "rounded-lg px-3 py-2 ring-1",
+        tone === "neutral" && "bg-muted/30 ring-border/40",
+        tone === "success" && "bg-emerald-500/10 ring-emerald-500/20",
+        tone === "warning" && "bg-amber-500/10 ring-amber-500/20"
       )}
     >
       <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
@@ -3403,7 +3529,7 @@ function MiniStat({
 
 function HeaderMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-card/30 px-3 py-2">
+    <div className="rounded-lg bg-muted/30 px-3 py-2">
       <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
       <div className="mt-1 text-sm font-semibold">{value}</div>
     </div>
@@ -3420,7 +3546,7 @@ function DetailStat({
   value: string;
 }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-background/30 p-4">
+    <div className="rounded-lg bg-muted/30 p-4">
       <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
         <Icon className="h-4 w-4" />
         {label}
@@ -3438,16 +3564,18 @@ function SideNote({
   lines: string[];
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-card/30 p-4">
-      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        {title}
-      </h3>
-      <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-        {lines.map((line) => (
-          <p key={line}>{line}</p>
-        ))}
-      </div>
-    </div>
+    <Card className="gap-0 border-0 bg-transparent py-0 shadow-none">
+      <CardContent className="p-4">
+        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          {title}
+        </h3>
+        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+          {lines.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

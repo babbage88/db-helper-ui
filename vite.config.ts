@@ -71,6 +71,11 @@ export default defineConfig({
       key: fs.readFileSync(path.resolve(__dirname, 'certs/frontend.key')),
       cert: fs.readFileSync(path.resolve(__dirname, 'certs/frontend.crt')),
     },
+    hmr: {
+      protocol: "wss",
+      host: "localhost",
+      clientPort: 5173,
+    },
     fs: { strict: false }
   },
 })
