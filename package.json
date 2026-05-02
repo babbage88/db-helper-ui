@@ -3,6 +3,40 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "infractl": {
+    "name": "infractl-ui",
+    "description": "The infractl React frontend delivered as a static site behind nginx.",
+    "repositoryUrl": "https://github.com/babbage88/infractl-ui",
+    "manifestPath": "package.json",
+    "sourceKind": "package.json",
+    "packageName": "infractl-ui",
+    "packageManager": "npm",
+    "deployKind": "nginx_static_site",
+    "registerable": true,
+    "buildConfig": {
+      "installCommand": "npm ci",
+      "buildCommand": "npm run build-rockydev2"
+    },
+    "deployConfig": {
+      "artifactPath": "builds/dev",
+      "webRoot": "/usr/share/nginx/html/infractl",
+      "webServer": "nginx"
+    },
+    "infraDependencies": [
+      {
+        "dependencyType": "host_server_type",
+        "dependencyName": "Application Server"
+      },
+      {
+        "dependencyType": "platform_type",
+        "dependencyName": "Nginx Server"
+      },
+      {
+        "dependencyType": "platform_type",
+        "dependencyName": "Linux VPS"
+      }
+    ]
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
