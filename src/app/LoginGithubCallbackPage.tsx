@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/lib/auth-context";
+import { authSessionApi } from "@/lib/auth-session";
 
 function readGitHubAuthFragment(hash: string) {
   const fragment = hash.startsWith("#") ? hash.slice(1) : hash;
@@ -14,10 +15,40 @@ function readGitHubAuthFragment(hash: string) {
 
 export default function LoginGithubCallbackPage() {
   const navigate = useNavigate();
-  const { refreshSession, setIsAuthenticated } = useAuth();
+  const { setIsAuthenticated, setUser } = useAuth();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function finalizeGitHubSignIn() {
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        try {
+          const session = await authSessionApi.getSession();
+          if (cancelled) {
+            return;
+          }
+
+          setUser(session);
+          setIsAuthenticated(true);
+          window.history.replaceState(null, "", "/login/github/callback");
+          navigate("/dashboard", { replace: true });
+          return;
+        } catch {
+          if (attempt < 3) {
+            await new Promise((resolve) => window.setTimeout(resolve, 250));
+            continue;
+          }
+        }
+      }
+
+      if (!cancelled) {
+        setIsAuthenticated(false);
+        setUser(null);
+        setErrorMessage("GitHub sign-in did not return a complete session.");
+      }
+    }
+
     const searchParams = new URLSearchParams(window.location.search);
     const code = searchParams.get("code");
     const state = searchParams.get("state");
@@ -37,26 +68,18 @@ export default function LoginGithubCallbackPage() {
 
     if (result.error) {
       setIsAuthenticated(false);
+      setUser(null);
       setErrorMessage(result.error);
       window.history.replaceState(null, "", "/login");
       return;
     }
 
-    refreshSession()
-      .then((session) => {
-        if (!session) {
-          setErrorMessage("GitHub sign-in did not return a complete session.");
-          return;
-        }
+    void finalizeGitHubSignIn();
 
-        window.history.replaceState(null, "", "/login/github/callback");
-        navigate("/dashboard", { replace: true });
-      })
-      .catch(() => {
-        setIsAuthenticated(false);
-        setErrorMessage("GitHub sign-in did not return a complete session.");
-      });
-  }, [navigate, refreshSession, setIsAuthenticated]);
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, setIsAuthenticated, setUser]);
 
   return (
     <div className="flex min-h-svh items-center justify-center px-6">
