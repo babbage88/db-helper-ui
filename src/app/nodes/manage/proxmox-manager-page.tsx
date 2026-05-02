@@ -7,8 +7,10 @@ import {
   Boxes,
   ChevronDown,
   ChevronRight,
+  Check,
   CircleDot,
   Cloud,
+  Copy,
   CopyPlus,
   Cpu,
   Disc3,
@@ -50,6 +52,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -158,10 +165,28 @@ type HardwareActionState = {
   delete: string;
 };
 
+type HardwareValueOption = {
+  label: string;
+  value: string;
+  helper?: string;
+};
+
+type HardwareRow = {
+  key: string;
+  label: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+  removable: boolean;
+  editable: boolean;
+};
+
 type EditorState =
   | {
       type: "vm-compute";
       memoryMb: string;
+      minimumMemoryMb: string;
+      shares: string;
+      ballooningDevice: boolean;
       sockets: string;
       cores: string;
     }
@@ -434,6 +459,13 @@ function formatCapacityMb(value?: number) {
   return `${value} MiB`;
 }
 
+function formatRawCapacityMb(value?: string) {
+  if (!value) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return value;
+  return formatCapacityMb(parsed);
+}
+
 function formatVlanTag(value?: string) {
   if (!value) return "No VLAN";
   return `VLAN ${value}`;
@@ -457,10 +489,183 @@ function extractBridgeNames(...records: Array<Record<string, string> | undefined
   return [...bridges].sort();
 }
 
-function parseIsoAttachments(raw?: Record<string, string>) {
-  return Object.entries(raw || {})
-    .filter(([, value]) => value.includes("media=cdrom") || value.toLowerCase().includes(".iso"))
-    .map(([key, value]) => ({ key, value }));
+function buildHardwareRows(vmHardware: ProxmoxVMHardwareResult | null): HardwareRow[] {
+  const raw = vmHardware?.raw || {};
+  const rows: HardwareRow[] = [];
+
+  const addRow = (key: string, label: string, value?: string, icon: React.ComponentType<{ className?: string }> = Settings, removable = false, editable = true) => {
+    if (!value) return;
+    rows.push({ key, label, value, icon, removable, editable });
+  };
+
+  const memoryDetails = [
+    vmHardware?.memory_mb ? formatCapacityMb(vmHardware.memory_mb) : formatRawCapacityMb(raw.memory),
+    raw.balloon && raw.balloon !== "0" ? `minimum ${formatRawCapacityMb(raw.balloon) || `${raw.balloon} MiB`}` : null,
+    raw.balloon === "0" ? "ballooning disabled" : null,
+    raw.shares ? `shares ${raw.shares}` : null,
+  ].filter(Boolean);
+  addRow("memory", "Memory", memoryDetails.join(" / "), MemoryStick, false, false);
+  addRow("cores", "Processors", `${vmHardware?.sockets ?? raw.sockets ?? "-"} socket(s), ${vmHardware?.cores ?? raw.cores ?? "-"} core(s)`, Cpu, false, false);
+  addRow("bios", "BIOS", raw.bios, Settings);
+  addRow("machine", "Machine", raw.machine, Settings);
+  addRow("scsihw", "SCSI Controller", raw.scsihw, HardDrive);
+  addRow("vga", "Display", raw.vga, Server);
+  addRow("boot", "Boot Order", raw.boot, Settings);
+  addRow("agent", "QEMU Guest Agent", raw.agent, Settings);
+
+  Object.entries(raw)
+    .filter(([key]) => /^(scsi|virtio|sata)\d+$/.test(key))
+    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+    .forEach(([key, value]) => addRow(key, `Hard Disk (${key})`, value, HardDrive, true));
+
+  Object.entries(raw)
+    .filter(([key, value]) => /^ide\d+$/.test(key) && (value.includes("media=cdrom") || value.includes("cloudinit")))
+    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+    .forEach(([key, value]) => addRow(key, value.includes("cloudinit") ? `CloudInit Drive (${key})` : `CD/DVD Drive (${key})`, value, value.includes("cloudinit") ? Cloud : Disc3, true));
+
+  Object.entries(raw)
+    .filter(([key]) => /^net\d+$/.test(key))
+    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+    .forEach(([key, value]) => addRow(key, `Network Device (${key})`, value, Network, true));
+
+  Object.entries(raw)
+    .filter(([key]) => /^efidisk\d+$/.test(key))
+    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+    .forEach(([key, value]) => addRow(key, `EFI Disk (${key})`, value, HardDrive, true));
+
+  Object.entries(raw)
+    .filter(([key]) => /^tpmstate\d+$/.test(key))
+    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+    .forEach(([key, value]) => addRow(key, `TPM State (${key})`, value, Settings, true));
+
+  Object.entries(raw)
+    .filter(([key]) => /^(serial|usb|hostpci)\d+$/.test(key))
+    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+    .forEach(([key, value]) => {
+      const label = key.startsWith("serial") ? "Serial Port" : key.startsWith("usb") ? "USB Device" : "PCI Device";
+      addRow(key, `${label} (${key})`, value, key.startsWith("serial") ? SquareTerminal : Plus, true);
+    });
+
+  return rows;
+}
+
+function hardwareFieldName(device: string) {
+  if (/^net\d+$/.test(device)) return "Network model, bridge, VLAN, firewall, queues";
+  if (/^(scsi|virtio|sata)\d+$/.test(device)) return "Storage volume, size, discard, SSD flag";
+  if (/^ide\d+$/.test(device)) return "CD/DVD media or cloud-init volume";
+  if (/^efidisk\d+$/.test(device)) return "EFI disk storage and key enrollment";
+  if (/^tpmstate\d+$/.test(device)) return "TPM state storage and version";
+  if (/^serial\d+$/.test(device)) return "Serial backend";
+  if (/^usb\d+$/.test(device)) return "USB mapping";
+  if (/^hostpci\d+$/.test(device)) return "PCI host mapping";
+  if (device === "vga") return "Display adapter";
+  if (device === "bios") return "BIOS";
+  if (device === "machine") return "Machine type";
+  if (device === "scsihw") return "SCSI controller";
+  if (device === "agent") return "QEMU guest agent";
+  if (device === "boot") return "Boot order";
+  return "Proxmox config value";
+}
+
+function hardwareValueOptions(
+  state: HardwareActionState,
+  nodeOptions: ProxmoxNodeOptionsResult | null,
+  bridgeOptions: string[]
+): HardwareValueOption[] {
+  const device = state.device.trim();
+  const bridges = bridgeOptions.length ? bridgeOptions : ["vmbr0"];
+  const storage = nodeOptions?.storage?.find((item) => item.content?.includes("images"))?.name || "local-lvm";
+  const isoImages = nodeOptions?.iso_images || [];
+
+  if (device === "vga") {
+    return [
+      { label: "SPICE", value: "qxl", helper: "PVE default for SPICE display." },
+      { label: "VirtIO GPU", value: "virtio", helper: "Modern paravirtual display adapter." },
+      { label: "Standard VGA", value: "std" },
+      { label: "VMware compatible", value: "vmware" },
+      { label: "Serial terminal", value: "serial0" },
+      { label: "No display", value: "none" },
+    ];
+  }
+  if (device === "bios") {
+    return [
+      { label: "OVMF (UEFI)", value: "ovmf" },
+      { label: "SeaBIOS", value: "seabios" },
+    ];
+  }
+  if (device === "machine") {
+    return [
+      { label: "q35", value: "q35" },
+      { label: "i440fx", value: "pc-i440fx-9.0" },
+    ];
+  }
+  if (device === "scsihw") {
+    return [
+      { label: "VirtIO SCSI single", value: "virtio-scsi-single" },
+      { label: "VirtIO SCSI", value: "virtio-scsi-pci" },
+      { label: "LSI 53C895A", value: "lsi" },
+      { label: "MegaRAID SAS", value: "megasas" },
+    ];
+  }
+  if (device === "agent") {
+    return [
+      { label: "Enabled", value: "enabled=1" },
+      { label: "Enabled + trim cloned disks", value: "enabled=1,fstrim_cloned_disks=1" },
+      { label: "Disabled", value: "0" },
+    ];
+  }
+  if (/^net\d+$/.test(device)) {
+    return bridges.flatMap((bridge) => [
+      { label: `VirtIO on ${bridge}`, value: `virtio,bridge=${bridge}` },
+      { label: `VirtIO on ${bridge}, firewall`, value: `virtio,bridge=${bridge},firewall=1` },
+      { label: `E1000 on ${bridge}`, value: `e1000,bridge=${bridge}` },
+    ]);
+  }
+  if (/^(scsi|virtio|sata)\d+$/.test(device)) {
+    return [
+      { label: `32 GiB on ${storage}`, value: `${storage}:32,discard=on,ssd=1` },
+      { label: `64 GiB on ${storage}`, value: `${storage}:64,discard=on,ssd=1` },
+      { label: `128 GiB on ${storage}`, value: `${storage}:128,discard=on,ssd=1` },
+    ];
+  }
+  if (/^ide\d+$/.test(device)) {
+    return [
+      { label: "Empty CD/DVD", value: "none,media=cdrom" },
+      ...isoImages.map((iso) => ({
+        label: iso.volid || "ISO image",
+        value: `${iso.volid},media=cdrom`,
+      })),
+      { label: `Cloud-init on ${storage}`, value: `${storage}:cloudinit` },
+    ];
+  }
+  if (/^efidisk\d+$/.test(device)) {
+    return [
+      { label: `UEFI vars on ${storage}`, value: `${storage}:1,efitype=4m,pre-enrolled-keys=1` },
+      { label: `UEFI vars without enrolled keys`, value: `${storage}:1,efitype=4m,pre-enrolled-keys=0` },
+    ];
+  }
+  if (/^tpmstate\d+$/.test(device)) {
+    return [{ label: `TPM 2.0 on ${storage}`, value: `${storage}:1,version=v2.0` }];
+  }
+  if (/^serial\d+$/.test(device)) {
+    return [
+      { label: "Socket", value: "socket" },
+      { label: "Serial device", value: "/dev/ttyS0" },
+    ];
+  }
+  if (/^usb\d+$/.test(device)) {
+    return [
+      { label: "Mapped USB device", value: "host=auto" },
+      { label: "USB tablet", value: "tablet=1" },
+    ];
+  }
+  if (/^hostpci\d+$/.test(device)) {
+    return [
+      { label: "PCI passthrough template", value: "host=0000:00:00.0" },
+      { label: "PCI passthrough with PCIe", value: "host=0000:00:00.0,pcie=1" },
+    ];
+  }
+  return [];
 }
 
 function percent(value?: number, max?: number) {
@@ -681,10 +886,14 @@ export default function ProxmoxManagerPage() {
     async (options?: { silent?: boolean }) => {
       if (!hostServerId) return null;
 
-      setIsLoadingInventory(true);
+      if (!options?.silent) {
+        setIsLoadingInventory(true);
+      }
       const snapshot = await loadInventorySnapshot();
       if (!snapshot) {
-        setIsLoadingInventory(false);
+        if (!options?.silent) {
+          setIsLoadingInventory(false);
+        }
         return null;
       }
 
@@ -695,7 +904,9 @@ export default function ProxmoxManagerPage() {
           "The explorer will keep rendering with whatever data is still available."
         );
       }
-      setIsLoadingInventory(false);
+      if (!options?.silent) {
+        setIsLoadingInventory(false);
+      }
       return snapshot;
     },
     [applyInventorySnapshot, hostServerId, loadInventorySnapshot]
@@ -736,11 +947,6 @@ export default function ProxmoxManagerPage() {
     if (lxcResources?.bridge) bridges.add(lxcResources.bridge);
     return [...bridges].sort();
   }, [lxcResources, nodeOptions, vmHardware]);
-  const isoAttachments = React.useMemo(
-    () => parseIsoAttachments(vmHardware?.raw),
-    [vmHardware]
-  );
-
   React.useEffect(() => {
     if (selectedItemId === "host") return;
     if (!explorerItems.some((item) => item.id === selectedItemId)) {
@@ -762,12 +968,14 @@ export default function ProxmoxManagerPage() {
     if (consoleItemId && !explorerItems.some((item) => item.id === consoleItemId)) {
       setConsoleItemId(null);
     }
-  }, [consoleItemId, explorerItems, isConsolePopout, popoutConsoleId]);
+  }, [consoleItemId, explorerItems, isConsolePopout, popoutConsoleId, selectedItemId]);
 
   const selectedItem =
     selectedItemId === "host"
       ? null
       : explorerItems.find((item) => item.id === selectedItemId) ?? null;
+  const selectedItemIsRunning = selectedItem ? isRunning(selectedItem.status) : false;
+  const selectedItemIsTemplate = selectedItem ? isTemplate(selectedItem) : false;
   const consoleItem =
     consoleItemId === null ? null : explorerItems.find((item) => item.id === consoleItemId) ?? null;
 
@@ -881,6 +1089,18 @@ export default function ProxmoxManagerPage() {
     }
     void loadSelectedConfig(selectedItem, { silent: true });
   }, [loadSelectedConfig, selectedItem]);
+
+  React.useEffect(() => {
+    if (!selectedItem?.vmid || !selectedItemIsRunning || selectedItemIsTemplate) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshInventory({ silent: true });
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [refreshInventory, selectedItem?.id, selectedItem?.vmid, selectedItemIsRunning, selectedItemIsTemplate]);
 
   const waitForInventoryCondition = React.useCallback(
     async (
@@ -1155,6 +1375,9 @@ export default function ProxmoxManagerPage() {
         setEditorState({
           type: "vm-compute",
           memoryMb: String(vmHardware.memory_mb ?? ""),
+          minimumMemoryMb: vmHardware.raw?.balloon && vmHardware.raw.balloon !== "0" ? vmHardware.raw.balloon : "",
+          shares: vmHardware.raw?.shares ?? "",
+          ballooningDevice: vmHardware.raw?.balloon !== "0",
           sockets: String(vmHardware.sockets ?? ""),
           cores: String(vmHardware.cores ?? ""),
         });
@@ -1213,15 +1436,44 @@ export default function ProxmoxManagerPage() {
     setIsSubmittingEditor(true);
     try {
       if (editorState.type === "vm-compute") {
-        const body: ProxmoxVMHardwareUpdateRequest = {
+        const memoryMb = parseOptionalInt(editorState.memoryMb);
+        const sockets = parseOptionalInt(editorState.sockets);
+        const cores = parseOptionalInt(editorState.cores);
+        const minimumMemoryMb = parseOptionalInt(editorState.minimumMemoryMb);
+        const shares = parseOptionalInt(editorState.shares);
+        if (!memoryMb) {
+          throw new Error("Memory is required.");
+        }
+        if (!sockets) {
+          throw new Error("Sockets is required.");
+        }
+        if (!cores) {
+          throw new Error("Cores is required.");
+        }
+        if (minimumMemoryMb && minimumMemoryMb > memoryMb) {
+          throw new Error("Minimum memory cannot be greater than configured memory.");
+        }
+
+        const params: Record<string, string> = {
+          sockets: String(sockets),
+          cores: String(cores),
+        };
+        if (editorState.ballooningDevice) {
+          if (minimumMemoryMb) params.balloon = String(minimumMemoryMb);
+        } else {
+          params.balloon = "0";
+        }
+        if (shares) params.shares = String(shares);
+
+        const body: ProxmoxVMHardwareActionRequest = {
           host_server_id: hostServerId,
           node: selectedItem.node,
           vmid: selectedItem.vmid,
-          memory_mb: parseOptionalInt(editorState.memoryMb),
-          sockets: parseOptionalInt(editorState.sockets),
-          cores: parseOptionalInt(editorState.cores),
+          device: "memory",
+          value: String(memoryMb),
+          params,
         };
-        const result = await ProxmoxService.updateProxmoxVmHardware(selectedItem.vmid, body);
+        const result = await ProxmoxService.applyProxmoxVmHardwareAction(selectedItem.vmid, body);
         setVmHardware(result);
         setApiResult(result);
       } else if (editorState.type === "vm-network") {
@@ -1784,16 +2036,13 @@ export default function ProxmoxManagerPage() {
                       </div>
                       ) : null}
 
+                      {selectedItem.kind === "lxc" ? (
                       <div className="rounded-2xl border border-border/70 bg-card/40">
                         <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
                           <div>
-                            <h3 className="text-lg font-semibold">
-                              {selectedItem.kind === "qemu" ? "Hardware" : "Resources"}
-                            </h3>
+                            <h3 className="text-lg font-semibold">Resources</h3>
                             <p className="text-sm text-muted-foreground">
-                              {selectedItem.kind === "qemu"
-                                ? "Configured VM values for memory, CPU topology, disk growth, and primary NIC."
-                                : "Configured container values for memory, swap, cores, rootfs size, and primary NIC."}
+                              Configured container values for memory, swap, cores, rootfs size, and primary NIC.
                             </p>
                           </div>
                           <Button
@@ -1814,41 +2063,6 @@ export default function ProxmoxManagerPage() {
                           </div>
                         ) : configError ? (
                           <div className="px-4 py-6 text-sm text-destructive">{configError}</div>
-                        ) : selectedItem.kind === "qemu" && vmHardware ? (
-                          <div className="divide-y divide-border/50">
-                            <ConfigRow
-                              title="Memory"
-                              subtitle="Configured guest memory"
-                              value={formatCapacityMb(vmHardware.memory_mb)}
-                              actionLabel="Edit compute"
-                              onAction={() => openEditor("vm-compute")}
-                            />
-                            <ConfigRow
-                              title="Processors"
-                              subtitle="Sockets and cores presented to the guest"
-                              value={`${vmHardware.sockets ?? "-"} sockets • ${vmHardware.cores ?? "-"} cores`}
-                              actionLabel="Edit compute"
-                              onAction={() => openEditor("vm-compute")}
-                            />
-                            <ConfigRow
-                              title={`Hard Disk${vmHardware.disk_interface ? ` (${vmHardware.disk_interface})` : ""}`}
-                              subtitle="Primary virtual disk size"
-                              value={vmHardware.disk_size || "-"}
-                              actionLabel="Expand disk"
-                              onAction={() => openEditor("vm-disk")}
-                            />
-                            <ConfigRow
-                              title="Network Device"
-                              subtitle={vmHardware.mac_address || "Primary interface networking"}
-                              value={[
-                                vmHardware.nic_model || "virtio",
-                                vmHardware.bridge || "no bridge",
-                                formatVlanTag(vmHardware.vlan_tag),
-                              ].join(" • ")}
-                              actionLabel="Edit network"
-                              onAction={() => openEditor("vm-network")}
-                            />
-                          </div>
                         ) : selectedItem.kind === "lxc" && lxcResources ? (
                           <div className="divide-y divide-border/50">
                             <ConfigRow
@@ -1896,13 +2110,18 @@ export default function ProxmoxManagerPage() {
                           </div>
                         )}
                       </div>
+                      ) : null}
 
                       {selectedItem.kind === "qemu" ? (
                         <HardwareCatalogPanel
-                          isoAttachments={isoAttachments}
                           nodeOptions={nodeOptions}
                           vmHardware={vmHardware}
                           onHardwareAction={openHardwareAction}
+                          onEditCompute={() => openEditor("vm-compute")}
+                          onEditNetwork={() => openEditor("vm-network")}
+                          onExpandDisk={() => openEditor("vm-disk")}
+                          onRefresh={() => void refreshSelectedConfig()}
+                          isLoadingConfig={isLoadingConfig}
                           onCloneTemplate={() => setCloneState({ ...defaultCloneState(selectedItem), open: true })}
                           isTemplate={isTemplate(selectedItem)}
                         />
@@ -2045,6 +2264,8 @@ export default function ProxmoxManagerPage() {
       <HardwareActionDialog
         state={hardwareAction}
         busy={isSubmittingHardwareAction}
+        nodeOptions={nodeOptions}
+        bridgeOptions={bridgeOptions}
         onClose={() => setHardwareAction({ open: false, title: "", device: "", value: "", delete: "" })}
         onSubmit={() => void submitHardwareAction()}
         onChange={setHardwareAction}
@@ -2243,28 +2464,65 @@ function ConfigEditorDialog({
         </DialogHeader>
 
         {state?.type === "vm-compute" ? (
-          <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Memory (MiB)">
-              <Input
-                value={state.memoryMb}
-                onChange={(event) => onChange({ ...state, memoryMb: event.target.value })}
-                inputMode="numeric"
-              />
-            </Field>
-            <Field label="Sockets">
-              <Input
-                value={state.sockets}
-                onChange={(event) => onChange({ ...state, sockets: event.target.value })}
-                inputMode="numeric"
-              />
-            </Field>
-            <Field label="Cores">
-              <Input
-                value={state.cores}
-                onChange={(event) => onChange({ ...state, cores: event.target.value })}
-                inputMode="numeric"
-              />
-            </Field>
+          <div className="space-y-5">
+            <div className="rounded-xl border border-border/60 p-4">
+              <div className="mb-3 text-sm font-semibold">Memory</div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Memory (MiB)">
+                  <Input
+                    value={state.memoryMb}
+                    onChange={(event) => onChange({ ...state, memoryMb: event.target.value })}
+                    inputMode="numeric"
+                    placeholder="2048"
+                  />
+                </Field>
+                <Field label="Minimum Memory (MiB)">
+                  <Input
+                    value={state.minimumMemoryMb}
+                    onChange={(event) => onChange({ ...state, minimumMemoryMb: event.target.value, ballooningDevice: true })}
+                    inputMode="numeric"
+                    placeholder="Optional, enables ballooning"
+                    disabled={!state.ballooningDevice}
+                  />
+                </Field>
+                <Field label="Shares">
+                  <Input
+                    value={state.shares}
+                    onChange={(event) => onChange({ ...state, shares: event.target.value })}
+                    inputMode="numeric"
+                    placeholder="Default 1000"
+                  />
+                </Field>
+                <label className="flex items-center gap-2 self-end rounded-lg border border-border/60 px-3 py-2 text-sm">
+                  <Checkbox
+                    checked={state.ballooningDevice}
+                    onCheckedChange={(checked) => onChange({ ...state, ballooningDevice: checked === true })}
+                  />
+                  Ballooning device
+                </label>
+              </div>
+            </div>
+            <div className="rounded-xl border border-border/60 p-4">
+              <div className="mb-3 text-sm font-semibold">Processors</div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Sockets">
+                  <Input
+                    value={state.sockets}
+                    onChange={(event) => onChange({ ...state, sockets: event.target.value })}
+                    inputMode="numeric"
+                    placeholder="1"
+                  />
+                </Field>
+                <Field label="Cores">
+                  <Input
+                    value={state.cores}
+                    onChange={(event) => onChange({ ...state, cores: event.target.value })}
+                    inputMode="numeric"
+                    placeholder="2"
+                  />
+                </Field>
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -2404,8 +2662,8 @@ function GuestSummaryPanel({
           <SummaryMeter icon={Cpu} label="CPU usage" value={`${((item.cpu || 0) * 100).toFixed(2)}%`} amount={(item.cpu || 0) * 100} />
           <SummaryMeter icon={MemoryStick} label="Memory usage" value={formatUsage(item.mem, item.maxmem)} amount={percent(item.mem, item.maxmem)} />
           <SummaryLine icon={HardDrive} label="Bootdisk size" value={item.kind === "qemu" ? vmHardware?.disk_size || formatBytesSafe(item.maxdisk) : lxcResources?.rootfs_size || formatBytesSafe(item.maxdisk)} />
-          <SummaryLine icon={Router} label="IPs" value={ips.length ? ips.join(", ") : guestSummary?.error ? "Guest agent unavailable" : "No IPs reported"} />
           <SummaryLine icon={Router} label="Network" value={item.kind === "qemu" ? `${vmHardware?.bridge || "no bridge"} / ${formatVlanTag(vmHardware?.vlan_tag)}` : `${lxcResources?.bridge || "no bridge"} / ${formatVlanTag(lxcResources?.vlan_tag)}`} />
+          <SummaryIpList ips={ips} fallback={guestSummary?.error ? "Guest agent unavailable" : "No IPs reported"} />
         </div>
       </section>
 
@@ -2419,6 +2677,175 @@ function GuestSummaryPanel({
         </div>
       </section>
     </div>
+  );
+}
+
+function SummaryIpList({
+  ips,
+  fallback,
+}: {
+  ips: string[];
+  fallback: string;
+}) {
+  const visibleIps = ips.slice(0, 2);
+  const hiddenIps = ips.slice(2);
+
+  return (
+    <div className="grid grid-cols-[24px_150px_minmax(0,1fr)] items-start gap-2 text-sm">
+      <Router className="mt-1 h-4 w-4 text-muted-foreground" />
+      <span className="mt-0.5 text-muted-foreground">IPs</span>
+      <div className="flex min-w-0 justify-end">
+        {ips.length > 0 ? (
+          <div className="flex max-w-full items-center justify-end gap-1.5">
+            <div className="flex min-w-0 items-center justify-end gap-1.5 overflow-hidden">
+              {visibleIps.map((ip) => (
+                <IpAddressChip
+                  key={ip}
+                  ip={ip}
+                  className="min-w-0 max-w-[10rem] xl:max-w-[13rem]"
+                />
+              ))}
+            </div>
+            {hiddenIps.length > 0 ? (
+              <IpPopover
+                trigger={
+                  <button
+                    type="button"
+                    className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-xs font-medium text-primary outline-none ring-offset-background transition hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-label={`Show ${hiddenIps.length} more IP addresses`}
+                  >
+                    +{hiddenIps.length} more
+                  </button>
+                }
+                contentClassName="w-80 max-w-[min(80vw,22rem)] p-3"
+              >
+                <>
+                  <div className="mb-2 text-xs font-semibold text-muted-foreground">IP addresses</div>
+                  <div className="max-h-56 space-y-1 overflow-auto pr-1">
+                    {ips.map((ip) => (
+                      <IpAddressPopoverRow key={ip} ip={ip} />
+                    ))}
+                  </div>
+                </>
+              </IpPopover>
+            ) : null}
+          </div>
+        ) : (
+          <div className="truncate text-right font-medium text-muted-foreground" title={fallback}>
+            {fallback}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IpPopover({
+  trigger,
+  children,
+  contentClassName,
+}: {
+  trigger: React.ReactElement;
+  children: React.ReactNode;
+  contentClassName?: string;
+}) {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <span
+        className="inline-flex"
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+      >
+        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      </span>
+      <PopoverContent
+        align="end"
+        side="bottom"
+        sideOffset={8}
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+        className={cn("font-mono text-xs", contentClassName)}
+      >
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+async function copyIpAddress(ip: string) {
+  await navigator.clipboard.writeText(ip);
+}
+
+function CopyIpButton({
+  ip,
+  className,
+}: {
+  ip: string;
+  className?: string;
+}) {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = React.useCallback(async () => {
+    try {
+      await copyIpAddress(ip);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch (error) {
+      showErrorToast("Could not copy IP address", parseErrorMessage(error));
+    }
+  }, [ip]);
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background/70 text-muted-foreground outline-none ring-offset-background transition hover:bg-background hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        className
+      )}
+      aria-label={`Copy ${ip}`}
+      onClick={handleCopy}
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+    </button>
+  );
+}
+
+function IpAddressPopoverRow({ ip }: { ip: string }) {
+  return (
+    <div className="flex items-start gap-2 rounded-md px-1 py-1 hover:bg-muted/50">
+      <div className="min-w-0 flex-1 break-all font-mono text-xs leading-5">{ip}</div>
+      <CopyIpButton ip={ip} />
+    </div>
+  );
+}
+
+function IpAddressChip({
+  ip,
+  className,
+}: {
+  ip: string;
+  className?: string;
+}) {
+  return (
+    <IpPopover
+      trigger={
+        <button
+          type="button"
+          className={cn(
+            "min-w-0 truncate rounded-md border border-border/70 bg-background/60 px-2 py-0.5 font-mono text-xs font-medium text-foreground outline-none ring-offset-background transition hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            className
+          )}
+          aria-label={`Show full IP address ${ip}`}
+        >
+          {ip}
+        </button>
+      }
+      contentClassName="max-w-[min(80vw,24rem)] px-3 py-2"
+    >
+      <IpAddressPopoverRow ip={ip} />
+    </IpPopover>
   );
 }
 
@@ -2462,102 +2889,154 @@ function SummaryMeter({
 }
 
 const hardwareOptions = [
-  { label: "Hard Disk", icon: HardDrive, device: "scsi1", value: "local-lvm:32,discard=on,ssd=1", helper: "Creates or updates a virtual disk slot." },
+  { label: "Hard Disk", icon: HardDrive, device: "{next:scsi}", value: "local-lvm:32,discard=on,ssd=1", helper: "Creates or updates a virtual disk slot." },
   { label: "CD/DVD Drive", icon: Disc3, device: "ide2", value: "none,media=cdrom", helper: "Attach, change, or clear ISO media." },
-  { label: "Network Device", icon: Network, device: "net1", value: "virtio,bridge=vmbr0", helper: "Adds another virtual NIC." },
+  { label: "Network Device", icon: Network, device: "{next:net}", value: "virtio,bridge=vmbr0", helper: "Adds another virtual NIC." },
   { label: "EFI Disk", icon: HardDrive, device: "efidisk0", value: "local-lvm:1,efitype=4m,pre-enrolled-keys=1", helper: "Adds or updates UEFI variable storage." },
   { label: "TPM State", icon: Settings, device: "tpmstate0", value: "local-lvm:1,version=v2.0", helper: "Adds TPM 2.0 state storage." },
-  { label: "USB Device", icon: Plus, device: "usb0", value: "host=auto", helper: "Adds a USB mapping." },
-  { label: "PCI Device", icon: Plus, device: "hostpci0", value: "host=0000:00:00.0", helper: "Adds PCI passthrough config." },
-  { label: "Serial Port", icon: SquareTerminal, device: "serial0", value: "socket", helper: "Adds a serial socket." },
+  { label: "USB Device", icon: Plus, device: "{next:usb}", value: "host=auto", helper: "Adds a USB mapping." },
+  { label: "PCI Device", icon: Plus, device: "{next:hostpci}", value: "host=0000:00:00.0", helper: "Adds PCI passthrough config." },
+  { label: "Serial Port", icon: SquareTerminal, device: "{next:serial}", value: "socket", helper: "Adds a serial socket." },
   { label: "CloudInit Drive", icon: Cloud, device: "ide2", value: "local-lvm:cloudinit", helper: "Adds or moves the cloud-init drive." },
 ];
 
 function HardwareCatalogPanel({
-  isoAttachments,
   nodeOptions,
   vmHardware,
   onHardwareAction,
+  onEditCompute,
+  onEditNetwork,
+  onExpandDisk,
+  onRefresh,
+  isLoadingConfig,
   onCloneTemplate,
   isTemplate,
 }: {
-  isoAttachments: Array<{ key: string; value: string }>;
   nodeOptions: ProxmoxNodeOptionsResult | null;
   vmHardware: ProxmoxVMHardwareResult | null;
   onHardwareAction: (state: Partial<HardwareActionState>) => void;
+  onEditCompute: () => void;
+  onEditNetwork: () => void;
+  onExpandDisk: () => void;
+  onRefresh: () => void;
+  isLoadingConfig: boolean;
   onCloneTemplate: () => void;
   isTemplate: boolean;
 }) {
   const isoImages = nodeOptions?.iso_images || [];
+  const rows = buildHardwareRows(vmHardware);
+  const nextDeviceFor = (prefix: string) => {
+    const raw = vmHardware?.raw || {};
+    for (let index = 0; index < 32; index += 1) {
+      const key = `${prefix}${index}`;
+      if (!raw[key]) return key;
+    }
+    return `${prefix}0`;
+  };
   return (
     <section className="rounded-2xl border border-border/70 bg-card/40">
       <div className="flex flex-col gap-3 border-b border-border/60 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-lg font-semibold">Hardware & Media</h3>
           <p className="text-sm text-muted-foreground">
-            Apply QEMU hardware config changes through Proxmox config endpoints.
+            Current QEMU hardware configuration from Proxmox.
           </p>
         </div>
-        {isTemplate ? (
-          <Button onClick={onCloneTemplate}>
-            <CopyPlus className="mr-2 h-4 w-4" />
-            Clone from Template
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={onRefresh} disabled={isLoadingConfig}>
+            <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingConfig && "animate-spin")} />
+            Refresh
           </Button>
-        ) : null}
-      </div>
-      <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-        {hardwareOptions.map((option) => (
-          <div key={option.label} className="rounded-xl border border-border/60 bg-background/30 p-3">
-            <div className="flex items-center gap-2">
-              <option.icon className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">{option.label}</span>
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {option.helper}
-            </p>
-            <Button
-              className="mt-3 w-full"
-              variant="outline"
-              size="sm"
-              onClick={() => onHardwareAction({
-                title: `Add ${option.label}`,
-                device: option.device,
-                value: option.value,
-              })}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add
+          <Select
+            onValueChange={(value) => {
+              const option = hardwareOptions.find((item) => item.label === value);
+              if (!option) return;
+              const device = option.device.includes("{next:")
+                ? nextDeviceFor(option.device.replace("{next:", "").replace("}", ""))
+                : option.device;
+              onHardwareAction({ title: `Add ${option.label}`, device, value: option.value });
+            }}
+          >
+            <SelectTrigger className="w-52">
+              <SelectValue placeholder="Add hardware" />
+            </SelectTrigger>
+            <SelectContent>
+              {hardwareOptions.map((option) => (
+                <SelectItem key={option.label} value={option.label}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {isTemplate ? (
+            <Button onClick={onCloneTemplate}>
+              <CopyPlus className="mr-2 h-4 w-4" />
+              Clone
             </Button>
-          </div>
-        ))}
+          ) : null}
+        </div>
+      </div>
+      <div className="divide-y divide-border/50">
+        {rows.length > 0 ? (
+          rows.map((row) => (
+            <div key={row.key} className="grid gap-3 px-4 py-3 lg:grid-cols-[260px_minmax(0,1fr)_auto] lg:items-center">
+              <div className="flex min-w-0 items-center gap-3">
+                <row.icon className="h-4 w-4 text-primary" />
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{row.label}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground">{row.key}</div>
+                </div>
+              </div>
+              <div className="min-w-0 rounded-lg border border-border/50 bg-background/30 px-3 py-2 font-mono text-xs text-muted-foreground">
+                <span className="block truncate">{row.value}</span>
+              </div>
+              <div className="flex justify-end gap-2">
+                {row.key === "memory" || row.key === "cores" ? (
+                  <Button variant="outline" size="sm" onClick={onEditCompute}>
+                    <PencilLine className="mr-2 h-4 w-4" />
+                    Edit
+                  </Button>
+                ) : /^net0$/.test(row.key) ? (
+                  <Button variant="outline" size="sm" onClick={onEditNetwork}>
+                    <PencilLine className="mr-2 h-4 w-4" />
+                    Edit
+                  </Button>
+                ) : row.key === vmHardware?.disk_interface ? (
+                  <Button variant="outline" size="sm" onClick={onExpandDisk}>
+                    <PencilLine className="mr-2 h-4 w-4" />
+                    Expand
+                  </Button>
+                ) : row.editable ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onHardwareAction({ title: `Edit ${row.label}`, device: row.key, value: row.value })}
+                  >
+                    <PencilLine className="mr-2 h-4 w-4" />
+                    Edit
+                  </Button>
+                ) : null}
+                {row.removable ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => onHardwareAction({ title: `Remove ${row.label}`, delete: row.key })}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="px-4 py-6 text-sm text-muted-foreground">No hardware configuration was returned by Proxmox.</div>
+        )}
       </div>
       <div className="border-t border-border/60 px-4 py-3">
-        <h4 className="text-sm font-medium">Attached ISOs</h4>
+        <h4 className="text-sm font-medium">ISO Media</h4>
         <div className="mt-3 space-y-2">
-          {isoAttachments.length > 0 ? (
-            isoAttachments.map((iso) => (
-              <div key={iso.key} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/30 px-3 py-2">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium">{iso.key}</div>
-                  <div className="truncate text-xs text-muted-foreground">{iso.value}</div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onHardwareAction({
-                    title: `Edit ${iso.key}`,
-                    device: iso.key,
-                    value: iso.value,
-                  })}
-                >
-                  <Disc3 className="mr-2 h-4 w-4" />
-                  Edit ISO
-                </Button>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground">No attached ISO media reported for this VM.</p>
-          )}
           {isoImages.length > 0 ? (
             <div className="rounded-xl border border-border/60 bg-background/30 p-3">
               <div className="text-sm font-medium">Attach ISO</div>
@@ -2719,49 +3198,74 @@ function CloneVmDialog({
 function HardwareActionDialog({
   state,
   busy,
+  nodeOptions,
+  bridgeOptions,
   onClose,
   onSubmit,
   onChange,
 }: {
   state: HardwareActionState;
   busy: boolean;
+  nodeOptions: ProxmoxNodeOptionsResult | null;
+  bridgeOptions: string[];
   onClose: () => void;
   onSubmit: () => void;
   onChange: (state: HardwareActionState) => void;
 }) {
+  const valueOptions = hardwareValueOptions(state, nodeOptions, bridgeOptions);
+  const isRemoving = Boolean(state.delete.trim());
   return (
     <Dialog open={state.open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{state.title || "Apply Hardware Change"}</DialogTitle>
           <DialogDescription>
-            This writes directly to the Proxmox QEMU config endpoint. Use Proxmox device keys like scsi1, net1, ide2, efidisk0, tpmstate0, serial0, usb0, or hostpci0.
+            Choose from Proxmox-compatible presets, then adjust the generated config value when needed.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4">
             <Field label="Device Key">
               <Input
-                value={state.device}
+                value={isRemoving ? state.delete : state.device}
                 onChange={(event) => onChange({ ...state, device: event.target.value, delete: "" })}
                 placeholder="scsi1"
-              />
-            </Field>
-            <Field label="Delete Key">
-              <Input
-                value={state.delete}
-                onChange={(event) => onChange({ ...state, delete: event.target.value, device: "", value: "" })}
-                placeholder="ide2"
+                disabled={isRemoving || Boolean(state.device)}
               />
             </Field>
           </div>
-          <Field label="Value">
+          {!isRemoving ? (
+            <Field label={hardwareFieldName(state.device)}>
+              <Select
+                value={valueOptions.find((option) => option.value === state.value) ? state.value : undefined}
+                onValueChange={(value) => onChange({ ...state, value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={valueOptions.length ? "Select a valid preset" : "No presets for this key"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {valueOptions.map((option) => (
+                    <SelectItem key={`${option.label}-${option.value}`} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
+          <Field label={isRemoving ? "Action" : "Config Value"}>
             <Textarea
               value={state.value}
               onChange={(event) => onChange({ ...state, value: event.target.value })}
               placeholder="local-lvm:32,discard=on,ssd=1"
+              disabled={isRemoving}
             />
           </Field>
+          {isRemoving ? (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              This will remove the selected Proxmox config key from the VM.
+            </div>
+          ) : null}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={busy}>
