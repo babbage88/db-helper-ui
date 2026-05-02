@@ -29,8 +29,17 @@ export default defineConfig({
             if (id.includes('react-hook-form')) {
               return 'react-hook-form';
             }
+            if (id.includes('react-day-picker')) {
+              return 'react-day-picker';
+            }
             if (id.includes('zod')) {
               return 'zod';
+            }
+            if (id.includes('recharts')) {
+              return 'recharts';
+            }
+            if (id.includes('micromark')) {
+              return 'micromark';
             }
             if (id.includes('tailwind-merge')) {
               return 'tailwind-merge';
