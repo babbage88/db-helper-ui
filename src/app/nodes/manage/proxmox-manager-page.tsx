@@ -152,12 +152,26 @@ type CloneVmState = {
   name: string;
   storage: string;
   memoryMb: string;
+  minimumMemoryMb: string;
+  shares: string;
+  ballooningDevice: boolean;
   sockets: string;
   cores: string;
   fullClone: boolean;
   start: boolean;
   ciUser: string;
   ciPassword: string;
+  overrideNetwork: boolean;
+  nicModel: string;
+  bridge: string;
+  vlanTag: string;
+  firewall: boolean;
+  queues: string;
+  bios: string;
+  machine: string;
+  scsiController: string;
+  bootOrder: string;
+  agentMode: "inherit" | "enabled" | "disabled";
   sshPublicKeys: string;
   ipconfig0: string;
   nameserver: string;
@@ -452,12 +466,26 @@ function defaultCloneState(template?: ExplorerItem | null): CloneVmState {
     name: template ? `${template.label.replace(/template|cloudinit/gi, "").replace(/[-_]+$/g, "") || "vm"}-clone` : "",
     storage: "",
     memoryMb: "2048",
+    minimumMemoryMb: "",
+    shares: "",
+    ballooningDevice: false,
     sockets: "1",
     cores: "2",
     fullClone: true,
     start: false,
     ciUser: "",
     ciPassword: "",
+    overrideNetwork: false,
+    nicModel: "virtio",
+    bridge: "",
+    vlanTag: "",
+    firewall: false,
+    queues: "",
+    bios: "",
+    machine: "",
+    scsiController: "",
+    bootOrder: "",
+    agentMode: "inherit",
     sshPublicKeys: "",
     ipconfig0: "ip=dhcp",
     nameserver: "",
@@ -505,6 +533,61 @@ function parseStringList(value: string) {
     .split(/\n|,/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeVlanTag(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const parsed = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 4094) {
+    throw new Error("VLAN tag must be between 1 and 4094.");
+  }
+  return String(parsed);
+}
+
+function normalizeOptionalPositiveIntString(value: string, fieldName: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const parsed = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`${fieldName} must be a positive integer.`);
+  }
+  return String(parsed);
+}
+
+function buildCloneNet0Value(state: CloneVmState) {
+  if (!state.overrideNetwork) return undefined;
+  const bridge = state.bridge.trim();
+  if (!bridge) {
+    throw new Error("Select a bridge when overriding template networking.");
+  }
+  const vlanTag = normalizeVlanTag(state.vlanTag);
+  const nicModel = state.nicModel.trim() || "virtio";
+  const queues = normalizeOptionalPositiveIntString(state.queues, "Queues");
+  const parts = [`${nicModel}`, `bridge=${bridge}`];
+  if (vlanTag) parts.push(`tag=${vlanTag}`);
+  if (state.firewall) parts.push("firewall=1");
+  if (queues) parts.push(`queues=${queues}`);
+  return parts.join(",");
+}
+
+function getCloneNet0Preview(state: CloneVmState) {
+  if (!state.overrideNetwork) return "Template net0 unchanged";
+  try {
+    return buildCloneNet0Value(state) || "Template net0 unchanged";
+  } catch (error: unknown) {
+    return error instanceof Error ? error.message : "Invalid network override";
+  }
+}
+
+function buildCloneNetworkPresetOptions(bridgeOptions: string[]) {
+  const bridges = bridgeOptions.length ? bridgeOptions : ["vmbr0"];
+  return bridges.flatMap((bridge) => [
+    { label: `VirtIO on ${bridge}`, value: `virtio:${bridge}:plain`, nicModel: "virtio", bridge, firewall: false, queues: "" },
+    { label: `VirtIO on ${bridge}, firewall`, value: `virtio:${bridge}:firewall`, nicModel: "virtio", bridge, firewall: true, queues: "" },
+    { label: `VirtIO multi-queue on ${bridge}`, value: `virtio:${bridge}:queues8`, nicModel: "virtio", bridge, firewall: false, queues: "8" },
+    { label: `E1000 on ${bridge}`, value: `e1000:${bridge}:plain`, nicModel: "e1000", bridge, firewall: false, queues: "" },
+  ]);
 }
 
 function extractBridgeNames(...records: Array<Record<string, string> | undefined>) {
@@ -957,6 +1040,31 @@ export default function ProxmoxManagerPage() {
     if (lxcResources?.bridge) bridges.add(lxcResources.bridge);
     return [...bridges].sort();
   }, [lxcResources, nodeOptions, vmHardware]);
+  const cloneTargetStorageOptions = React.useMemo(
+    () =>
+      (nodeOptions?.storage || [])
+        .filter((storage) => storage.name && storage.content?.includes("images"))
+        .map((storage) => storage.name as string)
+        .sort(),
+    [nodeOptions]
+  );
+  const cloneSnippetStorageOptions = React.useMemo(
+    () =>
+      (nodeOptions?.storage || [])
+        .filter((storage) => storage.name && storage.content?.includes("snippets"))
+        .map((storage) => storage.name as string)
+        .sort(),
+    [nodeOptions]
+  );
+
+  const openCloneDialog = React.useCallback(
+    (template?: ExplorerItem | null) => {
+      const fallbackTemplate = template ?? templateItems[0] ?? null;
+      setCloneState({ ...defaultCloneState(fallbackTemplate), open: true });
+    },
+    [templateItems]
+  );
+
   React.useEffect(() => {
     if (selectedItemId === "host") return;
     if (!explorerItems.some((item) => item.id === selectedItemId)) {
@@ -1285,7 +1393,7 @@ export default function ProxmoxManagerPage() {
         return;
       }
       if (action === "clone") {
-        setCloneState({ ...defaultCloneState(item), open: true });
+        openCloneDialog(item);
         return;
       }
       if (action === "start") {
@@ -1298,7 +1406,7 @@ export default function ProxmoxManagerPage() {
       }
       await handleDelete(item);
     },
-    [handleDelete, handleStart, handleStop]
+    [handleDelete, handleStart, handleStop, openCloneDialog]
   );
 
   const submitClone = React.useCallback(async () => {
@@ -1322,12 +1430,24 @@ export default function ProxmoxManagerPage() {
         name: cloneState.name.trim(),
         storage: cloneState.storage.trim() || undefined,
         memory_mb: parseOptionalInt(cloneState.memoryMb),
+        minimum_memory_mb: parseOptionalInt(cloneState.minimumMemoryMb),
+        shares: parseOptionalInt(cloneState.shares),
+        ballooning_device: cloneState.ballooningDevice,
         sockets: parseOptionalInt(cloneState.sockets),
         cores: parseOptionalInt(cloneState.cores),
         full_clone: cloneState.fullClone,
         start: cloneState.start,
         ci_user: cloneState.ciUser.trim() || undefined,
         ci_password: cloneState.ciPassword.trim() || undefined,
+        bios: cloneState.bios.trim() || undefined,
+        machine: cloneState.machine.trim() || undefined,
+        scsihw: cloneState.scsiController.trim() || undefined,
+        boot: cloneState.bootOrder.trim() || undefined,
+        agent_enabled:
+          cloneState.agentMode === "inherit"
+            ? undefined
+            : cloneState.agentMode === "enabled",
+        net0: buildCloneNet0Value(cloneState),
         ssh_public_keys: parseStringList(cloneState.sshPublicKeys),
         ipconfig0: cloneState.ipconfig0.trim() || undefined,
         nameserver: cloneState.nameserver.trim() || undefined,
@@ -1947,7 +2067,7 @@ export default function ProxmoxManagerPage() {
                                 Delete
                               </Button>
                               {isTemplate(selectedItem) ? (
-                                <Button onClick={() => setCloneState({ ...defaultCloneState(selectedItem), open: true })}>
+                                <Button onClick={() => openCloneDialog(selectedItem)}>
                                   <CopyPlus className="mr-2 h-4 w-4" />
                                   Clone VM
                                 </Button>
@@ -2138,7 +2258,7 @@ export default function ProxmoxManagerPage() {
                           onExpandDisk={() => openEditor("vm-disk")}
                           onRefresh={() => void refreshSelectedConfig()}
                           isLoadingConfig={isLoadingConfig}
-                          onCloneTemplate={() => setCloneState({ ...defaultCloneState(selectedItem), open: true })}
+                          onCloneTemplate={() => openCloneDialog(selectedItem)}
                           isTemplate={isTemplate(selectedItem)}
                         />
                       ) : null}
@@ -2225,14 +2345,23 @@ export default function ProxmoxManagerPage() {
                               </div>
                             </div>
 
-                            <Button
-                              variant="outline"
-                              onClick={() => void refreshInventory()}
-                              disabled={isLoadingInventory}
-                            >
-                              <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingInventory && "animate-spin")} />
-                              Refresh
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                onClick={() => openCloneDialog()}
+                                disabled={templateItems.length === 0}
+                              >
+                                <CopyPlus className="mr-2 h-4 w-4" />
+                                Clone VM From Template
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => void refreshInventory()}
+                                disabled={isLoadingInventory}
+                              >
+                                <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingInventory && "animate-spin")} />
+                                Refresh
+                              </Button>
+                            </div>
                           </div>
 
                           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -2266,6 +2395,34 @@ export default function ProxmoxManagerPage() {
                     </section>
 
                     <section className="space-y-4">
+                      <Card className="border-border/60 bg-muted/20">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base">Clone VM from template</CardTitle>
+                          <CardDescription>
+                            Provision a new QEMU guest using any template already discovered on this node.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex items-center justify-between rounded-lg bg-background/70 px-3 py-2 text-sm">
+                            <span className="text-muted-foreground">Templates available</span>
+                            <span className="font-medium">{templateItems.length}</span>
+                          </div>
+                          <Button
+                            className="w-full"
+                            onClick={() => openCloneDialog()}
+                            disabled={templateItems.length === 0}
+                          >
+                            <CopyPlus className="mr-2 h-4 w-4" />
+                            Clone VM From Template
+                          </Button>
+                          {templateItems.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              No QEMU templates are currently in inventory. Create or refresh templates first.
+                            </p>
+                          ) : null}
+                        </CardContent>
+                      </Card>
+
                       <SideNote
                         title="Node context"
                         lines={[
@@ -2304,6 +2461,9 @@ export default function ProxmoxManagerPage() {
       <CloneVmDialog
         state={cloneState}
         templates={templateItems}
+        bridgeOptions={bridgeOptions}
+        targetStorageOptions={cloneTargetStorageOptions}
+        snippetStorageOptions={cloneSnippetStorageOptions}
         busy={isSubmittingClone}
         onClose={() => setCloneState(defaultCloneState())}
         onSubmit={() => void submitClone()}
@@ -3212,6 +3372,9 @@ function HardwareCatalogPanel({
 function CloneVmDialog({
   state,
   templates,
+  bridgeOptions,
+  targetStorageOptions,
+  snippetStorageOptions,
   busy,
   onClose,
   onSubmit,
@@ -3219,11 +3382,15 @@ function CloneVmDialog({
 }: {
   state: CloneVmState;
   templates: ExplorerItem[];
+  bridgeOptions: string[];
+  targetStorageOptions: string[];
+  snippetStorageOptions: string[];
   busy: boolean;
   onClose: () => void;
   onSubmit: () => void;
   onChange: (state: CloneVmState) => void;
 }) {
+  const networkPresets = React.useMemo(() => buildCloneNetworkPresetOptions(bridgeOptions), [bridgeOptions]);
   return (
     <Dialog open={state.open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="sm:max-w-3xl">
@@ -3255,18 +3422,128 @@ function CloneVmDialog({
             <Input value={state.name} onChange={(event) => onChange({ ...state, name: event.target.value })} />
           </Field>
           <Field label="Target Storage">
-            <Input value={state.storage} onChange={(event) => onChange({ ...state, storage: event.target.value })} placeholder="Template default" />
+            <StorageSelect
+              value={state.storage}
+              options={targetStorageOptions}
+              emptyLabel="Template default"
+              onChange={(storage) => onChange({ ...state, storage })}
+            />
           </Field>
-          <Field label="Memory (MiB)">
-            <Input value={state.memoryMb} onChange={(event) => onChange({ ...state, memoryMb: event.target.value })} inputMode="numeric" />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Sockets">
-              <Input value={state.sockets} onChange={(event) => onChange({ ...state, sockets: event.target.value })} inputMode="numeric" />
-            </Field>
-            <Field label="Cores">
-              <Input value={state.cores} onChange={(event) => onChange({ ...state, cores: event.target.value })} inputMode="numeric" />
-            </Field>
+          <div className="md:col-span-2 rounded-xl border border-border/60 p-4">
+            <div className="text-sm font-semibold">Clone Hardware Overrides</div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Apply VM compute and firmware settings during clone instead of updating the guest afterward.
+            </p>
+            <div className="mt-4 grid gap-4 xl:grid-cols-2">
+              <div className="rounded-xl border border-border/60 p-4">
+                <div className="mb-3 text-sm font-semibold">Memory</div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Memory (MiB)">
+                    <Input value={state.memoryMb} onChange={(event) => onChange({ ...state, memoryMb: event.target.value })} inputMode="numeric" />
+                  </Field>
+                  <Field label="Minimum Memory (MiB)">
+                    <Input
+                      value={state.minimumMemoryMb}
+                      onChange={(event) => onChange({ ...state, minimumMemoryMb: event.target.value })}
+                      inputMode="numeric"
+                      placeholder="Optional"
+                      disabled={!state.ballooningDevice}
+                    />
+                  </Field>
+                  <Field label="Shares">
+                    <Input
+                      value={state.shares}
+                      onChange={(event) => onChange({ ...state, shares: event.target.value })}
+                      inputMode="numeric"
+                      placeholder="Default 1000"
+                    />
+                  </Field>
+                  <label className="flex items-center gap-2 self-end rounded-lg border border-border/60 px-3 py-2 text-sm">
+                    <Checkbox
+                      checked={state.ballooningDevice}
+                      onCheckedChange={(checked) => onChange({ ...state, ballooningDevice: checked === true })}
+                    />
+                    Ballooning device
+                  </label>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 p-4">
+                <div className="mb-3 text-sm font-semibold">Processors</div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Sockets">
+                    <Input value={state.sockets} onChange={(event) => onChange({ ...state, sockets: event.target.value })} inputMode="numeric" />
+                  </Field>
+                  <Field label="Cores">
+                    <Input value={state.cores} onChange={(event) => onChange({ ...state, cores: event.target.value })} inputMode="numeric" />
+                  </Field>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 p-4">
+                <div className="mb-3 text-sm font-semibold">Firmware</div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="BIOS">
+                    <Select value={state.bios || "__inherit__"} onValueChange={(bios) => onChange({ ...state, bios: bios === "__inherit__" ? "" : bios })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Inherit template BIOS" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__inherit__">Inherit template</SelectItem>
+                        <SelectItem value="ovmf">OVMF (UEFI)</SelectItem>
+                        <SelectItem value="seabios">SeaBIOS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Machine">
+                    <Select value={state.machine || "__inherit__"} onValueChange={(machine) => onChange({ ...state, machine: machine === "__inherit__" ? "" : machine })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Inherit template machine" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__inherit__">Inherit template</SelectItem>
+                        <SelectItem value="q35">q35</SelectItem>
+                        <SelectItem value="pc-i440fx-9.0">i440fx</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="SCSI Controller">
+                    <Select value={state.scsiController || "__inherit__"} onValueChange={(scsiController) => onChange({ ...state, scsiController: scsiController === "__inherit__" ? "" : scsiController })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Inherit template SCSI controller" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__inherit__">Inherit template</SelectItem>
+                        <SelectItem value="virtio-scsi-single">VirtIO SCSI single</SelectItem>
+                        <SelectItem value="virtio-scsi-pci">VirtIO SCSI</SelectItem>
+                        <SelectItem value="lsi">LSI 53C895A</SelectItem>
+                        <SelectItem value="megasas">MegaRAID SAS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="QEMU Guest Agent">
+                    <Select value={state.agentMode} onValueChange={(agentMode: CloneVmState["agentMode"]) => onChange({ ...state, agentMode })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Inherit template agent setting" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="inherit">Inherit template</SelectItem>
+                        <SelectItem value="enabled">Enabled</SelectItem>
+                        <SelectItem value="disabled">Disabled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 p-4">
+                <div className="mb-3 text-sm font-semibold">Boot</div>
+                <Field label="Boot Order">
+                  <Input
+                    value={state.bootOrder}
+                    onChange={(event) => onChange({ ...state, bootOrder: event.target.value })}
+                    placeholder="order=scsi0"
+                  />
+                </Field>
+              </div>
+            </div>
           </div>
           <Field label="Cloud-init User">
             <Input value={state.ciUser} onChange={(event) => onChange({ ...state, ciUser: event.target.value })} />
@@ -3274,6 +3551,107 @@ function CloneVmDialog({
           <Field label="Cloud-init Password">
             <Input value={state.ciPassword} onChange={(event) => onChange({ ...state, ciPassword: event.target.value })} type="password" />
           </Field>
+          <div className="md:col-span-2 rounded-xl border border-border/60 p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <div className="text-sm font-semibold">Network Override</div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Keep the template NIC as-is, or choose a target bridge and optional VLAN tag for `net0`.
+                </p>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={state.overrideNetwork}
+                  onCheckedChange={(checked) => onChange({ ...state, overrideNetwork: checked === true })}
+                />
+                Override template network
+              </label>
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Field label="Network Profile">
+                <Select
+                  value={undefined}
+                  disabled={!state.overrideNetwork}
+                  onValueChange={(value) => {
+                    const preset = networkPresets.find((option) => option.value === value);
+                    if (!preset) return;
+                    onChange({
+                      ...state,
+                      overrideNetwork: true,
+                      nicModel: preset.nicModel,
+                      bridge: preset.bridge,
+                      firewall: preset.firewall,
+                      queues: preset.queues,
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Apply a guided network preset" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {networkPresets.map((preset) => (
+                      <SelectItem key={preset.value} value={preset.value}>
+                        {preset.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="NIC Model">
+                <Select
+                  value={state.nicModel}
+                  disabled={!state.overrideNetwork}
+                  onValueChange={(nicModel) => onChange({ ...state, overrideNetwork: true, nicModel })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select NIC model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="virtio">VirtIO</SelectItem>
+                    <SelectItem value="e1000">E1000</SelectItem>
+                    <SelectItem value="vmxnet3">VMXNET3</SelectItem>
+                    <SelectItem value="rtl8139">RTL8139</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Bridge">
+                <BridgeSelect
+                  value={state.bridge}
+                  options={bridgeOptions}
+                  disabled={!state.overrideNetwork}
+                  onChange={(bridge) => onChange({ ...state, overrideNetwork: true, bridge })}
+                />
+              </Field>
+              <Field label="VLAN Tag">
+                <VlanTagSelect
+                  value={state.vlanTag}
+                  onChange={(vlanTag) => onChange({ ...state, overrideNetwork: true, vlanTag })}
+                  disabled={!state.overrideNetwork}
+                />
+              </Field>
+              <Field label="Queues">
+                <Input
+                  value={state.queues}
+                  onChange={(event) => onChange({ ...state, overrideNetwork: true, queues: event.target.value })}
+                  placeholder="Optional for VirtIO multiqueue"
+                  inputMode="numeric"
+                  disabled={!state.overrideNetwork}
+                />
+              </Field>
+              <label className="flex items-center gap-2 self-end rounded-lg border border-border/60 px-3 py-2 text-sm">
+                <Checkbox
+                  checked={state.firewall}
+                  disabled={!state.overrideNetwork}
+                  onCheckedChange={(checked) => onChange({ ...state, overrideNetwork: true, firewall: checked === true })}
+                />
+                Enable firewall
+              </label>
+            </div>
+            <div className="mt-4 rounded-lg bg-muted/30 p-3">
+              <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Generated net0</div>
+              <div className="mt-2 font-mono text-xs text-foreground">{getCloneNet0Preview(state)}</div>
+            </div>
+          </div>
           <Field label="IP Config">
             <Input value={state.ipconfig0} onChange={(event) => onChange({ ...state, ipconfig0: event.target.value })} placeholder="ip=dhcp" />
           </Field>
@@ -3284,7 +3662,12 @@ function CloneVmDialog({
             <Input value={state.searchDomain} onChange={(event) => onChange({ ...state, searchDomain: event.target.value })} />
           </Field>
           <Field label="Snippets Storage">
-            <Input value={state.ciSnippetsStorage} onChange={(event) => onChange({ ...state, ciSnippetsStorage: event.target.value })} placeholder="local" />
+            <StorageSelect
+              value={state.ciSnippetsStorage}
+              options={snippetStorageOptions}
+              emptyLabel="No snippets storage"
+              onChange={(ciSnippetsStorage) => onChange({ ...state, ciSnippetsStorage })}
+            />
           </Field>
           <div className="md:col-span-2">
             <Field label="SSH Public Keys">
@@ -3463,10 +3846,12 @@ function Field({
 function BridgeSelect({
   value,
   options,
+  disabled = false,
   onChange,
 }: {
   value: string;
   options: string[];
+  disabled?: boolean;
   onChange: (value: string) => void;
 }) {
   const normalizedOptions = React.useMemo(() => {
@@ -3476,7 +3861,7 @@ function BridgeSelect({
   }, [options, value]);
 
   return (
-    <Select value={value || normalizedOptions[0]} onValueChange={onChange}>
+    <Select value={value || normalizedOptions[0]} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger>
         <SelectValue placeholder="Select bridge" />
       </SelectTrigger>
@@ -3484,6 +3869,100 @@ function BridgeSelect({
         {normalizedOptions.map((bridge) => (
           <SelectItem key={bridge} value={bridge}>
             {bridge}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function VlanTagSelect({
+  value,
+  disabled = false,
+  onChange,
+}: {
+  value: string;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const presetValues = ["", "10", "20", "30", "40", "50", "100", "200", "300", "400"];
+  const normalizedValue = value.trim();
+  const usesCustomValue = normalizedValue !== "" && !presetValues.includes(normalizedValue);
+  const selectValue = usesCustomValue ? "__custom__" : normalizedValue || "__untagged__";
+
+  return (
+    <div className="grid gap-3">
+      <Select
+        value={selectValue}
+        disabled={disabled}
+        onValueChange={(next) => {
+          if (next === "__custom__") return;
+          onChange(next === "__untagged__" ? "" : next);
+        }}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Select VLAN mode" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__untagged__">Untagged</SelectItem>
+          {presetValues
+            .filter((preset) => preset !== "")
+            .map((preset) => (
+              <SelectItem key={preset} value={preset}>
+                VLAN {preset}
+              </SelectItem>
+            ))}
+          <SelectItem value="__custom__">Custom VLAN ID</SelectItem>
+        </SelectContent>
+      </Select>
+      {usesCustomValue ? (
+        <Input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="Enter VLAN ID"
+          inputMode="numeric"
+          disabled={disabled}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function StorageSelect({
+  value,
+  options,
+  emptyLabel,
+  disabled = false,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  emptyLabel: string;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const normalizedOptions = React.useMemo(() => {
+    const next = new Set(options);
+    if (value) next.add(value);
+    return [...next].sort();
+  }, [options, value]);
+
+  const selectValue = value || "__empty__";
+
+  return (
+    <Select
+      value={selectValue}
+      disabled={disabled}
+      onValueChange={(next) => onChange(next === "__empty__" ? "" : next)}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder={emptyLabel} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__empty__">{emptyLabel}</SelectItem>
+        {normalizedOptions.map((option) => (
+          <SelectItem key={option} value={option}>
+            {option}
           </SelectItem>
         ))}
       </SelectContent>
