@@ -3434,53 +3434,75 @@ function CloneVmDialog({
             <p className="mt-1 text-sm text-muted-foreground">
               Apply VM compute and firmware settings during clone instead of updating the guest afterward.
             </p>
-            <div className="mt-4 grid gap-4 xl:grid-cols-2">
+            <div className="mt-4 grid items-start gap-4 xl:grid-cols-2">
               <div className="rounded-xl border border-border/60 p-4">
-                <div className="mb-3 text-sm font-semibold">Memory</div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Memory (MiB)">
-                    <Input value={state.memoryMb} onChange={(event) => onChange({ ...state, memoryMb: event.target.value })} inputMode="numeric" />
-                  </Field>
-                  <Field label="Minimum Memory (MiB)">
-                    <Input
-                      value={state.minimumMemoryMb}
-                      onChange={(event) => onChange({ ...state, minimumMemoryMb: event.target.value })}
-                      inputMode="numeric"
-                      placeholder="Optional"
-                      disabled={!state.ballooningDevice}
-                    />
-                  </Field>
-                  <Field label="Shares">
-                    <Input
-                      value={state.shares}
-                      onChange={(event) => onChange({ ...state, shares: event.target.value })}
-                      inputMode="numeric"
-                      placeholder="Default 1000"
-                    />
-                  </Field>
-                  <label className="flex items-center gap-2 self-end rounded-lg border border-border/60 px-3 py-2 text-sm">
-                    <Checkbox
-                      checked={state.ballooningDevice}
-                      onCheckedChange={(checked) => onChange({ ...state, ballooningDevice: checked === true })}
-                    />
-                    Ballooning device
-                  </label>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold">Compute</div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Memory, ballooning, and CPU topology.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Memory (MiB)">
+                      <Input value={state.memoryMb} onChange={(event) => onChange({ ...state, memoryMb: event.target.value })} inputMode="numeric" />
+                    </Field>
+                    <Field label="Minimum Memory (MiB)">
+                      <Input
+                        value={state.minimumMemoryMb}
+                        onChange={(event) => onChange({ ...state, minimumMemoryMb: event.target.value })}
+                        inputMode="numeric"
+                        placeholder={state.ballooningDevice ? "Optional" : "Enable ballooning first"}
+                        disabled={!state.ballooningDevice}
+                      />
+                    </Field>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Sockets">
+                      <Input value={state.sockets} onChange={(event) => onChange({ ...state, sockets: event.target.value })} inputMode="numeric" />
+                    </Field>
+                    <Field label="Cores">
+                      <Input value={state.cores} onChange={(event) => onChange({ ...state, cores: event.target.value })} inputMode="numeric" />
+                    </Field>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Shares">
+                      <Input
+                        value={state.shares}
+                        onChange={(event) => onChange({ ...state, shares: event.target.value })}
+                        inputMode="numeric"
+                        placeholder="Default 1000"
+                      />
+                    </Field>
+                    <div className="space-y-2">
+                      <Label>Memory Ballooning</Label>
+                      <label className="flex min-h-10 items-center justify-between gap-4 rounded-md border border-border/60 bg-muted/15 px-3 py-2 text-sm">
+                        <div className="min-w-0">
+                          <div className="font-medium text-foreground">Enable ballooning</div>
+                          <div className="text-xs text-muted-foreground">Allow reclaim down to minimum memory</div>
+                        </div>
+                        <Checkbox
+                          checked={state.ballooningDevice}
+                          onCheckedChange={(checked) =>
+                            onChange({ ...state, ballooningDevice: checked === true })
+                          }
+                        />
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
+
               <div className="rounded-xl border border-border/60 p-4">
-                <div className="mb-3 text-sm font-semibold">Processors</div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Sockets">
-                    <Input value={state.sockets} onChange={(event) => onChange({ ...state, sockets: event.target.value })} inputMode="numeric" />
-                  </Field>
-                  <Field label="Cores">
-                    <Input value={state.cores} onChange={(event) => onChange({ ...state, cores: event.target.value })} inputMode="numeric" />
-                  </Field>
+                <div className="mb-4">
+                  <div className="text-sm font-semibold">Platform</div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Firmware, controller, guest agent, and boot behavior.
+                  </p>
                 </div>
-              </div>
-              <div className="rounded-xl border border-border/60 p-4">
-                <div className="mb-3 text-sm font-semibold">Firmware</div>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="BIOS">
                     <Select value={state.bios || "__inherit__"} onValueChange={(bios) => onChange({ ...state, bios: bios === "__inherit__" ? "" : bios })}>
                       <SelectTrigger>
@@ -3531,17 +3553,16 @@ function CloneVmDialog({
                       </SelectContent>
                     </Select>
                   </Field>
+                  <div className="sm:col-span-2">
+                    <Field label="Boot Order">
+                      <Input
+                        value={state.bootOrder}
+                        onChange={(event) => onChange({ ...state, bootOrder: event.target.value })}
+                        placeholder="order=scsi0"
+                      />
+                    </Field>
+                  </div>
                 </div>
-              </div>
-              <div className="rounded-xl border border-border/60 p-4">
-                <div className="mb-3 text-sm font-semibold">Boot</div>
-                <Field label="Boot Order">
-                  <Input
-                    value={state.bootOrder}
-                    onChange={(event) => onChange({ ...state, bootOrder: event.target.value })}
-                    placeholder="order=scsi0"
-                  />
-                </Field>
               </div>
             </div>
           </div>
