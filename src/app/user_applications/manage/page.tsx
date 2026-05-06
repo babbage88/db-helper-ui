@@ -47,6 +47,10 @@ import {
   showInfoToast,
   showSuccessToast,
 } from "@/lib/toast-utils";
+import {
+  type DiscoveredUserApplicationCandidate,
+  UserApplicationDiscoveryService,
+} from "@/lib/user-application-discovery";
 
 type ApplicationKind = "go_service" | "frontend_spa";
 type RuntimeTarget = "linux_vps" | "linux_vm" | "linux_bare_metal";
@@ -421,6 +425,9 @@ function CreateUserApplicationDialog({
   const [needsPostgres, setNeedsPostgres] = React.useState(false);
   const [needsValkey, setNeedsValkey] = React.useState(false);
   const [needsGarage, setNeedsGarage] = React.useState(false);
+  const [discoveredCandidate, setDiscoveredCandidate] =
+    React.useState<DiscoveredUserApplicationCandidate | null>(null);
+  const [isDiscovering, setIsDiscovering] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   React.useEffect(() => {
@@ -436,6 +443,8 @@ function CreateUserApplicationDialog({
       setNeedsPostgres(false);
       setNeedsValkey(false);
       setNeedsGarage(false);
+      setDiscoveredCandidate(null);
+      setIsDiscovering(false);
       setIsSubmitting(false);
     }
   }, [open]);
@@ -450,7 +459,6 @@ function CreateUserApplicationDialog({
 
   const deployKind =
     applicationKind === "go_service" ? "systemd_service" : "nginx_static_site";
-  const sourceKind = applicationKind === "go_service" ? "go.mod" : "package.json";
   const normalizedName = slugifyAppName(name) || "app";
   const derivedModuleName = deriveModuleName(repositoryUrl);
   const derivedPackageName = deriveRepoSlug(repositoryUrl) || normalizedName;
@@ -484,10 +492,93 @@ function CreateUserApplicationDialog({
           webRoot: `/usr/share/nginx/html/${normalizedName}`,
           webServer: "nginx",
         };
+  const useDiscoveredDefaults = discoveredCandidate?.applicationKind === applicationKind;
+  const selectedSourceKind =
+    useDiscoveredDefaults && discoveredCandidate?.sourceKind
+      ? discoveredCandidate.sourceKind
+      : applicationKind === "go_service"
+        ? "go.mod"
+        : "package.json";
+  const selectedManifestPath =
+    useDiscoveredDefaults && discoveredCandidate?.manifestPath
+      ? discoveredCandidate.manifestPath
+      : derivedManifestPath;
+  const selectedPackageManager =
+    useDiscoveredDefaults && discoveredCandidate?.packageManager
+      ? discoveredCandidate.packageManager
+      : derivedPackageManager;
+  const selectedModuleName =
+    useDiscoveredDefaults && discoveredCandidate?.moduleName
+      ? discoveredCandidate.moduleName
+      : derivedModuleName;
+  const selectedPackageName =
+    useDiscoveredDefaults && discoveredCandidate?.packageName
+      ? discoveredCandidate.packageName
+      : derivedPackageName;
+  const selectedBuildConfig = useDiscoveredDefaults
+    ? {
+        ...(discoveredCandidate?.buildConfig || {}),
+        branch: branch.trim() || undefined,
+        tag: tag.trim() || undefined,
+      }
+    : derivedBuildConfig;
+  const selectedDeployConfig = useDiscoveredDefaults && discoveredCandidate?.deployConfig
+    ? discoveredCandidate.deployConfig
+    : derivedDeployConfig;
+
+  function applyDiscoveredCandidate(candidate: DiscoveredUserApplicationCandidate | null) {
+    setDiscoveredCandidate(candidate);
+    if (!candidate) return;
+
+    if (candidate.name && !name.trim()) {
+      setName(candidate.name);
+    }
+    if (candidate.description && !description.trim()) {
+      setDescription(candidate.description);
+    }
+    if (candidate.applicationKind === "frontend_spa" || candidate.deployKind === "nginx_static_site") {
+      setApplicationKind("frontend_spa");
+    } else {
+      setApplicationKind("go_service");
+    }
+
+    const dependencyNames = new Set(
+      (candidate.infraDependencies || []).map((item) => item.dependencyName),
+    );
+    setNeedsPostgres(dependencyNames.has("Postgres SQL"));
+    setNeedsValkey(dependencyNames.has("Valkey"));
+    setNeedsGarage(dependencyNames.has("Garage S3"));
+
+    if (dependencyNames.has("Linux VM")) {
+      setRuntimeTarget("linux_vm");
+    } else if (dependencyNames.has("Linux Bare Metal")) {
+      setRuntimeTarget("linux_bare_metal");
+    } else {
+      setRuntimeTarget("linux_vps");
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (step === 1) {
+      setIsDiscovering(true);
+      try {
+        const result = await UserApplicationDiscoveryService.discover({
+          repositoryUrl,
+          branch: branch.trim() || undefined,
+          tag: tag.trim() || undefined,
+        });
+        applyDiscoveredCandidate(result.candidates?.[0] || null);
+      } catch (error) {
+        console.error("Failed to discover application manifest:", error);
+        setDiscoveredCandidate(null);
+        showErrorToast(
+          "Repo discovery failed",
+          `${parseErrorMessage(error)} We kept the manual intent step available.`,
+        );
+      } finally {
+        setIsDiscovering(false);
+      }
       setStep(2);
       return;
     }
@@ -551,15 +642,15 @@ function CreateUserApplicationDialog({
         name,
         description,
         repositoryUrl,
-        manifestPath: derivedManifestPath,
-        sourceKind,
+        manifestPath: selectedManifestPath,
+        sourceKind: selectedSourceKind,
         deployKind,
-        packageManager: derivedPackageManager,
-        packageName: applicationKind === "frontend_spa" ? derivedPackageName : undefined,
-        moduleName: applicationKind === "go_service" ? derivedModuleName || undefined : undefined,
+        packageManager: selectedPackageManager,
+        packageName: applicationKind === "frontend_spa" ? selectedPackageName : undefined,
+        moduleName: applicationKind === "go_service" ? selectedModuleName || undefined : undefined,
         registerable: true,
-        buildConfig: derivedBuildConfig,
-        deployConfig: derivedDeployConfig,
+        buildConfig: selectedBuildConfig,
+        deployConfig: selectedDeployConfig,
         infraDependencies: dependencies,
       };
 
@@ -657,8 +748,8 @@ function CreateUserApplicationDialog({
               <section className="grid gap-3 rounded-xl border border-dashed p-4">
                 <div className="font-medium">Next</div>
                 <p className="text-sm text-muted-foreground">
-                  The next step stays at the intent level: what kind of app this is, where it
-                  runs, and whether it needs Postgres, Valkey, or S3-style storage.
+                  We will try to inspect the repo before step 2 so the intent screen starts
+                  from detected defaults instead of a blind guess.
                 </p>
               </section>
             </section>
@@ -667,11 +758,11 @@ function CreateUserApplicationDialog({
               <section className="grid gap-4">
                 <div>
                   <h3 className="font-semibold">Application Type</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Pick the closest deployment shape. We generate the lower-level defaults
-                    instead of asking you for install commands and module paths up front.
-                  </p>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  Pick the closest deployment shape. If repo discovery found a likely match,
+                  it should already be selected here and you can still override it.
+                </p>
+              </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <button
                     type="button"
@@ -812,21 +903,21 @@ function CreateUserApplicationDialog({
               <section className="grid gap-3 rounded-xl border border-dashed p-4">
                 <div className="font-medium">Generated Defaults</div>
                 <p className="text-sm text-muted-foreground">
-                  These are inferred defaults we will store for now. The server-side repo
-                  analysis pass should eventually replace these with real detection.
+                  These are the defaults we will store right now. When repo discovery succeeds,
+                  these come from the detected manifest instead of a local guess.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Badge>{deployKind}</Badge>
-                  <Badge variant="outline">{sourceKind}</Badge>
-                  <Badge variant="outline">{derivedManifestPath}</Badge>
-                  <Badge variant="outline">{derivedPackageManager}</Badge>
+                  <Badge variant="outline">{selectedSourceKind}</Badge>
+                  <Badge variant="outline">{selectedManifestPath}</Badge>
+                  <Badge variant="outline">{selectedPackageManager}</Badge>
                   {branch.trim() ? <Badge variant="outline">branch:{branch.trim()}</Badge> : null}
                   {tag.trim() ? <Badge variant="outline">tag:{tag.trim()}</Badge> : null}
-                  {applicationKind === "go_service" && derivedModuleName ? (
-                    <Badge variant="secondary">{derivedModuleName}</Badge>
+                  {applicationKind === "go_service" && selectedModuleName ? (
+                    <Badge variant="secondary">{selectedModuleName}</Badge>
                   ) : null}
                   {applicationKind === "frontend_spa" ? (
-                    <Badge variant="secondary">{derivedPackageName}</Badge>
+                    <Badge variant="secondary">{selectedPackageName}</Badge>
                   ) : null}
                 </div>
               </section>
@@ -842,8 +933,14 @@ function CreateUserApplicationDialog({
                 Back
               </Button>
             ) : null}
-            <Button type="submit" disabled={isSubmitting}>
-              {step === 1 ? "Next" : isSubmitting ? "Registering..." : "Register Application"}
+            <Button type="submit" disabled={isSubmitting || isDiscovering}>
+              {step === 1
+                ? isDiscovering
+                  ? "Detecting..."
+                  : "Next"
+                : isSubmitting
+                  ? "Registering..."
+                  : "Register Application"}
             </Button>
           </DialogFooter>
         </form>
