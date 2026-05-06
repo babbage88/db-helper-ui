@@ -1,7 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Boxes, Plus, RefreshCw, Rocket, Trash2 } from "lucide-react";
+import {
+  Boxes,
+  Globe,
+  HardDrive,
+  Plus,
+  RefreshCw,
+  Server,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -22,14 +32,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 import type { CreateInfraDependencyRequest } from "@/lib/api/models/CreateInfraDependencyRequest";
 import type { CreateUserApplicationRequest } from "@/lib/api/models/CreateUserApplicationRequest";
@@ -44,75 +48,47 @@ import {
   showSuccessToast,
 } from "@/lib/toast-utils";
 
-type DependencyDraft = {
+type ApplicationKind = "go_service" | "frontend_spa";
+type RuntimeTarget = "linux_vps" | "linux_vm" | "linux_bare_metal";
+
+type DependencyOption = {
   key: string;
-  dependencyType: "host_server_type" | "platform_type";
-  selectedId: string;
+  label: string;
+  description: string;
+  hostServerTypeName?: string;
+  platformTypeName?: string;
 };
 
-const DOGFOOD_APPLICATIONS: Array<{
-  label: string;
-  payload: CreateUserApplicationRequest;
-}> = [
+const dependencyOptions: DependencyOption[] = [
   {
-    label: "Register infractl-ui",
-    payload: {
-      name: "infractl-ui",
-      description: "The infractl React frontend delivered as a static site behind nginx.",
-      repositoryUrl: "https://github.com/babbage88/infractl-ui",
-      manifestPath: "package.json",
-      sourceKind: "package.json",
-      packageName: "infractl-ui",
-      packageManager: "npm",
-      deployKind: "nginx_static_site",
-      registerable: true,
-      buildConfig: {
-        installCommand: "npm ci",
-        buildCommand: "npm run build-rockydev2",
-      },
-      deployConfig: {
-        artifactPath: "builds/dev",
-        webRoot: "/usr/share/nginx/html/infractl",
-        webServer: "nginx",
-      },
-      infraDependencies: [
-        { dependencyType: "host_server_type", dependencyName: "Application Server" },
-        { dependencyType: "platform_type", dependencyName: "Nginx Server" },
-        { dependencyType: "platform_type", dependencyName: "Linux VPS" },
-      ],
-    },
+    key: "app_server",
+    label: "Application Server",
+    description: "The app needs a host intended to run application workloads.",
+    hostServerTypeName: "Application Server",
   },
   {
-    label: "Register go-infra",
-    payload: {
-      name: "go-infra",
-      description: "The infractl API service deployed as a remote systemd workload.",
-      repositoryUrl: "https://github.com/babbage88/go-infra",
-      manifestPath: "go.mod",
-      sourceKind: "go.mod",
-      moduleName: "github.com/babbage88/go-infra",
-      packageManager: "go",
-      deployKind: "systemd_service",
-      registerable: true,
-      buildConfig: {
-        buildCommand: "go build -o dist/goinfra .",
-        entryPackage: ".",
-      },
-      deployConfig: {
-        appName: "go-infra",
-        destinationBinary: "goinfra",
-        installDir: "/etc/go-infra",
-        systemdUnit: "go-infra.service",
-      },
-      infraDependencies: [
-        { dependencyType: "host_server_type", dependencyName: "Application Server" },
-        { dependencyType: "platform_type", dependencyName: "Linux VPS" },
-        { dependencyType: "platform_type", dependencyName: "Linux VM" },
-        { dependencyType: "platform_type", dependencyName: "Postgres SQL" },
-        { dependencyType: "platform_type", dependencyName: "Valkey" },
-        { dependencyType: "platform_type", dependencyName: "Garage S3" },
-      ],
-    },
+    key: "nginx",
+    label: "Nginx Static Hosting",
+    description: "The app should be served as static files behind nginx.",
+    platformTypeName: "Nginx Server",
+  },
+  {
+    key: "postgres",
+    label: "Postgres",
+    description: "The app needs a Postgres database provisioned for it.",
+    platformTypeName: "Postgres SQL",
+  },
+  {
+    key: "valkey",
+    label: "Valkey",
+    description: "The app needs Valkey for sessions, queues, or caching.",
+    platformTypeName: "Valkey",
+  },
+  {
+    key: "garage",
+    label: "S3 Storage",
+    description: "The app needs an S3-compatible object storage endpoint.",
+    platformTypeName: "Garage S3",
   },
 ];
 
@@ -125,12 +101,80 @@ function parseErrorMessage(error: unknown) {
   return "Request failed.";
 }
 
-function createDependencyDraft(): DependencyDraft {
+function buildDependencyRequest(args: {
+  dependencyName: string;
+  hostServerTypeName?: string;
+  platformTypeName?: string;
+  hostServerTypes: HostServerType[];
+  platformTypes: PlatformType[];
+}): CreateInfraDependencyRequest {
+  const hostType = args.hostServerTypeName
+    ? args.hostServerTypes.find((item) => item.name === args.hostServerTypeName)
+    : undefined;
+  const platformType = args.platformTypeName
+    ? args.platformTypes.find((item) => item.name === args.platformTypeName)
+    : undefined;
+
   return {
-    key: crypto.randomUUID(),
-    dependencyType: "platform_type",
-    selectedId: "",
+    dependencyName: args.dependencyName,
+    dependencyType: args.hostServerTypeName ? "host_server_type" : "platform_type",
+    hostServerTypeId: hostType?.id,
+    platformTypeId: platformType?.id,
   };
+}
+
+function buildRuntimeDependency(
+  runtimeTarget: RuntimeTarget,
+  platformTypes: PlatformType[],
+): CreateInfraDependencyRequest {
+  const platformName =
+    runtimeTarget === "linux_vm"
+      ? "Linux VM"
+      : runtimeTarget === "linux_bare_metal"
+        ? "Linux Bare Metal"
+        : "Linux VPS";
+  const platformType = platformTypes.find((item) => item.name === platformName);
+  return {
+    dependencyName: platformName,
+    dependencyType: "platform_type",
+    platformTypeId: platformType?.id,
+  };
+}
+
+function deriveRepoSlug(repositoryUrl: string) {
+  const trimmed = repositoryUrl.trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  const withoutGit = trimmed.replace(/\.git$/i, "");
+  const segments = withoutGit.split("/");
+  return segments[segments.length - 1] || "";
+}
+
+function deriveModuleName(repositoryUrl: string) {
+  const trimmed = repositoryUrl.trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+
+  try {
+    const parsed = new URL(trimmed);
+    return `${parsed.host}${parsed.pathname.replace(/\.git$/i, "")}`.replace(/^\/+/, "");
+  } catch {
+    return trimmed.replace(/^https?:\/\//i, "").replace(/\.git$/i, "");
+  }
+}
+
+function slugifyAppName(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function readOptionalStringRecordValue(
+  value: Record<string, unknown> | undefined,
+  key: string,
+) {
+  const candidate = value?.[key];
+  return typeof candidate === "string" && candidate.trim() ? candidate : undefined;
 }
 
 export default function ManageUserApplicationsPage() {
@@ -139,7 +183,6 @@ export default function ManageUserApplicationsPage() {
   const [platformTypes, setPlatformTypes] = React.useState<PlatformType[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
-  const [isSubmittingPreset, setIsSubmittingPreset] = React.useState<string | null>(null);
 
   const loadPageData = React.useCallback(async () => {
     setIsLoading(true);
@@ -163,21 +206,6 @@ export default function ManageUserApplicationsPage() {
   React.useEffect(() => {
     loadPageData();
   }, [loadPageData]);
-
-  async function handleRegisterPreset(payload: CreateUserApplicationRequest) {
-    const label = payload.name || "application";
-    setIsSubmittingPreset(label);
-    try {
-      await UserApplicationsService.createUserApplication(payload);
-      showSuccessToast(`Registered ${label}`, "The application is now tracked by infractl.");
-      await loadPageData();
-    } catch (error) {
-      console.error(`Failed to register ${label}:`, error);
-      showErrorToast(`Failed to register ${label}`, parseErrorMessage(error));
-    } finally {
-      setIsSubmittingPreset(null);
-    }
-  }
 
   async function handleDelete(application: UserApplicationDao) {
     if (!application.id || !application.name) return;
@@ -203,8 +231,8 @@ export default function ManageUserApplicationsPage() {
                   User Applications
                 </CardTitle>
                 <CardDescription>
-                  Register deployable repositories and map them to the host and platform
-                  capabilities infractl should target.
+                  Register a real application the way a user would: source repo, deployment
+                  shape, runtime target, and the infrastructure it needs.
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -214,38 +242,36 @@ export default function ManageUserApplicationsPage() {
                 </Button>
                 <Button onClick={() => setIsCreateOpen(true)}>
                   <Plus className="h-4 w-4" />
-                  Register Manually
+                  Register Application
                 </Button>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            {DOGFOOD_APPLICATIONS.map((dogfoodApp) => (
-              <Card key={dogfoodApp.label} className="border-dashed">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">{dogfoodApp.payload.name}</CardTitle>
-                  <CardDescription>{dogfoodApp.payload.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex items-center justify-between gap-3 pt-0">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">{dogfoodApp.payload.deployKind}</Badge>
-                    {(dogfoodApp.payload.infraDependencies || []).slice(0, 3).map((dependency) => (
-                      <Badge key={`${dogfoodApp.payload.name}-${dependency.dependencyType}-${dependency.dependencyName}`} variant="outline">
-                        {dependency.dependencyName}
-                      </Badge>
-                    ))}
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleRegisterPreset(dogfoodApp.payload)}
-                    disabled={isSubmittingPreset === dogfoodApp.payload.name}
-                  >
-                    <Rocket className="h-4 w-4" />
-                    {isSubmittingPreset === dogfoodApp.payload.name ? "Registering..." : "Register"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+          <CardContent className="grid gap-4 md:grid-cols-3">
+            <Card className="border-dashed">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">1. Basics</CardTitle>
+                <CardDescription>
+                  Start with the application name and source repository URL.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+            <Card className="border-dashed">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">2. Deploy Shape</CardTitle>
+                <CardDescription>
+                  Choose whether this is a Go service or a frontend SPA and how it should land.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+            <Card className="border-dashed">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">3. Dependencies</CardTitle>
+                <CardDescription>
+                  Capture things like Postgres, Valkey, S3, nginx hosting, and Linux target.
+                </CardDescription>
+              </CardHeader>
+            </Card>
           </CardContent>
         </Card>
 
@@ -271,7 +297,9 @@ export default function ManageUserApplicationsPage() {
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div className="space-y-1">
                           <CardTitle className="text-lg">{application.name}</CardTitle>
-                          <CardDescription>{application.description || application.repositoryUrl}</CardDescription>
+                          <CardDescription>
+                            {application.description || application.repositoryUrl}
+                          </CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge>{application.deployKind || "unknown"}</Badge>
@@ -290,17 +318,43 @@ export default function ManageUserApplicationsPage() {
                     <CardContent className="grid gap-4 text-sm">
                       <div className="grid gap-1">
                         <div className="font-medium">Repository</div>
-                        <div className="break-all text-muted-foreground">{application.repositoryUrl}</div>
+                        <div className="break-all text-muted-foreground">
+                          {application.repositoryUrl}
+                        </div>
                       </div>
                       <div className="grid gap-1 md:grid-cols-2 md:gap-4">
                         <div>
                           <div className="font-medium">Manifest</div>
-                          <div className="text-muted-foreground">{application.manifestPath || "Not specified"}</div>
+                          <div className="text-muted-foreground">
+                            {application.manifestPath || "Not specified"}
+                          </div>
                         </div>
                         <div>
                           <div className="font-medium">Package / Module</div>
                           <div className="text-muted-foreground">
-                            {application.packageName || application.moduleName || "Not specified"}
+                            {application.packageName ||
+                              application.moduleName ||
+                              "Not specified"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid gap-1 md:grid-cols-2 md:gap-4">
+                        <div>
+                          <div className="font-medium">Branch</div>
+                          <div className="text-muted-foreground">
+                            {readOptionalStringRecordValue(
+                              application.buildConfig as Record<string, unknown> | undefined,
+                              "branch",
+                            ) || "Default branch"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="font-medium">Tag</div>
+                          <div className="text-muted-foreground">
+                            {readOptionalStringRecordValue(
+                              application.buildConfig as Record<string, unknown> | undefined,
+                              "tag",
+                            ) || "Not pinned"}
                           </div>
                         </div>
                       </div>
@@ -317,7 +371,9 @@ export default function ManageUserApplicationsPage() {
                               </Badge>
                             ))
                           ) : (
-                            <span className="text-muted-foreground">No dependencies recorded.</span>
+                            <span className="text-muted-foreground">
+                              No dependencies recorded.
+                            </span>
                           )}
                         </div>
                       </div>
@@ -354,78 +410,157 @@ function CreateUserApplicationDialog({
   platformTypes: PlatformType[];
   onCreated: () => Promise<void>;
 }) {
+  const [step, setStep] = React.useState<1 | 2>(1);
+  const [applicationKind, setApplicationKind] = React.useState<ApplicationKind>("go_service");
+  const [runtimeTarget, setRuntimeTarget] = React.useState<RuntimeTarget>("linux_vps");
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [repositoryUrl, setRepositoryUrl] = React.useState("");
-  const [manifestPath, setManifestPath] = React.useState("");
-  const [sourceKind, setSourceKind] = React.useState("manual");
-  const [deployKind, setDeployKind] = React.useState("systemd_service");
-  const [packageManager, setPackageManager] = React.useState("");
-  const [packageName, setPackageName] = React.useState("");
-  const [moduleName, setModuleName] = React.useState("");
-  const [buildConfigJson, setBuildConfigJson] = React.useState("{}");
-  const [deployConfigJson, setDeployConfigJson] = React.useState("{}");
-  const [dependencies, setDependencies] = React.useState<DependencyDraft[]>([createDependencyDraft()]);
+  const [branch, setBranch] = React.useState("");
+  const [tag, setTag] = React.useState("");
+  const [needsPostgres, setNeedsPostgres] = React.useState(false);
+  const [needsValkey, setNeedsValkey] = React.useState(false);
+  const [needsGarage, setNeedsGarage] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   React.useEffect(() => {
     if (!open) {
+      setStep(1);
+      setApplicationKind("go_service");
+      setRuntimeTarget("linux_vps");
       setName("");
       setDescription("");
       setRepositoryUrl("");
-      setManifestPath("");
-      setSourceKind("manual");
-      setDeployKind("systemd_service");
-      setPackageManager("");
-      setPackageName("");
-      setModuleName("");
-      setBuildConfigJson("{}");
-      setDeployConfigJson("{}");
-      setDependencies([createDependencyDraft()]);
+      setBranch("");
+      setTag("");
+      setNeedsPostgres(false);
+      setNeedsValkey(false);
+      setNeedsGarage(false);
       setIsSubmitting(false);
     }
   }, [open]);
 
-  function getDependencyOptions(type: DependencyDraft["dependencyType"]) {
-    return type === "host_server_type" ? hostServerTypes : platformTypes;
-  }
+  React.useEffect(() => {
+    if (name.trim()) return;
+    const repoSlug = deriveRepoSlug(repositoryUrl);
+    if (repoSlug) {
+      setName(repoSlug);
+    }
+  }, [name, repositoryUrl]);
 
-  function parseJsonConfig(value: string) {
-    if (!value.trim()) return undefined;
-    return JSON.parse(value) as Record<string, unknown>;
-  }
+  const deployKind =
+    applicationKind === "go_service" ? "systemd_service" : "nginx_static_site";
+  const sourceKind = applicationKind === "go_service" ? "go.mod" : "package.json";
+  const normalizedName = slugifyAppName(name) || "app";
+  const derivedModuleName = deriveModuleName(repositoryUrl);
+  const derivedPackageName = deriveRepoSlug(repositoryUrl) || normalizedName;
+  const derivedManifestPath = applicationKind === "go_service" ? "go.mod" : "package.json";
+  const derivedPackageManager = applicationKind === "go_service" ? "go" : "npm";
+  const derivedBuildConfig =
+    applicationKind === "go_service"
+      ? {
+          installCommand: "go mod download",
+          buildCommand: `go build -o dist/${normalizedName} .`,
+          entryPackage: ".",
+          branch: branch.trim() || undefined,
+          tag: tag.trim() || undefined,
+        }
+      : {
+          installCommand: "npm ci",
+          buildCommand: "npm run build",
+          branch: branch.trim() || undefined,
+          tag: tag.trim() || undefined,
+        };
+  const derivedDeployConfig =
+    applicationKind === "go_service"
+      ? {
+          appName: normalizedName,
+          destinationBinary: normalizedName,
+          installDir: `/opt/${normalizedName}`,
+          systemdUnit: `${normalizedName}.service`,
+        }
+      : {
+          artifactPath: "dist",
+          webRoot: `/usr/share/nginx/html/${normalizedName}`,
+          webServer: "nginx",
+        };
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (step === 1) {
+      setStep(2);
+      return;
+    }
     setIsSubmitting(true);
     try {
-      const infraDependencies: CreateInfraDependencyRequest[] = dependencies
-        .filter((dependency) => dependency.selectedId)
-        .map((dependency) => {
-          const options = getDependencyOptions(dependency.dependencyType);
-          const selected = options.find((option) => option.id === dependency.selectedId);
-          return {
-            dependencyType: dependency.dependencyType,
-            dependencyName: selected?.name || dependency.selectedId,
-            hostServerTypeId: dependency.dependencyType === "host_server_type" ? dependency.selectedId : undefined,
-            platformTypeId: dependency.dependencyType === "platform_type" ? dependency.selectedId : undefined,
-          };
-        });
+      const dependencies: CreateInfraDependencyRequest[] = [];
+
+      dependencies.push(
+        buildDependencyRequest({
+          dependencyName: "Application Server",
+          hostServerTypeName: "Application Server",
+          hostServerTypes,
+          platformTypes,
+        }),
+      );
+
+      dependencies.push(buildRuntimeDependency(runtimeTarget, platformTypes));
+
+      if (applicationKind === "frontend_spa") {
+        dependencies.push(
+          buildDependencyRequest({
+            dependencyName: "Nginx Server",
+            platformTypeName: "Nginx Server",
+            hostServerTypes,
+            platformTypes,
+          }),
+        );
+      }
+      if (needsPostgres) {
+        dependencies.push(
+          buildDependencyRequest({
+            dependencyName: "Postgres SQL",
+            platformTypeName: "Postgres SQL",
+            hostServerTypes,
+            platformTypes,
+          }),
+        );
+      }
+      if (needsValkey) {
+        dependencies.push(
+          buildDependencyRequest({
+            dependencyName: "Valkey",
+            platformTypeName: "Valkey",
+            hostServerTypes,
+            platformTypes,
+          }),
+        );
+      }
+      if (needsGarage) {
+        dependencies.push(
+          buildDependencyRequest({
+            dependencyName: "Garage S3",
+            platformTypeName: "Garage S3",
+            hostServerTypes,
+            platformTypes,
+          }),
+        );
+      }
 
       const payload: CreateUserApplicationRequest = {
         name,
         description,
         repositoryUrl,
-        manifestPath,
+        manifestPath: derivedManifestPath,
         sourceKind,
         deployKind,
-        packageManager,
-        packageName,
-        moduleName,
+        packageManager: derivedPackageManager,
+        packageName: applicationKind === "frontend_spa" ? derivedPackageName : undefined,
+        moduleName: applicationKind === "go_service" ? derivedModuleName || undefined : undefined,
         registerable: true,
-        buildConfig: parseJsonConfig(buildConfigJson),
-        deployConfig: parseJsonConfig(deployConfigJson),
-        infraDependencies,
+        buildConfig: derivedBuildConfig,
+        deployConfig: derivedDeployConfig,
+        infraDependencies: dependencies,
       };
 
       await UserApplicationsService.createUserApplication(payload);
@@ -434,10 +569,7 @@ function CreateUserApplicationDialog({
       await onCreated();
     } catch (error) {
       console.error("Failed to create user application:", error);
-      const message = error instanceof SyntaxError
-        ? "Build and deploy config must be valid JSON objects."
-        : parseErrorMessage(error);
-      showErrorToast("Failed to register application", message);
+      showErrorToast("Failed to register application", parseErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -445,185 +577,273 @@ function CreateUserApplicationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Register User Application</DialogTitle>
           <DialogDescription>
-            Capture the repository, deployment mode, and infra dependencies we should manage.
+            Start with the repo. We will keep the first step minimal and generate
+            the noisy deployment defaults behind the scenes.
           </DialogDescription>
         </DialogHeader>
 
-        <form className="grid gap-5" onSubmit={handleSubmit}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="app-name">Name</Label>
-              <Input id="app-name" value={name} onChange={(event) => setName(event.target.value)} required />
+        <form className="grid gap-6" onSubmit={handleSubmit}>
+          <section className="grid gap-3 rounded-xl border border-dashed p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="font-medium">Step {step} of 2</div>
+              <div className="flex gap-2">
+                <Badge variant={step === 1 ? "default" : "outline"}>Basics</Badge>
+                <Badge variant={step === 2 ? "default" : "outline"}>Intent</Badge>
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="repo-url">Repository URL</Label>
-              <Input id="repo-url" value={repositoryUrl} onChange={(event) => setRepositoryUrl(event.target.value)} required />
-            </div>
-            <div className="grid gap-2 md:col-span-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea id="description" value={description} onChange={(event) => setDescription(event.target.value)} rows={3} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="manifest-path">Manifest Path</Label>
-              <Input id="manifest-path" value={manifestPath} onChange={(event) => setManifestPath(event.target.value)} placeholder="package.json or go.mod" />
-            </div>
-            <div className="grid gap-2">
-              <Label>Source Kind</Label>
-              <Select value={sourceKind} onValueChange={setSourceKind}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manual">manual</SelectItem>
-                  <SelectItem value="package.json">package.json</SelectItem>
-                  <SelectItem value="go.mod">go.mod</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Deploy Kind</Label>
-              <Select value={deployKind} onValueChange={setDeployKind}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="systemd_service">systemd_service</SelectItem>
-                  <SelectItem value="nginx_static_site">nginx_static_site</SelectItem>
-                  <SelectItem value="library">library</SelectItem>
-                  <SelectItem value="migrations">migrations</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="package-manager">Package Manager</Label>
-              <Input id="package-manager" value={packageManager} onChange={(event) => setPackageManager(event.target.value)} placeholder="npm, go, pnpm..." />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="package-name">Package Name</Label>
-              <Input id="package-name" value={packageName} onChange={(event) => setPackageName(event.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="module-name">Module Name</Label>
-              <Input id="module-name" value={moduleName} onChange={(event) => setModuleName(event.target.value)} />
-            </div>
-          </div>
+          </section>
 
-          <div className="grid gap-3">
-            <div className="flex items-center justify-between">
+          {step === 1 ? (
+            <section className="grid gap-4">
               <div>
-                <Label>Infra Dependencies</Label>
+                <h3 className="font-semibold">Basics</h3>
                 <p className="text-sm text-muted-foreground">
-                  Pick the host and platform types this application expects.
+                  Start with the two things a user actually knows. We can infer the rest later.
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setDependencies((current) => [...current, createDependencyDraft()])}
-              >
-                <Plus className="h-4 w-4" />
-                Add Dependency
-              </Button>
-            </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="app-name">Application Name</Label>
+                  <Input
+                    id="app-name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="repo-url">Repository URL</Label>
+                  <Input
+                    id="repo-url"
+                    value={repositoryUrl}
+                    onChange={(event) => setRepositoryUrl(event.target.value)}
+                    placeholder="https://github.com/org/repo"
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="branch">Branch</Label>
+                  <Input
+                    id="branch"
+                    value={branch}
+                    onChange={(event) => setBranch(event.target.value)}
+                    placeholder="Optional. Leave blank for the repo default branch."
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="tag">Tag</Label>
+                  <Input
+                    id="tag"
+                    value={tag}
+                    onChange={(event) => setTag(event.target.value)}
+                    placeholder="Optional. Pin this registration to a release tag."
+                  />
+                </div>
+                <div className="grid gap-2 md:col-span-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    rows={3}
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    placeholder="Optional for now. We can also infer this later."
+                  />
+                </div>
+              </div>
+              <section className="grid gap-3 rounded-xl border border-dashed p-4">
+                <div className="font-medium">Next</div>
+                <p className="text-sm text-muted-foreground">
+                  The next step stays at the intent level: what kind of app this is, where it
+                  runs, and whether it needs Postgres, Valkey, or S3-style storage.
+                </p>
+              </section>
+            </section>
+          ) : (
+            <>
+              <section className="grid gap-4">
+                <div>
+                  <h3 className="font-semibold">Application Type</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Pick the closest deployment shape. We generate the lower-level defaults
+                    instead of asking you for install commands and module paths up front.
+                  </p>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <button
+                    type="button"
+                    className={cn(
+                      "rounded-xl border p-4 text-left transition-colors",
+                      applicationKind === "go_service"
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-accent/50",
+                    )}
+                    onClick={() => setApplicationKind("go_service")}
+                  >
+                    <div className="flex items-center gap-2 font-medium">
+                      <Server className="h-4 w-4" />
+                      Go Service
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Backend API or worker deployed as a remote systemd service.
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "rounded-xl border p-4 text-left transition-colors",
+                      applicationKind === "frontend_spa"
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-accent/50",
+                    )}
+                    onClick={() => setApplicationKind("frontend_spa")}
+                  >
+                    <div className="flex items-center gap-2 font-medium">
+                      <Globe className="h-4 w-4" />
+                      Frontend SPA
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Static frontend build published behind nginx.
+                    </p>
+                  </button>
+                </div>
+              </section>
 
-            <div className="grid gap-3">
-              {dependencies.map((dependency) => {
-                const options = getDependencyOptions(dependency.dependencyType);
-                return (
-                  <div key={dependency.key} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[180px_1fr_auto]">
-                    <Select
-                      value={dependency.dependencyType}
-                      onValueChange={(value: DependencyDraft["dependencyType"]) =>
-                        setDependencies((current) =>
-                          current.map((item) =>
-                            item.key === dependency.key
-                              ? { ...item, dependencyType: value, selectedId: "" }
-                              : item
-                          )
-                        )
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="platform_type">platform_type</SelectItem>
-                        <SelectItem value="host_server_type">host_server_type</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <section className="grid gap-4">
+                <div>
+                  <h3 className="font-semibold">Runtime Target</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Choose the Linux environment this application is expected to run on.
+                  </p>
+                </div>
+                <div className="grid gap-2 md:grid-cols-3">
+                  <Button
+                    type="button"
+                    variant={runtimeTarget === "linux_vps" ? "default" : "outline"}
+                    onClick={() => setRuntimeTarget("linux_vps")}
+                  >
+                    Linux VPS
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={runtimeTarget === "linux_vm" ? "default" : "outline"}
+                    onClick={() => setRuntimeTarget("linux_vm")}
+                  >
+                    Linux VM
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={runtimeTarget === "linux_bare_metal" ? "default" : "outline"}
+                    onClick={() => setRuntimeTarget("linux_bare_metal")}
+                  >
+                    Linux Bare Metal
+                  </Button>
+                </div>
+              </section>
 
-                    <Select
-                      value={dependency.selectedId}
-                      onValueChange={(value) =>
-                        setDependencies((current) =>
-                          current.map((item) =>
-                            item.key === dependency.key ? { ...item, selectedId: value } : item
-                          )
-                        )
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a dependency target" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {options.map((option) => (
-                          <SelectItem key={option.id} value={option.id || ""}>
-                            {option.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              <section className="grid gap-4">
+                <div>
+                  <h3 className="font-semibold">Infrastructure Needs</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Pick the managed infrastructure this application should get in staging.
+                  </p>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {dependencyOptions
+                    .filter((option) => applicationKind === "frontend_spa" || option.key !== "nginx")
+                    .map((option) => {
+                      const checked =
+                        option.key === "nginx"
+                          ? applicationKind === "frontend_spa"
+                          : option.key === "postgres"
+                            ? needsPostgres
+                            : option.key === "valkey"
+                              ? needsValkey
+                              : option.key === "garage"
+                                ? needsGarage
+                                : true;
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() =>
-                        setDependencies((current) =>
-                          current.length === 1 ? [createDependencyDraft()] : current.filter((item) => item.key !== dependency.key)
-                        )
-                      }
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                      const disabled = option.key === "app_server" || option.key === "nginx";
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="build-config-json">Build Config JSON</Label>
-              <Textarea
-                id="build-config-json"
-                rows={8}
-                value={buildConfigJson}
-                onChange={(event) => setBuildConfigJson(event.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="deploy-config-json">Deploy Config JSON</Label>
-              <Textarea
-                id="deploy-config-json"
-                rows={8}
-                value={deployConfigJson}
-                onChange={(event) => setDeployConfigJson(event.target.value)}
-              />
-            </div>
-          </div>
+                      return (
+                        <label
+                          key={option.key}
+                          className={cn(
+                            "flex items-start gap-3 rounded-xl border p-4",
+                            checked ? "border-primary bg-primary/5" : "hover:bg-accent/40",
+                            disabled && "opacity-90",
+                          )}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            disabled={disabled}
+                            onCheckedChange={(value) => {
+                              const next = value === true;
+                              if (option.key === "postgres") setNeedsPostgres(next);
+                              if (option.key === "valkey") setNeedsValkey(next);
+                              if (option.key === "garage") setNeedsGarage(next);
+                            }}
+                          />
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 font-medium">
+                              {option.key === "postgres" ? (
+                                <HardDrive className="h-4 w-4" />
+                              ) : option.key === "garage" ? (
+                                <ShieldCheck className="h-4 w-4" />
+                              ) : (
+                                <Server className="h-4 w-4" />
+                              )}
+                              {option.label}
+                              {disabled ? <Badge variant="outline">required</Badge> : null}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {option.description}
+                            </p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                </div>
+              </section>
+
+              <section className="grid gap-3 rounded-xl border border-dashed p-4">
+                <div className="font-medium">Generated Defaults</div>
+                <p className="text-sm text-muted-foreground">
+                  These are inferred defaults we will store for now. The server-side repo
+                  analysis pass should eventually replace these with real detection.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge>{deployKind}</Badge>
+                  <Badge variant="outline">{sourceKind}</Badge>
+                  <Badge variant="outline">{derivedManifestPath}</Badge>
+                  <Badge variant="outline">{derivedPackageManager}</Badge>
+                  {branch.trim() ? <Badge variant="outline">branch:{branch.trim()}</Badge> : null}
+                  {tag.trim() ? <Badge variant="outline">tag:{tag.trim()}</Badge> : null}
+                  {applicationKind === "go_service" && derivedModuleName ? (
+                    <Badge variant="secondary">{derivedModuleName}</Badge>
+                  ) : null}
+                  {applicationKind === "frontend_spa" ? (
+                    <Badge variant="secondary">{derivedPackageName}</Badge>
+                  ) : null}
+                </div>
+              </section>
+            </>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
+            {step === 2 ? (
+              <Button type="button" variant="outline" onClick={() => setStep(1)}>
+                Back
+              </Button>
+            ) : null}
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Registering..." : "Register Application"}
+              {step === 1 ? "Next" : isSubmitting ? "Registering..." : "Register Application"}
             </Button>
           </DialogFooter>
         </form>
